@@ -1,0 +1,13 @@
+.gradle/
+build/
+bin/
+node_modules/
+dist/
+*.log
+.idea/
+.vscode/
+# .env는 서버 버전이므로 주석 처리하여 추적 대상에 포함시킵니다.
+#.env 
+backups/
+backups/
+*.bak

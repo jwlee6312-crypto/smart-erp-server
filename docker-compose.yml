@@ -1,0 +1,48 @@
+services:
+  # 🚀 Smart ERP Backend
+  smart-erp-backend:
+    build: ./erp-backend
+    container_name: smart-erp-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./storage:/app/storage
+      - ./scripts:/app/scripts
+      - /var/lib/asterisk/sounds:/var/lib/asterisk/sounds
+      - /var/spool/asterisk/monitor:/var/spool/asterisk/monitor:ro
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  # 🚀 Asterisk PBX (전화 교환기) - Pure RealTime Configuration
+  asterisk:
+    build:
+      context: .
+      dockerfile: Dockerfile.asterisk
+    container_name: asterisk
+    network_mode: host # 💡 실시간 RTP 통신 안정성을 위해 호스트 네트워크 사용 권장
+    volumes:
+      # 💡 asterisk_config 디렉토리의 참조값들을 엔진에 주입 (RealTime Wiring)
+      - ./asterisk_config:/etc/asterisk
+      - ./asterisk_config/odbc.ini:/etc/odbc.ini
+      - ./asterisk_config/odbcinst.ini:/etc/odbcinst.ini
+      # 런타임 데이터 (음원 및 녹취)
+      - /var/lib/asterisk/sounds:/var/lib/asterisk/sounds
+      - /var/spool/asterisk:/var/spool/asterisk
+    extra_hosts:
+      - "asterisk-db:host-gateway" # 💡 외부 DB 연결을 위한 호스트 매핑 (필요 시 수정)
+    restart: always
+
+  # 🚀 Smart ERP Frontend
+  smart-erp-frontend:
+    build: ./erp-frontend
+    container_name: smart-erp-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - smart-erp-backend
+    restart: always
