@@ -1,9 +1,8 @@
 <!--
 	=============================================================
 	프로그램명	: 입고의뢰서 출력 (Goods Receipt Request Print)
-	작성일자	: 25.02.24
-	작성자	    : AI Assistant
-	설명        : [최종완성] HSIO550U(레이아웃) + HSOD100U(스타일/정렬) 표준 적용
+	작성일자	: 25.02.21
+	설명        : [최종완성] 입고의뢰서 ASP 원본 로직 완벽 이식
 	=============================================================
 -->
 
@@ -11,22 +10,22 @@
 	<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
 	<div class="erp-container">
-		<!-- 🚀 1. 상단 액션 바 (표준 버튼 배치 및 색상) -->
+		<!-- 🚀 1. 상단 액션 바 -->
 		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 px-3 sticky-top shadow-sm">
 			<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
 				<i class="bi bi-printer-fill me-2 text-primary" style="font-size: 18px;"></i>
 				구매정보 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
 				입고관리 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
-				<span class="text-primary fw-bolder">입고의뢰서 출력</span>
+				<span class="text-primary fw-bolder">입고의뢰서 출력 (HSIO215S)</span>
 			</div>
 			<div class="btn-group-erp d-flex gap-1">
 				<button class="btn-erp btn-init" @click="initialize">초기화</button>
 				<button class="btn-erp btn-search" @click="fetchCustList">조회</button>
-				<button class="btn-erp btn-print" @click="print">인쇄</button>
+				<button class="btn-erp btn-primary" @click="printInboundSheet">입고의뢰서 출력</button>
 			</div>
 		</div>
 
-		<!-- 🔍 2. 최상단 검색 조건 (ASP 기준 항목 구성) -->
+		<!-- 🔍 2. 최상단 검색 조건 -->
 		<div class="p-2 pb-0">
 			<div class="card border shadow-sm">
 				<div class="card-body p-0">
@@ -76,9 +75,9 @@
 			</div>
 		</div>
 
-		<!-- 📊 3. 메인 작업 영역 (좌우 분할 레이아웃) -->
+		<!-- 📊 3. 메인 작업 영역 -->
 		<div class="d-flex flex-row flex-grow-1 overflow-hidden p-2 gap-2">
-			<!-- 🅰️ 좌측: 입고 거래처 및 번호 목록 -->
+			<!-- ⬅️ 좌측: 입고 목록 -->
 			<div class="card border shadow-sm d-flex flex-column" style="width: 320px; min-width: 320px;">
 				<div class="card-header bg-light py-1 px-3 border-bottom d-flex align-items-center">
 					<span class="fw-bold small text-dark"><i class="bi bi-list-check me-1"></i> 입고증 대상 목록</span>
@@ -88,10 +87,9 @@
                   </div>
 			</div>
 
-			<!-- 🅱️ 우측: 입고 상세 품목 그리드 -->
+			<!-- 🅱️ 우측: 상세 품목 그리드 -->
 			<div class="flex-grow-1 d-flex flex-column gap-2 overflow-hidden">
 				<div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column bg-white">
-					<!-- ✅ 그리드 타이틀 bg-white 및 상하 중앙 정렬 -->
 					<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between" style="height: 40px;">
 						<span class="fw-bold small text-dark d-flex align-items-center">
 							<i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i> 입고의뢰 상세 내역
@@ -104,14 +102,13 @@
 				</div>
 			</div>
 		</div>
-
 	</div>
 
 	<Modal v-model:visible="modalVisible" :modalProps="modalProps" />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, computed, onUnmounted, nextTick } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import { useAlerts } from '@/composables/useAlerts'
@@ -135,18 +132,13 @@ const searchForm = reactive<any>({
   slipyn: 'N'
 })
 
+const selectedMasterRow = ref<any>(null);
 const selectedInfo = ref('');
 const whOptions = ref<any[]>([]);
 const poGridRef = ref<HTMLDivElement | null>(null);
 const itemGridRef = ref<HTMLDivElement | null>(null);
 let poGrid: Tabulator | null = null;
-let itemGrid: Tabulator | null = null;
-const activeItemCount = ref(0);
-
-const totalSummary = computed(() => {
-  const items = itemGrid?.getData() || []
-  return items.reduce((acc, cur: any) => acc + (Number(cur.jsanamt) + Number(cur.jsanvat) || 0), 0)
-})
+let itemGrid: Tabulator | null = null
 
 async function fetchCustList() {
   try {
@@ -159,12 +151,14 @@ async function fetchCustList() {
     poGrid?.setData(res.data || []);
     itemGrid?.clearData();
     selectedInfo.value = '';
+    selectedMasterRow.value = null;
     vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }
 }
 
 async function fetchDetail(row: any) {
   const d = row.getData();
+  selectedMasterRow.value = d;
   selectedInfo.value = `${d.ioym}-${d.iono}`;
   try {
     const res = await api.post('/hsio/HSIO_215S_STR', {
@@ -182,10 +176,171 @@ function initialize() {
   searchForm.whcd = '000'; searchForm.slipyn = 'N';
   searchForm.fromdt = firstDay;
   searchForm.todt = today;
-  poGrid?.clearData(); itemGrid?.clearData(); selectedInfo.value = '';
+  poGrid?.clearData(); itemGrid?.clearData(); selectedInfo.value = ''; selectedMasterRow.value = null;
 }
 
-const print = () => { vAlert('인쇄 기능을 준비 중입니다.') }
+/** 🚀 [최종] 입고의뢰서 출력 (ASP 로직 이식) */
+const printInboundSheet = async () => {
+    if (!selectedMasterRow.value) return vAlertError('입고 내역을 먼저 선택하세요.')
+    const m = selectedMasterRow.value
+
+    try {
+        const [hRes, dRes, companyRes, stampRes] = await Promise.all([
+            api.post('/hsio/HSIO_REQIN_STR', { actkind: 'S1', cmpycd: authStore.cmpycd, ioym: m.ioym, iono: m.iono }),
+            api.post('/hsio/HSIO_REQIN_STR', { actkind: 'S0', cmpycd: authStore.cmpycd, ioym: m.ioym, iono: m.iono }),
+            api.post('/haba/HABA_900U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd }),
+            api.post('/haba/HABA_100U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd })
+        ])
+
+        if (!hRes.data?.length) return vAlertError('입고의뢰 정보를 찾을 수 없습니다.')
+        const h = hRes.data[0]
+        const dtl = dRes.data || []
+        const sInfo = stampRes.data?.[0] || {}
+
+        // 결재라인 추출
+        const gLines = [];
+        ['gline1', 'gline2', 'gline3', 'gline4', 'gline5'].forEach(key => {
+            const val = String(sInfo[key] || '').trim();
+            if (val) gLines.push(val);
+        });
+        if (gLines.length === 0) gLines.push('담 당', '팀 장', '부 장', '사 장');
+
+        const fC = (n: any) => Number(n || 0).toLocaleString()
+        const fSaup = (v: any) => {
+            const s = String(v || '').replace(/[^0-9]/g, '');
+            return s.length === 10 ? `${s.substring(0,3)}-${s.substring(3,5)}-${s.substring(5)}` : s;
+        }
+
+        const fDate = (v: any) => {
+            const s = String(v || '').replace(/[^0-9]/g, '');
+            return s.length === 8 ? `${s.substring(0,4)}-${s.substring(4,6)}-${s.substring(6,8)}` : v;
+        }
+
+        let rowsHtml = ''
+        let qtysum = 0, amtsum = 0
+
+        for (let i = 0; i < Math.max(dtl.length, 15); i++) {
+            const item = dtl[i] || {}
+            if (item.itemnm) {
+                const qty = Number(item.ioqty || 0); const amt = Number(item.ioamt || 0);
+                qtysum += qty; amtsum += amt;
+                rowsHtml += `
+                <tr height="28">
+                    <td class="text-center" style="font-size:8.5pt;">${i + 1}</td>
+                    <td class="text-center" style="font-size:8.5pt;">${item.itemcd || ''}</td>
+                    <td class="text-left" style="padding-left:3px; font-size:8.5pt;">${String(item.itemnm || '').trim()}</td>
+                    <td class="text-left" style="padding-left:3px; font-size:8.5pt;">${String(item.itsize || '').trim()}</td>
+                    <td class="text-center" style="font-size:8.5pt;">${item.unit || ''}</td>
+                    <td class="text-right" style="padding-right:3px; font-size:8.5pt;">${fC(qty)}</td>
+                    <td class="text-right" style="padding-right:3px; font-size:8.5pt;">${fC(qty > 0 ? amt/qty : 0)}</td>
+                    <td class="text-right" style="padding-right:3px; font-size:8.5pt;">${fC(amt)}</td>
+                </tr>`
+            } else {
+                rowsHtml += `<tr height="28"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`
+            }
+        }
+
+        const html = `
+        <html>
+        <head>
+            <title>입고의뢰서</title>
+            <style>
+                body { font-family: 'GulimChe', '굴림체', sans-serif; color: black; margin: 0; padding: 10px; }
+                table { border-collapse: collapse; font-size: 8.5pt; width: 650px; margin: 0 auto; table-layout: fixed; }
+                th, td { border: 1px solid #BDBDBD; padding: 2px; text-align: center; }
+                .title-font { font-size: 20pt; font-weight: bold; }
+                .bg-eee { background-color: #eee; }
+                .text-left { text-align: left !important; }
+                .text-right { text-align: right !important; }
+                .text-center { text-align: center !important; }
+            </style>
+        </head>
+        <body onload="window.print()">
+            <table border="0" style="border:0; height:72px; margin-bottom:10px;">
+                <tr>
+                    <td width="350px" align="center" style="font-size:20pt; font-weight:bold; vertical-align:middle; border:0;">입&nbsp;&nbsp;고&nbsp;&nbsp;의&nbsp;&nbsp;뢰&nbsp;&nbsp;서</td>
+                    <td width="300px" align="right" valign="top" style="border:0;">
+                        <table border="1" style="width:100%; border-collapse:collapse; height:72px;">
+                            <tr>
+                                <td rowspan="2" width="20px" class="bg-eee" style="font-size:10pt; line-height:1.2;">결<br>재</td>
+                                ${gLines.map(g => `<td class="bg-eee" height="20" style="font-size:8.5pt;">${g}</td>`).join('')}
+                            </tr>
+                            <tr>${gLines.map(() => '<td height="52" width="55"></td>').join('')}</tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <table border="1" style="width:650px; margin:0 auto; border-collapse:collapse;">
+                <colgroup><col style="width:12%"/><col style="width:38%"/><col style="width:12%"/><col style="width:38%"/></colgroup>
+                <tr height="25">
+                    <td class="bg-eee">입고번호</td><td class="text-left">&nbsp;${h.ioym || m.ioym}-${h.iono || m.iono}</td>
+                    <td class="bg-eee">회 사 명</td><td class="text-center"><b>${h.ccustnm || ''}</b></td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">입고일자</td><td class="text-left">&nbsp;${fDate(h.ioymd)}</td>
+                    <td class="bg-eee">등록번호</td><td class="text-center">&nbsp;${fSaup(h.ccustno)}</td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">입고창고</td><td class="text-left">&nbsp;${h.whnm || ''}</td>
+                    <td class="bg-eee">소 재 지</td><td class="text-center" style="font-size:8pt;">&nbsp;${h.caddress || ''}</td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">입고부서</td><td class="text-left">&nbsp;${h.deptnm || ''}</td>
+                    <td class="bg-eee" style="padding:0;">
+                        <div style="display:flex; height:100%;">
+                            <div style="flex:1; border-right:1px solid #BDBDBD; display:flex; align-items:center; justify-content:center;">전&nbsp;&nbsp;&nbsp;&nbsp;화</div>
+                            <div style="flex:1; display:flex; align-items:center; justify-content:center;">팩&nbsp;&nbsp;&nbsp;&nbsp;스</div>
+                        </div>
+                    </td>
+                    <td style="padding:0;">
+                        <div style="display:flex; height:100%;">
+                            <div style="flex:1; border-right:1px solid #BDBDBD; display:flex; align-items:center; justify-content:center;">${h.ctelno || ''}</div>
+                            <div style="flex:1; display:flex; align-items:center; justify-content:center;">${h.cfaxno || ''}</div>
+                        </div>
+                    </td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">담당자명</td><td align="left">&nbsp;${h.usernm || ''} (인)</td>
+                    <td class="bg-eee">담당자명</td><td align="center">&nbsp;${h.cdamdang || ''}</td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">입고구분</td><td align="left">&nbsp;${h.iotypenm || ''}</td>
+                    <td class="bg-eee">담당연락처</td><td align="center">${h.ctelno || ''}</td>
+                </tr>
+                <tr height="25"><td class="bg-eee">특기사항</td><td colspan="3" align="left">&nbsp;${h.remark || ''}</td></tr>
+            </table>
+
+            <table border="1" style="width:650px; margin:5px auto 0 auto; border-collapse:collapse;">
+                <colgroup>
+                    <col style="width:5%"/><col style="width:12%"/><col style="width:33%"/><col style="width:10%"/><col style="width:6%"/><col style="width:11%"/><col style="width:11%"/><col style="width:12%"/>
+                </colgroup>
+                <thead>
+                    <tr class="bg-eee" height="28">
+                        <td>No.</td><td>품 목</td><td>품 목 명</td><td>규 격</td><td>단위</td><td>수 량</td><td>단 가</td><td>금 액</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+                <tfoot>
+                    <tr height="28" style="font-weight:bold" class="bg-eee">
+                        <td class="text-center" colspan="5">합 계</td>
+                        <td class="text-right" style="padding-right:3px;">${fC(qtysum)}</td>
+                        <td>&nbsp;</td>
+                        <td class="text-right" style="padding-right:3px;">${fC(amtsum)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </body>
+        </html>`;
+
+        const win = window.open('', '_blank', 'width=800,height=900');
+        win?.document.write(html);
+        win?.document.close();
+    } catch (e) { vAlertError('입고의뢰서 출력 실패') }
+}
+
 const openHelp = (type: string) => {
     if (type === 'CUST') {
         Object.assign(modalProps, {
@@ -204,7 +359,6 @@ const openHelp = (type: string) => {
         modalVisible.value = true
     }
 }
-const formatNumber = (val: any) => Number(val || 0).toLocaleString()
 
 onUnmounted(() => {
   if (poGrid) poGrid.destroy();
@@ -239,7 +393,7 @@ onMounted(async () => {
       columnDefaults: {
         headerSort: false,
         headerHozAlign: 'center',
-        hozAlign: 'right', // 🚀 기본값 우측 정렬
+        hozAlign: 'right',
         vertAlign: 'middle',
         minWidth: 100
       },
@@ -254,7 +408,6 @@ onMounted(async () => {
           mutatorData: (v, d) => Number(d.jsanamt || 0) + Number(d.jsanvat || 0) }
       ]
     })
-    itemGrid.on('dataLoaded', (data) => activeItemCount.value = data.length)
   }
 })
 

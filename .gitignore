@@ -11,3 +11,6 @@ dist/
 backups/
 backups/
 *.bak
+mssql_data/
+asterisk_data/
+*.gdmp

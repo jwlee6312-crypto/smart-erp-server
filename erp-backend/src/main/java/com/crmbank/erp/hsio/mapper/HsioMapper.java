@@ -52,7 +52,6 @@ public interface HsioMapper {
     List<Map<String, Object>> HSIO_500U_STR(Object params);
     List<Map<String, Object>> HSIO_501U_STR(Object params);
     List<Map<String, Object>> HSIO_510U_STR(Object params);
-    List<Map<String, Object>> HSIO_511U_STR(Object params);
     List<Map<String, Object>> HSIO_520U_STR(Object params);
     List<Map<String, Object>> HSIO_521U_STR(Object params);
     List<Map<String, Object>> HSIO_530U_STR(Object params);
@@ -81,6 +80,10 @@ public interface HsioMapper {
     List<Map<String, Object>> HSIO_731U_STR(Object params);
 
     List<Map<String, Object>> HSIO_990U_STR(Object params);
+
+    List<Map<String, Object>> HSIO_TRANS_STR(Object params);
+    List<Map<String, Object>> HSIO_REQOUT_STR(Object params);
+    List<Map<String, Object>> HSIO_REQIN_STR(Object params);
 
     List<Map<String, Object>> getSlipDetailsForTransfer(Map<String, Object> params);
 

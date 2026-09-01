@@ -24,7 +24,10 @@ import javax.sql.DataSource;
  * 💡 Asterisk (MySQL) 데이터 소스 설정
  */
 @MapperScan(
-    basePackages = "com.crmbank.erp.asterisk.mapper",
+    basePackages = {
+        "com.crmbank.erp.asterisk.mapper",
+        "com.crmbank.erp.hgpa.mapper"  // 💡 [추가] HGPA 패키지 명시
+    },
     sqlSessionFactoryRef = "asteriskSqlSessionFactory"
 )
 public class AsteriskDataSourceConfig {
@@ -37,14 +40,22 @@ public class AsteriskDataSourceConfig {
         HikariDataSource dataSource = new HikariDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
         
-        String defaultUrl = "jdbc:mysql://localhost:3306/asterisk?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true";
-        String url = env.getProperty("ASTERISK_DB_URL", defaultUrl);
+        // 💡 [환경 변수 기반 설정] 리부팅 시에도 유연하게 대처 가능하도록 변경
+        String host = env.getProperty("ASTERISK_DB_HOST", "asterisk-db");
+        String port = env.getProperty("ASTERISK_DB_PORT", "3306");
+        String dbName = env.getProperty("ASTERISK_DB_NAME", "asterisk");
+        String username = env.getProperty("ASTERISK_DB_USERNAME", "root");
+        String password = env.getProperty("ASTERISK_DB_PASSWORD", "Crmbank123!");
         
-        log.info("🔌 [Asterisk MySQL 연동] 접속 시도: {}", url);
+        String url = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true",
+                                   host, port, dbName);
+        
+        log.info("🔌 [Asterisk MySQL Connection]: {}", url);
         
         dataSource.setJdbcUrl(url);
-        dataSource.setUsername(env.getProperty("ASTERISK_DB_USERNAME", "root"));
-        dataSource.setPassword(env.getProperty("ASTERISK_DB_PASSWORD", "gkdldhs12#$"));
+        dataSource.setUsername(username);
+        dataSource.setPassword(password);
+        dataSource.setPoolName("AsteriskHikariPool");
         dataSource.setMaximumPoolSize(5);
         
         return dataSource;

@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,14 +21,21 @@ import org.springframework.transaction.PlatformTransactionManager;
 import com.crmbank.erp.global.handler.MapKeyLowerWrapperFactory;
 import com.zaxxer.hikari.HikariDataSource;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 @Configuration
 /**
  * 💡 ERP (SQL Server) Data Source Configuration
- * Using explicit bean names to prevent dependency injection errors in multi-datasource environments.
+ * [중요] asterisk와 hgpa 패키지를 제외하여 MySQL 매퍼와의 충돌을 방지합니다.
  */
 @MapperScan(
     basePackages = "com.crmbank.erp",
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.REGEX,
+        pattern = "com\\.crmbank\\.erp\\.(asterisk|hgpa)\\..*"
+    ),
     sqlSessionFactoryRef = "erpSqlSessionFactory"
 )
 public class ErpDataSourceConfig {
@@ -40,21 +49,22 @@ public class ErpDataSourceConfig {
         HikariDataSource dataSource = new HikariDataSource();
         dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
         
-        String host = env.getProperty("ERP_DB_HOST", "127.0.0.1");
+        String host = env.getProperty("ERP_DB_HOST", "smartdb");
         String port = env.getProperty("ERP_DB_PORT", "1433");
         String dbName = env.getProperty("ERP_DB_NAME", "SMARTDB");
         String username = env.getProperty("ERP_DB_USERNAME", "sa");
-        String password = env.getProperty("ERP_DB_PASSWORD", "8221284sb!12#$");
+        String password = env.getProperty("ERP_DB_PASSWORD", "Crmbank123!");
         
         String jdbcUrl = String.format(
                 "jdbc:sqlserver://%s:%s;databaseName=%s;encrypt=false;trustServerCertificate=true;sendStringParametersAsUnicode=false;loginTimeout=30",
                 host, port, dbName);
         
-        log.info("🔌 [ERP DB] Connecting to: {}", jdbcUrl);
+        log.info("🔌 [MSSQL ERP DB] Connecting to: {}", jdbcUrl);
         
         dataSource.setJdbcUrl(jdbcUrl);
         dataSource.setUsername(username);
         dataSource.setPassword(password);
+        dataSource.setPoolName("ErpHikariPool");
         dataSource.setMaximumPoolSize(10);
         
         return dataSource;
@@ -72,7 +82,19 @@ public class ErpDataSourceConfig {
         sessionFactory.setDataSource(dataSource);
         
         PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        sessionFactory.setMapperLocations(resolver.getResources("classpath*:/com/crmbank/erp/**/*.xml"));
+        
+        // 💡 [중요] asterisk와 hgpa 폴더를 제외한 모든 XML 매퍼 로드
+        org.springframework.core.io.Resource[] resources = resolver.getResources("classpath*:/com/crmbank/erp/**/*.xml");
+        List<org.springframework.core.io.Resource> filteredResources = new ArrayList<>();
+        
+        for (org.springframework.core.io.Resource res : resources) {
+            String path = res.getURL().toString();
+            if (!path.contains("/asterisk/") && !path.contains("/hgpa/")) {
+                filteredResources.add(res);
+            }
+        }
+        
+        sessionFactory.setMapperLocations(filteredResources.toArray(new org.springframework.core.io.Resource[0]));
         
         org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
         configuration.setCallSettersOnNulls(true);

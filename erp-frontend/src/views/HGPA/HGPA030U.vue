@@ -152,10 +152,14 @@ async function fetchCurrentMode() {
 
 async function updateMode(mode: string) {
     try {
+        // 💡 [수정] 백엔드 API 경로 확인 및 데이터 형식 보정
         await api.post('/crm/asterisk/variable/save', [{ var_name: 'BUSINESS_MODE', var_value: mode }]);
         currentMode.value = mode;
         vAlert(`✅ 업무 모드가 [${mode === 'OPEN' ? '업무 중' : mode === 'CLOSE' ? '퇴근' : '휴일'}] 로 변경되었습니다.`);
-    } catch (e) { vAlertError('모드 변경 실패') }
+    } catch (e) {
+        console.error('모드 변경 실패:', e);
+        vAlertError('모드 변경에 실패했습니다. 백엔드 연결을 확인하세요.');
+    }
 }
 
 function addRow() {

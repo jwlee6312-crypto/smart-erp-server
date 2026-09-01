@@ -135,7 +135,7 @@
     </select>
 
     <select id="HSIO_250U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_250u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{custnm}, #{iogbn}, #{ioym}, #{iono}, #{ioymd}, #{iotype}, #{custcd}, #{deptcd}, #{whcd}, #{addres}, #{remark}, #{cfmyn}, #{gubun}, #{totsum}, #{updemp}
+        exec hsio_250u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{custnm}, #{iogbn}, #{ioym}, #{iono}, #{ioymd}, #{iotype}, #{custcd}, #{deptcd}, #{whcd}, #{address}, #{remark}, #{cfmyn}, #{gubun}, #{totsum}, #{updemp}
     </select>
 
     <select id="HSIO_251U_STR" resultType="java.util.LinkedHashMap">
@@ -187,11 +187,9 @@
     </select>
 
     <select id="HSIO_510U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_510u_str #{actkind}, #{cmpycd}, #{iogbn}, #{fromdt}, #{todt}, #{custcd}, #{deptcd}, #{ioym}, #{iono}, #{iorowno}, #{taxunit}, #{vattype}, #{jsanym}, #{jsanno}, #{jsanymd}, #{jsanqty}, #{jsanamt}, #{jsanvat}, #{updemp}
-    </select>
-
-    <select id="HSIO_511U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_511u_str #{actkind}, #{cmpycd}, #{iogbn}, #{yymm}, #{sungb}, #{custcd}, #{deptcd}, #{ioym}, #{iono}, #{iorowno}, #{taxunit}, #{vattype}, #{jsanym}, #{jsanno}, #{jsanymd}, #{jsanqty}, #{jsanamt}, #{jsanvat}, #{updemp}
+        exec hsio_510u_str #{actkind}, #{cmpycd}, #{iogbn}, #{fromdt}, #{todt}, #{custcd}, #{deptcd},
+        #{ioym}, #{iono}, #{iorowno}, #{taxunit}, #{vattype}, #{jsanym}, #{jsanno}, #{jsanymd},
+        #{jsanqty}, #{jsanamt}, #{jsanvat}, #{updemp}
     </select>
 
     <select id="HSIO_520U_STR" resultType="java.util.LinkedHashMap">
@@ -221,7 +219,7 @@
     <select id="HSIO_550U_STR" resultType="java.util.LinkedHashMap">
         exec hsio_550u_str #{actkind}, #{cmpycd}, #{iogbn}, #{fromdt}, #{todt}, #{custcd},
         #{deptcd}, #{ioym}, #{iono}, #{ioymd}, #{iotype}, #{whcd}, #{area}, #{userid},
-        #{trnemp}, #{trancd}, #{addres}, #{d_address}, #{remark}, #{cfmyn}, #{totsum}, #{updemp}
+        #{trnemp}, #{trancd}, #{address}, #{d_address}, #{remark}, #{cfmyn}, #{totsum}, #{updemp}
     </select>
 
     <select id="HSIO_551U_STR" resultType="java.util.LinkedHashMap">
@@ -312,6 +310,18 @@
 
     <select id="HSIO_990U_STR" resultType="java.util.LinkedHashMap">
         exec hsio_990u_str #{actkind}, #{cmpycd}, #{slipkind}, #{deptcd}, #{fromdt}, #{todt}, #{cfmyn}, #{slipymd}, #{slipno}, #{updemp}
+    </select>
+
+    <select id="HSIO_TRANS_STR" resultType="java.util.LinkedHashMap">
+        exec hsio_trans_str #{actkind}, #{cmpycd}, #{ioym}, #{iono}
+    </select>
+
+    <select id="HSIO_REQOUT_STR" resultType="java.util.LinkedHashMap">
+        exec hsio_reqout_str #{actkind}, #{cmpycd}, #{ioym}, #{iono}
+    </select>
+
+    <select id="HSIO_REQIN_STR" resultType="java.util.LinkedHashMap">
+        exec hsio_reqin_str #{actkind}, #{cmpycd}, #{ioym}, #{iono}
     </select>
 
     <!-- 🚀 외부전표전송 상세 조회 (ASP SELECT문 이식) -->

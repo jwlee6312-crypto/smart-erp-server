@@ -5,8 +5,8 @@
 .vscode/
 
 # [중요] 백엔드 관련 제외
-erp-backend/build/
-erp-backend/bin/
+# erp-backend/build/
+# erp-backend/bin/
 **/.gradle/
 
 # [💡 핵심] 프론트엔드 빌드 결과물(dist)은 절대로 제외하면 안 됨

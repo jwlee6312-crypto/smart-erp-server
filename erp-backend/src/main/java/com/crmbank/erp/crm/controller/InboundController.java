@@ -251,50 +251,27 @@ public class InboundController {
         return result;
     }
 
-    @GetMapping("/play-recording")
+    @GetMapping(value = "/play-recording", produces = "audio/wav")
     public ResponseEntity<Resource> playRecording(@RequestParam String file) {
         log.info("📢 [재생 요청 수신] 파일명: {}", file);
-        /*
-         * [서버 환경별 파일 경로 처리 지침]
-         * 1. WINDOWS: 로컬 개발 및 WSL2 환경 (\\wsl.localhost\Ubuntu...)
-         * 2. UNIX/LINUX: 실제 운영 서버 도커 환경 (/var/lib/asterisk...)
-         * 💡 향후 경로 인식이 안되는 문제가 발생하면 아래 if/else 로직을 각각의 상수나 
-         *    설정 파일(yml)로 분리하여 절대 경로를 직접 명시하도록 수정하세요.
-         */
+        
+        // 🚀 [수정] 도커/리눅스 환경에 맞게 경로 처리 (WSL 경로 제거)
         String safeFile = file.replace("\\", "/");
         if (safeFile.startsWith("/")) safeFile = safeFile.substring(1);
 
+        String fileNameOnly = new File(safeFile).getName();
+        
+        // 1순위: /var/lib/asterisk/sounds/custom/ (TTS 생성 폴더)
+        File customSoundFile = new File("/var/lib/asterisk/sounds/custom/" + fileNameOnly);
+        // 2순위: /var/spool/asterisk/monitor/ (상담 녹취 폴더)
+        File monitorFile = new File("/var/spool/asterisk/monitor/" + fileNameOnly);
+        // 3순위: 기타 (풀 경로 요청 시)
+        File fallbackFile = new File("/var/lib/asterisk/sounds/" + safeFile);
+
         File targetFile = null;
-
-        if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            // ============================================================
-            // [CASE 1] WINDOWS (로컬 윈도우 및 WSL2 개발 환경)
-            // ============================================================
-            String wslBase = "\\\\wsl.localhost\\Ubuntu";
-            String winFile = safeFile.replace("/", "\\");
-            File monitorFile = new File(wslBase + "\\var\\spool\\asterisk\\monitor\\" + winFile);
-            File soundFile = new File(wslBase + "\\var\\lib\\asterisk\\sounds\\" + winFile);
-            targetFile = monitorFile.exists() ? monitorFile : (soundFile.exists() ? soundFile : null);
-        } else {
-            // ============================================================
-            // [CASE 2] UNIX / LINUX (실제 운영 서버 - Docker 볼륨 매핑)
-            // ============================================================
-            String fileNameOnly = new File(safeFile).getName();
-            
-            // 1순위: /var/lib/asterisk/sounds/custom/ (TTS 생성 폴더)
-            File customSoundFile = new File("/var/lib/asterisk/sounds/custom/" + fileNameOnly);
-            // 2순위: /var/spool/asterisk/monitor/ (상담 녹취 폴더)
-            File monitorFile = new File("/var/spool/asterisk/monitor/" + fileNameOnly);
-            // 3순위: 기타 (풀 경로 요청 시)
-            File fallbackFile = new File("/var/lib/asterisk/sounds/" + safeFile);
-
-            if (customSoundFile.exists()) targetFile = customSoundFile;
-            else if (monitorFile.exists()) targetFile = monitorFile;
-            else if (fallbackFile.exists()) targetFile = fallbackFile;
-            
-            log.info("🔍 [재생 경로 확정] 요청: {}, 실제파일: {}", safeFile, 
-                     targetFile != null ? targetFile.getAbsolutePath() : "파일없음");
-        }
+        if (customSoundFile.exists()) targetFile = customSoundFile;
+        else if (monitorFile.exists()) targetFile = monitorFile;
+        else if (fallbackFile.exists()) targetFile = fallbackFile;
 
         if (targetFile == null || !targetFile.exists()) {
             log.warn("🔈 [재생 실패] 파일을 찾을 수 없음: {}", safeFile);
@@ -302,8 +279,10 @@ public class InboundController {
         }
 
         log.info("🔈 [음원 재생] 파일 발견: {}", targetFile.getAbsolutePath());
+        
+        // 💡 [최종 수정] charset 을 제거한 순수 audio/wav 헤더 설정
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType("audio/wav"))
+                .header(HttpHeaders.CONTENT_TYPE, "audio/wav")
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + targetFile.getName() + "\"")
                 .body(new FileSystemResource(targetFile));
     }

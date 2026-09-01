@@ -57,6 +57,9 @@ public class EmailService {
     private final String FIXED_FROM_EMAIL = "jwlee6312@gmail.com";
     private final String BRAND_NAME = "SmartCore";
 
+    @Value("${frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     /**
      * 💡 실시간 상담실 초대 메일 발송
      */
@@ -68,9 +71,9 @@ public class EmailService {
             // 💡 [중요] URL 파라미터 인코딩 (한글 이름 및 특수문자 깨짐 방지)
             String encodedEmail = URLEncoder.encode(toEmail, StandardCharsets.UTF_8);
             String encodedName = URLEncoder.encode(custNm, StandardCharsets.UTF_8);
-            inviteUrl = String.format("http://localhost:5173/HGOA/HGOA100C?email=%s&name=%s", encodedEmail, encodedName);
+            inviteUrl = String.format("%s/HGOA/HGOA100C?email=%s&name=%s", frontendUrl, encodedEmail, encodedName);
         } catch (Exception e) {
-            inviteUrl = String.format("http://localhost:5173/HGOA/HGOA100C?email=%s&name=%s", toEmail, custNm);
+            inviteUrl = String.format("%s/HGOA/HGOA100C?email=%s&name=%s", frontendUrl, toEmail, custNm);
         }
 
         String subject = String.format("[%s] 실시간 고객 상담실 초대장입니다.", BRAND_NAME);
@@ -104,18 +107,24 @@ public class EmailService {
     }
 
     public int sendBal(EmailDto payload, String cmpycd, String sessionId, String fromEmail, String nacd, String userid) throws Exception {
-        Map<String, String> cookies = prepareCookies(sessionId);
         EmailSendHistoryDto historyDto = new EmailSendHistoryDto();
-        String subject = String.format("[%s] 발주서 전달드립니다", BRAND_NAME);
+        String senderName = (payload.getFromnm() != null && !payload.getFromnm().isEmpty()) ? payload.getFromnm() : BRAND_NAME;
+        String subject = String.format("[%s] 발주서 전달드립니다", senderName);
         try {
-            byte[] pdfData = playwrightPdfService.generatePdfFromUrl(payload.getUrl(), cookies);
+            byte[] pdfData;
+            if (payload.getHtmlcontent() != null && !payload.getHtmlcontent().isEmpty()) {
+                pdfData = playwrightPdfService.generatePdfFromHtml(payload.getHtmlcontent());
+            } else {
+                Map<String, String> cookies = prepareCookies(sessionId);
+                pdfData = playwrightPdfService.generatePdfFromUrl(payload.getUrl(), cookies);
+            }
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             Context context = new Context();
             context.setVariable("custnm", payload.getCustnm());
             String html = templateEngine.process("order/purchase-mail", context);
             helper.setText(html, true);
-            helper.setFrom(FIXED_FROM_EMAIL, BRAND_NAME);
+            helper.setFrom(FIXED_FROM_EMAIL, senderName); // 🚀 [개선] 회사명으로 발신자명 설정
             helper.setTo(payload.getEmail());
             helper.setSubject(subject);
             helper.addAttachment("발주서.pdf", new ByteArrayResource(pdfData));

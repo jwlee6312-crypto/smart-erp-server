@@ -333,19 +333,37 @@ onMounted(() => {
 	if (ctiStore.incomingCall) setCallData(ctiStore.incomingCall);
 });
 
-// 💡 [최종 수정] 어떤 발신번호(내선 3자리 포함)라도 즉시 팝업을 띄우도록 로직 보강
+// 💡 [최종 종결] 인바운드 신호 감지 시 어떤 조건에서도 화면을 즉시 팝업 데이터로 채움
 watch(() => ctiStore.incomingCall, (newCall) => {
 	if (newCall && newCall.type === 'INBOUND_CALL') {
-		console.log('🎯 [CTI] 인바운드 팝업 트리거 작동:', newCall.callerid);
+		console.log('🚀 [CTI POPUP] 수신 신호 처리 시작:', newCall.callerid);
 
-		// 상담 데이터 즉시 매핑
-		setCallData(newCall);
+		const cleanCustCd = String(newCall.custcd || '').trim();
 
-		// 강제로 화면을 깨우고 탭 정보를 불러옴
+		// 1. 고객 기본 정보 매핑 (전화번호, 이름 등)
+		customerInfo.value = {
+			custcd: cleanCustCd,
+			custnm: (newCall.custnm || '미등록 고객').trim(),
+			usernm: (newCall.usernm || '').trim(),
+			hpno: newCall.callerid || '',
+			email: (newCall.email || '').trim(),
+			address: (newCall.address || '').trim()
+		};
+
+		// 2. 상담 데이터 영역 초기화
+		consultData.value.date = new Date().toISOString().substring(0, 10);
+		consultData.value.trb_ment = '';
+		consultData.value.ans_ment = '';
+
+		// 3. 화면 탭 강제 이동 및 데이터 로드 (과거이력 등)
 		activeTab.value = 1;
-		loadTabData(1);
+		if (cleanCustCd) {
+			loadCustomerDetails(cleanCustCd);
+			loadTabData(1);
+		}
 
-		vAlert(`📞 전화 수신: ${newCall.custnm || '미등록'} (${newCall.callerid})`);
+		// 4. 시각적 알림 (vAlert)
+		vAlert(`📞 [전화 수신] ${customerInfo.value.custnm} (${newCall.callerid})`);
 	}
 }, { deep: true });
 
