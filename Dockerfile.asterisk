@@ -1,2 +1,23 @@
-FROM andrius/asterisk:18
-RUN apt-get update && apt-get install -y odbc-mariadb && rm -rf /var/lib/apt/lists/*
+FROM ubuntu:22.04
+
+# 🚀 [본질적 해결] 부품이 빠진 이미지를 버리고, 모든 모듈이 포함된 '풀버전'을 직접 빌드
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    asterisk \
+    asterisk-modules \
+    asterisk-pjsip \
+    asterisk-odbc \
+    odbc-mariadb \
+    unixodbc && \
+    rm -rf /var/lib/apt/lists/*
+
+# 로그 및 녹취 폴더 권한 설정
+RUN mkdir -p /var/spool/asterisk/monitor && \
+    chmod -R 777 /var/spool/asterisk/monitor
+
+# 깡통 이미지와 경로를 맞추기 위한 심볼릭 링크
+RUN ln -s /usr/lib/asterisk/modules /usr/lib64/asterisk/modules || true
+
+CMD ["/usr/sbin/asterisk", "-f", "-vvv"]

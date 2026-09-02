@@ -38,6 +38,7 @@ public interface InboundMapper {
     String generateSvcNo(Map<String, Object> params);
     int insertCallMst(CallMstDto dto);
     int updateCallMst(CallMstDto dto);
+    int updateCallMstAiResult(CallMstDto dto); // 🚀 [추가] AI 요약 결과만 비동기 업데이트
     int deleteCallMst(Map<String, Object> params);
     CallMstDto selectCallMst(Map<String, Object> params);
     int insertEscalation(CtiEscalationDto dto);

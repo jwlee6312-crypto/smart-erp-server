@@ -6,6 +6,7 @@ import java.io.Serializable;
 /**
  * 사용자 세션 DTO
  * 완전 소문자 표준화 적용 (JsonProperty 제거)
+ * [INDEX_FORCE_COMMENT]
  */
 @Data
 public class UserSession implements Serializable {

@@ -2,8 +2,12 @@ package com.crmbank.erp.crm.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.crmbank.erp.crm.dto.*;
+import com.crmbank.erp.crm.dto.CallMonitorDto;
+import com.crmbank.erp.crm.dto.CallMstDto;
+import com.crmbank.erp.crm.dto.CtiEscalationDto;
+import com.crmbank.erp.crm.dto.TotalCallLogDto;
 import com.crmbank.erp.crm.mapper.inbound.InboundMapper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +25,40 @@ import java.util.UUID;
 public class InboundService {
 
     private final InboundMapper inboundMapper;
+    private final GeminiAiService geminiAiService;
+
+    /**
+     * 🤖 [AI 비동기 처리] 통화 종료 후 백그라운드에서 요약 및 업데이트
+     */
+    @Async
+    @Transactional
+    public void processAiSummaryAsync(String cmpycd, String svcno, String fullPath, String updemp) {
+        try {
+            // 🚀 [해결 3] 파일이 완전히 저장될 때까지 5초간 넉넉히 대기 (오류 방지)
+            Thread.sleep(5000); 
+            log.info("🤖 [AI Async] 분석 시작: {} (File: {})", svcno, fullPath);
+            
+            java.io.File file = new java.io.File(fullPath);
+            if (!file.exists() || file.length() < 100) {
+                log.warn("⚠️ [AI] 분석할 파일이 아직 준비되지 않음: {}", fullPath);
+                return;
+            }
+            Map<String, String> aiResult = geminiAiService.analyzeAudio(fullPath);
+
+            CallMstDto updateDto = new CallMstDto();
+            updateDto.setCmpycd(cmpycd);
+            updateDto.setSvcno(svcno);
+            updateDto.setTrb_ment(aiResult.get("trb_ment")); // 🚀 고객 요청 분리 저장
+            updateDto.setAns_ment(aiResult.get("ans_ment")); // 🚀 상담원 답변 분리 저장
+            updateDto.setAi_summary(aiResult.get("summary"));
+            updateDto.setUpdemp(updemp);
+
+            inboundMapper.updateCallMstAiResult(updateDto);
+            log.info("✅ [AI Async] 분석 완료 및 반영 성공: {}", svcno);
+        } catch (Exception e) {
+            log.error("❌ [AI Async] 분석 중 오류 발생: {}", e.getMessage());
+        }
+    }
 
     /**
      * 💡 MyBatis 결과를 소문자 Key로 변환 (프론트엔드 호환성)

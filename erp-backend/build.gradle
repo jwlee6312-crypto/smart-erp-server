@@ -66,8 +66,8 @@ dependencies {
 	implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
 
 	// Lombok 설정
-	compileOnly 'org.projectlombok:lombok:1.18.30'
-	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+	compileOnly 'org.projectlombok:lombok:1.18.48'
+	annotationProcessor 'org.projectlombok:lombok:1.18.48'
 
 	// Apache POI (Excel)
 	implementation 'org.apache.poi:poi:5.4.0'

@@ -127,6 +127,17 @@
         AND SVCNO = #{svcno}
     </update>
 
+    <update id="updateCallMstAiResult" parameterType="com.crmbank.erp.crm.dto.CallMstDto">
+        update call_mst_tbl
+        set TRB_MENT = ISNULL(#{trb_ment, jdbcType=NVARCHAR}, TRB_MENT),
+            ANS_MENT = ISNULL(#{ans_ment, jdbcType=NVARCHAR}, ANS_MENT),
+            AI_SUMMARY = #{ai_summary, jdbcType=NVARCHAR},
+            UPDTIME = GETDATE(),
+            UPDEMP = #{updemp, jdbcType=VARCHAR}
+        WHERE CMPYCD = #{cmpycd}
+        AND SVCNO = #{svcno}
+    </update>
+
     <delete id="deleteCallMst" parameterType="map">
         delete from call_mst_tbl where cmpycd = #{cmpycd} and svcno = #{svcno}
     </delete>

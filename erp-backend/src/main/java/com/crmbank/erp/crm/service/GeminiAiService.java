@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import jakarta.annotation.PostConstruct;
@@ -34,13 +33,12 @@ public class GeminiAiService {
 
     @PostConstruct
     public void init() {
-        // UTF-8 보장
         restTemplate.getMessageConverters().add(0, new StringHttpMessageConverter(StandardCharsets.UTF_8));
-        log.info("🔍 [AI Config] Gemini AI Service 초기화 - 모델: {}", modelName);
     }
 
     /**
-     * 🤖 통합 상담 분석 (텍스트 또는 오디오)
+     * 🤖 [복구] 통합 상담 분석 (텍스트 또는 오디오)
+     * ConsultSaveService와 OutboundService에서 참조하는 핵심 메서드
      */
     public Map<String, String> analyze(String chatLog, String audioPath) {
         try {
@@ -72,75 +70,70 @@ public class GeminiAiService {
     }
 
     /**
-     * 🎙️ 오디오 분석
+     * 🎙️ 오디오 분석 (WAV 전용)
      */
     public Map<String, String> analyzeAudio(String filePath) {
         Map<String, String> result = new HashMap<>();
         try {
+            log.info("🎙️ [AI] 파일 분석 시작: {}", filePath);
+            java.io.File file = new java.io.File(filePath);
+            
+            // 파일이 안정적으로 생성될 때까지 대기
+            int retry = 0;
+            while (!file.exists() || file.length() < 100) {
+                if (retry++ > 5) break;
+                Thread.sleep(1000);
+            }
+
             byte[] fileContent = Files.readAllBytes(Paths.get(filePath));
             String base64Content = Base64.getEncoder().encodeToString(fileContent);
-            String prompt = "이 오디오를 한국어로 STT 및 3줄 요약해줘. JSON 형식 {\"stt\": \"...\", \"summary\": \"...\"}으로만 응답해.";
-            Map<String, Object> inlineData = Map.of("mime_type", "audio/mpeg", "data", base64Content);
+            
+            String prompt = "이 오디오 상담 내용을 분석하여 다음 3가지를 한국어로 작성해줘.\n" +
+                            "1. 고객의 요청 및 문제점 (trb_ment)\n" +
+                            "2. 상담원의 응대 및 답변 (ans_ment)\n" +
+                            "3. 전체 상담 3줄 요약 (summary)\n\n" +
+                            "JSON 형식으로 응답: {\"trb_ment\": \"...\", \"ans_ment\": \"...\", \"summary\": \"...\"}";
+
+            Map<String, Object> inlineData = Map.of("mime_type", "audio/wav", "data", base64Content);
             String rawResponse = callGeminiApi(prompt, inlineData);
-            result.put("stt", parseSimpleField(rawResponse, "stt"));
+            
+            result.put("trb_ment", parseSimpleField(rawResponse, "trb_ment"));
+            result.put("ans_ment", parseSimpleField(rawResponse, "ans_ment"));
             result.put("summary", parseSimpleField(rawResponse, "summary"));
+            result.put("stt", result.get("trb_ment") + "\n\n" + result.get("ans_ment"));
+            
         } catch (Exception e) {
-            result.put("stt", "STT 실패");
+            log.error("🎙️ AI 분석 실패: {}", e.getMessage());
             result.put("summary", "오류 (" + e.getMessage() + ")");
         }
         return result;
     }
 
-    /**
-     * 🚀 Gemini API 호출 로직 (URI 객체 사용으로 404 방지)
-     */
     private String callGeminiApi(String prompt, Map<String, Object> inlineData) throws Exception {
-        String key = (apiKey != null) ? apiKey.trim() : "";
-        String model = (modelName != null) ? modelName.trim().replace("models/", "") : "gemini-1.5-flash";
-
-        // 💡 URI 객체를 생성하여 RestTemplate의 콜론(:) 오인식을 방지합니다.
-        String urlStr = "https://generativelanguage.googleapis.com/v1/models/" + model + ":generateContent?key=" + key;
+        String urlStr = "https://generativelanguage.googleapis.com/v1/models/" + modelName.replace("models/", "") + ":generateContent?key=" + apiKey.trim();
         URI uri = URI.create(urlStr);
-
         Map<String, Object> requestBody = Map.of("contents", List.of(Map.of("parts", List.of(
                 inlineData != null ? Map.of("text", prompt, "inline_data", inlineData) : Map.of("text", prompt)
         ))));
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(uri, new HttpEntity<>(requestBody, headers), Map.class);
-            if (response.getBody() != null) {
-                List<Map> candidates = (List<Map>) response.getBody().get("candidates");
-                if (candidates != null && !candidates.isEmpty()) {
-                    Map content = (Map) candidates.get(0).get("content");
-                    List<Map> responseParts = (List<Map>) content.get("parts");
-                    return (String) responseParts.get(0).get("text");
-                }
-            }
-            throw new RuntimeException("API 응답 구조 이상");
-        } catch (HttpStatusCodeException e) {
-            log.error("❌ Gemini API 에러: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException(e.getStatusCode().value() + " " + e.getStatusText());
-        }
+        HttpHeaders headers = new HttpHeaders(); headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<Map> response = restTemplate.postForEntity(uri, new HttpEntity<>(requestBody, headers), Map.class);
+        
+        List<Map> candidates = (List<Map>) response.getBody().get("candidates");
+        if (candidates == null || candidates.isEmpty()) throw new RuntimeException("API 응답 없음");
+        Map content = (Map) candidates.get(0).get("content");
+        List<Map> responseParts = (List<Map>) content.get("parts");
+        return (String) responseParts.get(0).get("text");
     }
 
-    /**
-     * 🧩 JSON 파싱
-     */
     private String parseSimpleField(String rawText, String field) {
         try {
             int start = rawText.indexOf("{");
             int end = rawText.lastIndexOf("}");
             if (start != -1 && end != -1) {
-                String json = rawText.substring(start, end + 1);
-                Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {});
+                Map<String, Object> map = objectMapper.readValue(rawText.substring(start, end + 1), new TypeReference<>() {});
                 return String.valueOf(map.getOrDefault(field, rawText));
             }
             return rawText;
-        } catch (Exception e) {
-            return rawText;
-        }
+        } catch (Exception e) { return rawText; }
     }
 }

@@ -72,7 +72,7 @@
     <select id="HABA_100U_STR" resultType="java.util.LinkedHashMap">
         EXEC HABA_100U_STR #{actkind}, #{cmpycd}, #{clsymd}, #{gline1}, #{gline2}, #{gline3}, #{gline4}, #{gline5},
         #{bgtype}, #{stkgbn}, #{mnfyn}, #{stokyn}, #{slipyn}, #{pricegbn}, #{cardcust}, #{logoimg}, #{stampimg},
-        #{yeosinyn}, #{iocnfmyn}, #{outacctyn}, #{updemp}
+        #{yeosinyn}, #{iocnfmyn}, #{outacctyn}, #{ai_mode}, #{updemp}
     </select>
 
     <select id="HABA_110U_STR" resultType="java.util.LinkedHashMap">

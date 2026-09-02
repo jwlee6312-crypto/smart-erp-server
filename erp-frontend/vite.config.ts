@@ -55,9 +55,13 @@ export default defineConfig({
 				target: 'http://127.0.0.1:8080',
 				changeOrigin: true,
 				secure: false,
+				ws: true, // 🚀 [필수] 웹소켓 활성화
 				configure: (proxy, _options) => {
+					proxy.on('proxyReq', (proxyReq, req, res) => {
+						// 요청 가로채기 확인용 (필요 시)
+					});
 					proxy.on('error', (err, _req, _res) => {
-						// 🚀 [보정] ECONNREFUSED 오류 시 콘솔 스팸 방지
+						// ECONNREFUSED 오류 방지
 					});
 				},
 			},

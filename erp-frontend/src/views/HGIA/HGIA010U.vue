@@ -103,7 +103,14 @@
 				<div class="col-md-8 d-flex flex-column gap-2 h-100">
 					<div class="card shadow-sm border-0 border-top border-4 border-success h-100 overflow-hidden d-flex flex-column" :class="{'border-danger': ctiStore.isTalking}">
 						<div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
-							<span class="fw-bold small text-success"><i class="bi bi-pencil-square me-2"></i>상담 내용 작성</span>
+							<div class="d-flex align-items-center gap-3">
+								<span class="fw-bold small text-success"><i class="bi bi-pencil-square me-2"></i>상담 내용 작성</span>
+								<!-- 🚀 [신규] AI 기록 모드 선택 (HGPA030U 스타일) -->
+								<div class="btn-group btn-group-xs ms-2" role="group" style="scale: 0.9;">
+									<button type="button" class="btn btn-outline-secondary fw-bold py-0" :class="consultData.ai_mode === 'manual' ? 'btn-secondary text-white' : ''" @click="consultData.ai_mode = 'manual'">수동 기록</button>
+									<button type="button" class="btn btn-outline-primary fw-bold py-0" :class="consultData.ai_mode === 'auto' ? 'btn-primary text-white' : ''" @click="consultData.ai_mode = 'auto'"><i class="bi bi-robot me-1"></i>AI 자동 요약</button>
+								</div>
+							</div>
 							<div class="form-check form-switch mb-0">
 								<input class="form-check-input" type="checkbox" id="escCheck" v-model="consultData.escalation_yn" true-value="Y" false-value="N">
 								<label class="form-check-label extra-small fw-bold text-danger" for="escCheck">타 부서 업무 이관</label>
@@ -208,7 +215,8 @@ const consultData = ref({
 	date: new Date().toISOString().substring(0, 10),
 	ai_summary: '', trb_ment: '', ans_ment: '',
 	itemcd: '', itemnm: '', iono: '',
-	deptcd: '', esc_memo: '', escalation_no: '', escalation_yn: 'N'
+	deptcd: '', esc_memo: '', escalation_no: '', escalation_yn: 'N',
+	ai_mode: 'manual' // 🚀 [추가] AI 처리 모드 기본값
 })
 
 const handleOpenHelp = (type: string) => {
@@ -268,7 +276,8 @@ const handleSave = async () => {
 				call_usernm: customerInfo.value.usernm,
 				call_email: customerInfo.value.email
 			},
-			recordings: ctiStore.recordingFile ? [ctiStore.recordingFile] : []
+			recordings: ctiStore.recordingFile ? [ctiStore.recordingFile] : [],
+			ai_mode: consultData.value.ai_mode // 🚀 [추가] AI 모드 전송
 		};
 		await api.post('/crm/inbound/save', payload);
 		vAlert('상담 내용이 성공적으로 저장되었습니다.');
@@ -304,7 +313,8 @@ const handleNew = () => {
 			date: new Date().toISOString().substring(0, 10),
 			ai_summary: '', trb_ment: '', ans_ment: '',
 			itemcd: '', itemnm: '', iono: '',
-			deptcd: '', esc_memo: '', escalation_no: '', escalation_yn: 'N'
+			deptcd: '', esc_memo: '', escalation_no: '', escalation_yn: 'N',
+			ai_mode: 'manual'
 		};
 		itemList.value = [];
 		tableInstance1?.clearData();
@@ -328,9 +338,21 @@ const setCallData = async (data: any) => {
 	if (data.custcd) loadCustomerDetails(data.custcd);
 };
 
+// 🚀 [추가] 회사별 기본 AI 설정 로드
+const fetchCompanyConfig = async () => {
+    try {
+        const res = await api.post('/haba/HABA_100U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd });
+        if (res.data && res.data.length > 0) {
+            consultData.value.ai_mode = res.data[0].ai_mode || 'manual';
+            console.log('🤖 [AI Mode Config] Default:', consultData.value.ai_mode);
+        }
+    } catch (e) { console.error('환경설정 로드 실패') }
+}
+
 onMounted(() => {
 	initGrids();
 	if (ctiStore.incomingCall) setCallData(ctiStore.incomingCall);
+    fetchCompanyConfig(); // 🚀 로드 시 설정 가져오기
 });
 
 // 💡 [최종 종결] 인바운드 신호 감지 시 어떤 조건에서도 화면을 즉시 팝업 데이터로 채움

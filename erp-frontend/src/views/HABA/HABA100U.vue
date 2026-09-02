@@ -144,6 +144,8 @@
 										<label class="form-check-label ms-2 small fw-bold" for="yeosinSwitch">사용</label>
 									</div>
 								</td>
+								<th></th>
+								<td></td>
 							</tr>
 							<tr>
 								<th>기타 옵션</th>
@@ -152,6 +154,13 @@
 										<div class="form-check">
 											<input v-model="formData.iocnfmyn" type="checkbox" class="form-check-input" true-value="Y" false-value="N" id="ioCheck" />
 											<label for="ioCheck" class="small fw-bold">출고확정 단계 필수</label>
+										</div>
+										<!-- 🚀 [신규 추가] 상담 AI 자동 요약 스위치 -->
+										<div class="form-check form-switch ms-3">
+											<input v-model="formData.ai_mode" class="form-check-input" type="checkbox" true-value="auto" false-value="manual" id="aiModeSwitch">
+											<label class="form-check-label small fw-bold text-primary" for="aiModeSwitch">
+												<i class="bi bi-robot me-1"></i>상담 시 AI 자동 요약 사용
+											</label>
 										</div>
 									</div>
 								</td>
@@ -221,7 +230,8 @@ const formData = reactive<any>({
 	gline1: '', gline2: '', gline3: '', gline4: '', gline5: '',
 	bgtype: '000', cardcust: '', mnfyn: 'N', stkgbn: '100',
 	stokyn: 'Y', pricegbn: '1', slipyn: 'N', yeosinyn: 'N', iocnfmyn: 'N',
-	balcnfmyn: 'N', outacctyn: 'N', logoimg: '', stampimg: ''
+	balcnfmyn: 'N', outacctyn: 'N', logoimg: '', stampimg: '',
+	ai_mode: 'manual'
 })
 
 const getImageUrl = (filename: string, type: string) => {
@@ -285,6 +295,7 @@ async function save() {
 			yeosinyn: formData.yeosinyn,
 			iocnfmyn: formData.iocnfmyn,
 			outacctyn: formData.outacctyn,
+			ai_mode: formData.ai_mode,
 			updemp: authStore.userid
 		}
 

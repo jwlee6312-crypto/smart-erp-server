@@ -1,5 +1,6 @@
 package com.crmbank.erp.crm.handler;
 
+import com.crmbank.erp.comm.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -27,9 +28,10 @@ public class CtiWebSocketHandler extends TextWebSocketHandler {
             String exten = getExtension(session);
 
             if (exten != null && !exten.trim().isEmpty()) {
-                SESSIONS.computeIfAbsent(exten, k -> new CopyOnWriteArrayList<>()).add(session);
-                log.info("🎯 [CTI WS] 상담원 연결 완료: 내선번호 [{}], ID: [{}], 총 세션: {}", 
-                         exten, session.getId(), SESSIONS.get(exten).size());
+                String cleanExt = exten.trim(); // 🚀 [추가] 저장 시 공백 제거
+                SESSIONS.computeIfAbsent(cleanExt, k -> new CopyOnWriteArrayList<>()).add(session);
+                log.info("🎯 [CTI WS] 상담원 연결 완료: 내선번호 [{}], ID: [{}], 총 세션: {}",
+                        cleanExt, session.getId(), SESSIONS.get(cleanExt).size());
             } else {
                 log.warn("⚠️ [CTI WS] 내선번호 없이 연결됨: ID: [{}]. 팝업 수신이 불가능합니다.", session.getId());
             }
@@ -75,16 +77,16 @@ public class CtiWebSocketHandler extends TextWebSocketHandler {
     }
 
     // 💡 [추가] 특정 내선의 세션에서 회사코드 추출
-    public String getCmpyCd(String exten) {
+    public String getCmpycd(String exten) {
         List<WebSocketSession> sessions = SESSIONS.get(exten);
         if (sessions != null && !sessions.isEmpty()) {
             for (WebSocketSession session : sessions) {
                 if (session.isOpen()) {
                     Map<String, Object> attrs = session.getAttributes();
                     Object userObj = attrs.get("user_session");
-                    if (userObj instanceof com.crmbank.erp.comm.dto.UserSession) {
-                        String cmpycd = ((com.crmbank.erp.comm.dto.UserSession) userObj).getCmpycd();
-                        return cmpycd != null ? cmpycd.trim() : ""; // 💡 공백 제거(Trim) 추가
+                    if (userObj instanceof UserSession) {
+                        String cmpycd = ((UserSession) userObj).getCmpycd();
+                        return cmpycd != null ? cmpycd.trim() : "";
                     }
                 }
             }
@@ -96,7 +98,7 @@ public class CtiWebSocketHandler extends TextWebSocketHandler {
         if (exten == null) return;
         String cleanExt = exten.trim(); // 💡 공백 제거로 정확한 매칭 유도
         List<WebSocketSession> sessions = SESSIONS.get(cleanExt);
-        
+
         if (sessions != null && !sessions.isEmpty()) {
             log.info("🚀 [CTI WS] 메시지 전송 시작 -> 내선: {}, 세션수: {}", cleanExt, sessions.size());
             for (WebSocketSession session : sessions) {
