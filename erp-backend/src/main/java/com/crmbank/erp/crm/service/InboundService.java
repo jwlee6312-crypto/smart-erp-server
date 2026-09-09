@@ -32,7 +32,7 @@ public class InboundService {
      */
     @Async
     @Transactional
-    public void processAiSummaryAsync(String cmpycd, String svcno, String fullPath, String updemp) {
+    public void processAiSummaryAsync(String cmpycd, String svcno, String fullPath, String updemp, String customerPhone) {
         try {
             // 🚀 [해결 3] 파일이 완전히 저장될 때까지 5초간 넉넉히 대기 (오류 방지)
             Thread.sleep(5000); 
@@ -43,7 +43,7 @@ public class InboundService {
                 log.warn("⚠️ [AI] 분석할 파일이 아직 준비되지 않음: {}", fullPath);
                 return;
             }
-            Map<String, String> aiResult = geminiAiService.analyzeAudio(fullPath);
+            Map<String, String> aiResult = geminiAiService.analyzeAudio(fullPath, customerPhone);
 
             CallMstDto updateDto = new CallMstDto();
             updateDto.setCmpycd(cmpycd);

@@ -83,7 +83,7 @@ api.interceptors.request.use(
 )
 
 // 🚀 응답 인터셉터: 모든 API 응답의 '입구'에서 표준화 강제 실행
-let isAlerting = false // 💡 중복 알림 방지용 플래그
+let isAlerting = false
 
 api.interceptors.response.use(
 	(response) => {
@@ -105,18 +105,25 @@ api.interceptors.response.use(
 		if (error.response?.status === 401 || error.response?.status === 403) {
 			const authStore = useAuthStore()
 
-			if (!router.currentRoute.value.path.includes('/login') && !isAlerting) {
-				isAlerting = true
-				alert('세션 정보가 유실되었습니다. 보안을 위해 로그인 페이지로 이동합니다.')
+			// 🚀 [해결] 로그인 페이지 자체이거나, 로그인/세션 체크 API 요청인 경우엔
+			// 절대로 '세션 유실' 알림을 띄우지 않고 조용히 에러를 반환함
+			const isAuthPage = window.location.pathname.includes('/auth/login');
+			const isAuthApi = error.config.url.includes('/comm/login') || error.config.url.includes('/comm/session');
 
-				authStore.resetState()
-				sessionStorage.clear()
-				localStorage.clear()
-
-				// 💡 강제로 페이지를 새로고침하여 모든 메모리 상의 찌꺼기 제거
-				window.location.href = '/auth/login'
-				return new Promise(() => {}) // 요청 중단
+			if (isAuthPage || isAuthApi || isAlerting) {
+				return Promise.reject(error)
 			}
+
+			isAlerting = true
+			alert('세션이 만료되었습니다. 다시 로그인해 주세요.')
+
+			authStore.resetState()
+			sessionStorage.clear()
+			localStorage.clear()
+
+			// 💡 무조건 로그인 페이지로 강제 이동 (가장 확실한 방법)
+			window.location.href = '/auth/login'
+			return new Promise(() => {})
 		}
 
 		// 에러 응답 데이터도 소문자로 정규화하여 일관성 유지

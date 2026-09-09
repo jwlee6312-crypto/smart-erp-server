@@ -225,6 +225,7 @@ const call_result = reactive({ rslt_cd: '', memo: '' })
 const agent_chat_history = ref<any[]>([]); const agent_reply_input = ref('')
 const timeline_data = ref<any[]>([])
 const is_saving = ref(false)
+const current_rec_file = ref('') // 🚀 [추가] 현재 발신 중인 녹취파일명 보관용
 
 let customer_table_instance: Tabulator | null = null; const customer_table_ref = ref<HTMLDivElement | null>(null)
 const agent_scroll_ref = ref<HTMLElement | null>(null)
@@ -348,6 +349,7 @@ const handle_save_all = async () => {
             end_time: new Date().toISOString().replace('T', ' ').substring(0, 19),
             media_type: agent_chat_history.value.length > 0 ? 'chat' : 'call',
             chat_history: chat_log_str,
+            rec_file: current_rec_file.value || '', // 🚀 [해결] 백엔드 필드명(rec_file)에 맞춰 전달
             surveys: survey_questions.value.map(q => {
                 const selectedSample = q.sample_list.find(s => s.no === q.user_ans_no);
                 return {
@@ -387,7 +389,26 @@ const init_customer_table = () => {
 
 const apply_filter = (code: string) => { current_filter.value = code; load_customer_list(); }
 const format_date = (dt: any) => dt ? new Date(dt).toLocaleString() : '';
-const make_call = () => { if (selected_customer.value && customer_info.tel_no) api.get('/crm/cti/make-call', { params: { exten: authStore.inner_no, dest: customer_info.tel_no.replace(/-/g, ''), context: 'outbound-call' } }); }
+const make_call = async () => {
+    if (selected_customer.value && customer_info.tel_no) {
+        try {
+            const res = await api.get('/crm/cti/make-call', {
+                params: {
+                    exten: authStore.inner_no,
+                    dest: customer_info.tel_no.replace(/-/g, ''),
+                    context: 'outbound-call'
+                }
+            });
+            if (res.data && res.data.recFile) {
+                // 🚀 [해결] 발신 성공 시 파일명을 화면 메모리에 저장
+                current_rec_file.value = res.data.recFile;
+                console.log('🎬 [OUTBOUND] 녹취 시작:', current_rec_file.value);
+            }
+        } catch (e) {
+            vAlertError('발신 요청 실패');
+        }
+    }
+}
 const handle_invite = async () => { if (customer_info.email) { await api.post('/mail/send-invite', { toEmail: customer_info.email, custNm: selected_customer.value.cust_nm, custcd: selected_customer.value.call_seq.toString() }); vAlert('초대장 발송 완료'); } }
 
 let messageInterval: any = null;

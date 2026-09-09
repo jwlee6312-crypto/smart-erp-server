@@ -70,24 +70,18 @@ router.beforeEach(async (to, from, next) => {
         return next('/auth/login')
     }
 
-	// 2. 화이트리스트 및 첫 진입 체크 (직접 주소 입력 및 새로고침 대응)
-    // H로 시작하는 8자리 프로그램 ID 패턴이면 세션 체크만 하고 통과시킵니다.
-    const isBusinessPage = /^\/[A-Z]{4}\d{3}[A-Z]$/.test(to.path) || to.path.includes('/HGOA');
+	if (to.path === '/auth/login') return next()
 
-	if (!from.matched.length && !isBusinessPage && !['/', '/auth/login', '/manual', '/HGOA/HGOA100C'].includes(to.path)) {
-        return next('/')
-    }
-
-	if (to.path === '/auth/login') {
-        const active = await checkSession();
-        return active ? next('/') : next()
-    }
-
-    // 3. 세션 체크
+    // 🚀 [해결 핵심] 회사코드와 사용자ID가 100% 들어있는지 이중 체크
 	const active = await checkSession()
-	if (active) return next()
+	if (active && authStore.cmpycd && authStore.userid) {
+        return next()
+    }
 
-	authStore.resetState()
+    // 정보가 하나라도 누락되면(세션 유실) 즉시 추방
+    console.warn('🚫 [보안] 세션 정보(회사코드/ID) 유실로 인한 강제 로그아웃');
+	authStore.resetState();
+    sessionStorage.clear();
     return next('/auth/login')
 })
 

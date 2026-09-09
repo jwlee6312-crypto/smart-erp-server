@@ -216,7 +216,7 @@ const consultData = ref({
 	ai_summary: '', trb_ment: '', ans_ment: '',
 	itemcd: '', itemnm: '', iono: '',
 	deptcd: '', esc_memo: '', escalation_no: '', escalation_yn: 'N',
-	ai_mode: 'manual' // 🚀 [추가] AI 처리 모드 기본값
+	ai_mode: 'auto' // 🚀 [최종] AI 자동 요약을 기본 모드로 설정 (상담원 편의 극대화)
 })
 
 const handleOpenHelp = (type: string) => {
@@ -251,13 +251,54 @@ const loadCustomerDetails = async (custcd: string) => {
 }
 
 const handleAiSummarize = async () => {
-	if (!consultData.value.trb_ment) { vAlertError('문의 내용을 입력해 주세요.'); return; }
-	isSummarizing.value = true;
-	try {
-		const res = await api.post('/crm/inbound/ai-summarize', { trb_ment: consultData.value.trb_ment, ans_ment: consultData.value.ans_ment });
-		if (res.data) { consultData.value.ai_summary = res.data.summary; consultData.value.deptcd = res.data.deptcd; }
-	} catch (e) { vAlertError('AI 요약 실패'); }
-	finally { isSummarizing.value = false; }
+    // 🚀 [해결] 헬프 모달이 직접 백엔드 API를 호출하도록 정석대로 구성
+    Object.assign(modalProps, {
+        title: '최근 녹취 파일 선택 (AI 분석용)',
+        path: '/crm/inbound/recording-list-pop', // 🚀 새로 만든 전용 API 주소
+        data: {}, // 서버에 전달할 파라미터
+        columns: [
+            { title: "파일명", field: "filename", widthGrow: 2 },
+            { title: "생성시간", field: "mtime", width: 160 },
+            { title: "크기", field: "size", width: 80 }
+        ],
+        onConfirm: (selectedFile: any) => {
+            startAiAnalysis(selectedFile.filename);
+        }
+    });
+    modalVisible.value = true;
+}
+
+// 🚀 실제 AI 분석 수행 로직 분리
+const startAiAnalysis = async (filename: string) => {
+    isSummarizing.value = true;
+    vAlert('🤖 AI가 상담 내용을 분석 중입니다...');
+
+    try {
+        const res = await api.get('/crm/inbound/analyze-audio', { params: { file: filename } });
+        console.log('📥 [AI 분석 결과 수신]:', res.data);
+
+        if (res.data) {
+            // 🚀 [해결] 어떤 상황에서도 수신된 데이터는 즉시 화면에 노출합니다.
+            const data = res.data;
+            consultData.value.trb_ment = data.trb_ment || '내용 없음';
+            consultData.value.ans_ment = data.ans_ment || '내용 없음';
+            consultData.value.ai_summary = data.summary || '요약 실패';
+
+            if (String(data.summary).includes('오류')) {
+                vAlertError('⚠️ 상담 내용은 분석되었으나, AI 요약은 사용량 초과로 실패했습니다.');
+            } else {
+                vAlert('✅ AI 분석 결과가 화면에 반영되었습니다.');
+            }
+
+            // 🚀 강제 렌더링 유도를 위해 넥스트틱 활용
+            await nextTick();
+        }
+    } catch (e) {
+        console.error('❌ AI 분석 API 오류:', e);
+        vAlertError('AI 서버와 통신할 수 없습니다.');
+    } finally {
+        isSummarizing.value = false;
+    }
 }
 
 const handleSave = async () => {
@@ -376,18 +417,44 @@ watch(() => ctiStore.incomingCall, (newCall) => {
 		consultData.value.date = new Date().toISOString().substring(0, 10);
 		consultData.value.trb_ment = '';
 		consultData.value.ans_ment = '';
+        consultData.value.ai_summary = ''; // 초기화
 
 		// 3. 화면 탭 강제 이동 및 데이터 로드 (과거이력 등)
 		activeTab.value = 1;
 		if (cleanCustCd) {
 			loadCustomerDetails(cleanCustCd);
-			loadTabData(1);
 		}
 
 		// 4. 시각적 알림 (vAlert)
 		vAlert(`📞 [전화 수신] ${customerInfo.value.custnm} (${newCall.callerid})`);
 	}
 }, { deep: true });
+
+// 🚀 [신규] 통화 종료 시 자동 AI 분석 및 필드 채우기
+watch(() => ctiStore.recordingFile, async (newFile) => {
+    if (newFile && consultData.value.ai_mode === 'auto') {
+        console.log('🤖 [AI 자동화] 통화 종료 감지, AI 분석 시작:', newFile);
+        isSummarizing.value = true;
+        vAlert('🤖 AI가 통화 내용을 분석 중입니다. 잠시만 기다려 주세요...');
+
+        try {
+            // 방금 만든 분석 API 호출
+            const res = await api.get('/crm/inbound/analyze-audio', { params: { file: newFile } });
+            if (res.data) {
+                console.log('✅ [AI 분석 완료]:', res.data);
+                consultData.value.trb_ment = res.data.trb_ment || '';
+                consultData.value.ans_ment = res.data.ans_ment || '';
+                consultData.value.ai_summary = res.data.summary || '';
+                vAlert('✅ AI 분석이 완료되어 상담 내용이 자동 입력되었습니다.');
+            }
+        } catch (e) {
+            console.error('AI 자동 분석 실패:', e);
+            vAlertError('AI 자동 분석에 실패했습니다.');
+        } finally {
+            isSummarizing.value = false;
+        }
+    }
+});
 
 onBeforeUnmount(() => { tableInstance1?.destroy(); tableInstance2?.destroy(); tableInstance3?.destroy(); });
 </script>

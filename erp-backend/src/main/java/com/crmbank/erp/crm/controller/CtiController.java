@@ -93,12 +93,23 @@ public class CtiController {
     }
 
     /**
-     * 💡 실제 아웃바운드 발신 실행
+     * 💡 실제 아웃바운드 발신 실행 (세션 기반 회사코드 연동)
      */
     @GetMapping("/make-call")
-    public Map<String, Object> makeCall(@RequestParam String exten, @RequestParam String dest) {
-        log.info("🚀 [API] 아웃바운드 발신 요청: {} -> {}", exten, dest);
-        String recFile = ctiOutboundService.makeCall(exten, dest, "haion-outbound");
+    public Map<String, Object> makeCall(
+            @RequestParam String exten, 
+            @RequestParam String dest, 
+            @RequestParam(required = false) String context,
+            HttpSession session) {
+        
+        // 🚀 [해결] 세션에서 유저 정보와 회사코드를 꺼내옴
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        String cmpycd = (user != null) ? user.getCmpycd() : "COIT";
+
+        log.info("🚀 [API] 아웃바운드 발신 요청: {} -> {} (Company: {})", exten, dest, cmpycd);
+        
+        String recFile = ctiOutboundService.makeCall(exten, dest, context, cmpycd);
+        
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("recFile", recFile);
