@@ -83,6 +83,8 @@ api.interceptors.request.use(
 )
 
 // 🚀 응답 인터셉터: 모든 API 응답의 '입구'에서 표준화 강제 실행
+let isAlerting = false // 💡 중복 알림 방지용 플래그
+
 api.interceptors.response.use(
 	(response) => {
 		// [Step 1] 어떤 형태든 들어오는 모든 데이터의 키를 소문자로 강제 정규화
@@ -99,14 +101,21 @@ api.interceptors.response.use(
 		return { ...response, data: clean }
 	},
 	async (error) => {
-		// 🚀 세션 유실(401/403) 발생 시 자동 로그아웃 처리
+		// 🚀 세션 유실(401/403) 발생 시 강제 로그아웃 정책 적용
 		if (error.response?.status === 401 || error.response?.status === 403) {
 			const authStore = useAuthStore()
-			if (!router.currentRoute.value.path.includes('/login')) {
-				alert('세션이 만료되었거나 연결 정보가 유실되었습니다.\n로그인 페이지로 이동합니다.')
+
+			if (!router.currentRoute.value.path.includes('/login') && !isAlerting) {
+				isAlerting = true
+				alert('세션 정보가 유실되었습니다. 보안을 위해 로그인 페이지로 이동합니다.')
+
 				authStore.resetState()
 				sessionStorage.clear()
-				await router.push('/auth/login')
+				localStorage.clear()
+
+				// 💡 강제로 페이지를 새로고침하여 모든 메모리 상의 찌꺼기 제거
+				window.location.href = '/auth/login'
+				return new Promise(() => {}) // 요청 중단
 			}
 		}
 

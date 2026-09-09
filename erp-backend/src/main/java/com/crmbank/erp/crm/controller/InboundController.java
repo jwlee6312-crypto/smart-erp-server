@@ -208,14 +208,41 @@ public class InboundController {
     }
 
     @GetMapping("/play-recording")
-    public ResponseEntity<ResourceRegion> playRecording(@RequestHeader HttpHeaders headers, @RequestParam String file) throws IOException {
-        String fileNameOnly = new File(file).getName();
-        File targetFile = new File(recordingPath, fileNameOnly);
-        if (!targetFile.exists()) return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    public ResponseEntity<ResourceRegion> playRecording(@RequestHeader HttpHeaders headers, @RequestParam(value = "file", required = false) String file) throws IOException {
+        log.info("🎧 [음원 재생 요청] Parameter 'file': {}", file);
+        
+        if (file == null || file.trim().isEmpty()) {
+            log.warn("🔈 [재생 실패] 파일명 파라미터가 누락되었습니다.");
+            return ResponseEntity.badRequest().build();
+        }
+
+        // 🚀 [해결 핵심] 파일명 뒤에 붙은 캐시 방지용 쿼리 스트링(?t=...)을 제거합니다.
+        String cleanFileName = file;
+        if (cleanFileName.contains("?")) {
+            cleanFileName = cleanFileName.substring(0, cleanFileName.indexOf("?"));
+        }
+        
+        String fileNameOnly = new File(cleanFileName).getName();
+        log.info("🔍 [경로 탐색] 최종 정제된 파일명: {}", fileNameOnly);
+        
+        // 🚀 1순위: TTS 음원(soundsPath), 2순위: 녹취(recordingPath)
+        File targetFile = new File(soundsPath, fileNameOnly);
+        if (!targetFile.exists()) {
+            targetFile = new File(recordingPath, fileNameOnly);
+        }
+
+        if (!targetFile.exists()) {
+            log.warn("❌ [파일 없음] 최종 경로 실패: {}, {}", 
+                     new File(soundsPath, fileNameOnly).getAbsolutePath(),
+                     new File(recordingPath, fileNameOnly).getAbsolutePath());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        log.info("✅ [재생 시작] 파일 발견: {} (크기: {} bytes)", targetFile.getAbsolutePath(), targetFile.length());
 
         FileSystemResource resource = new FileSystemResource(targetFile);
         long contentLength = resource.contentLength();
-
+        
         List<HttpRange> ranges = headers.getRange();
         ResourceRegion region;
         if (!ranges.isEmpty()) {

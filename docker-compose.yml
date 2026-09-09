@@ -2,17 +2,29 @@ services:
   smartdb:
     image: mcr.microsoft.com/mssql/server:2025-latest
     container_name: smartdb
-    environment: { ACCEPT_EULA: "Y", MSSQL_SA_PASSWORD: "Crmbank123!" }
+    environment: 
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Crmbank123!"
+      TZ: "Asia/Seoul"
     ports: ["1434:1433"]
-    volumes: ["/data/smart-erp/mssql:/var/opt/mssql"]
+    volumes:
+      - /data/smart-erp/mssql:/var/opt/mssql
+      - /etc/localtime:/etc/localtime:ro # 🚀 [해결] 호스트 시계를 컨테이너와 동기화
+      - /etc/timezone:/etc/timezone:ro
     restart: always
 
   asterisk-db:
     image: mysql:8.0
     container_name: asterisk-db
-    environment: { MYSQL_ROOT_PASSWORD: "Crmbank123!", MYSQL_DATABASE: "asterisk" }
+    environment: 
+      - MYSQL_ROOT_PASSWORD=Crmbank123!
+      - MYSQL_DATABASE=asterisk
+      - TZ=Asia/Seoul
     ports: ["3307:3306"]
-    volumes: ["/data/smart-erp/mysql:/var/lib/mysql"]
+    volumes:
+      - /data/smart-erp/mysql:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro # 🚀 [해결] 호스트 시계를 컨테이너와 동기화
+      - /etc/timezone:/etc/timezone:ro
     restart: always
 
   asterisk:
@@ -21,6 +33,7 @@ services:
     environment:
       - ODBCINI=/etc/odbc.ini
       - ODBCSYSINI=/etc
+      - TZ=Asia/Seoul # 🚀 시간대 추가
     ports: ["5038:5038", "5060:5060/udp", "10000-10100:10000-10100/udp"]
     volumes:
       - ./asterisk_config:/etc/asterisk
@@ -69,7 +82,10 @@ services:
     image: smart-erp-frontend:latest
     container_name: frontend
     ports: ["80:80"]
-    volumes: ["./nginx_config/default.conf:/etc/nginx/conf.d/default.conf:ro"]
+    volumes:
+      - ./nginx_config/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /var/lib/asterisk/sounds/custom:/var/lib/asterisk/sounds/custom:ro # 🚀 [추가] ARS 음원 직접 배달용
+      - /data/smart-erp/recordings:/data/smart-erp/recordings:ro # 🚀 [추가] 녹취 파일 직접 배달용
     depends_on: [backend]
     restart: always
 

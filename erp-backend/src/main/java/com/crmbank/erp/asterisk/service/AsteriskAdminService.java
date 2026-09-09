@@ -70,32 +70,22 @@ public class AsteriskAdminService {
         }
     }
 
+    // 🚀 [해결] 호스트 직접 실행 환경에 맞는 실제 경로로 기본값 변경
+    @Value("${asterisk.tts.script.path:/home/smart/smart-erp/scripts/generate_tts.py}")
+    private String ttsScriptPath;
+
     private void generateTtsFile(String scriptId, String text) {
         /*
          * [서버 환경별 TTS 생성 스크립트 실행 지침]
-         * 1. WINDOWS: wsl 명령어를 통해 프로젝트 내 스크립트 실행
-         * 2. UNIX/LINUX: 시스템 python3를 직접 호출하여 실행
-         * 💡 향후 스크립트 경로를 찾지 못하는 문제가 발생하면 linuxPath 변수의 
-         *    절대 경로를 서버 환경에 맞게 직접 수정하거나 별도 프로퍼티로 관리하세요.
+         * 💡 설정 파일(application.properties)의 asterisk.tts.script.path 값을 
+         *    서버 환경(Docker 내부 또는 Host 직접 실행)에 맞게 설정하세요.
          */
         try {
-            String[] command;
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                // ============================================================
-                // [CASE 1] WINDOWS (로컬 테스트 - WSL 연동)
-                // ============================================================
-                command = new String[]{"wsl", "python3", "/mnt/d/erp.crmbank.co.kr/scripts/generate_tts.py", scriptId, text};
-            } else {
-                // ============================================================
-                // [CASE 2] UNIX / LINUX (실제 운영 서버 - Docker 컨테이너 내부 경로)
-                // ============================================================
-                String linuxPath = "/app/scripts/generate_tts.py";
-                command = new String[]{"python3", linuxPath, scriptId, text};
-            }
+            String[] command = {"python3", ttsScriptPath, scriptId, text};
 
-            log.info("🎙️ TTS 생성 시도: {} {}", scriptId, text);
+            log.info("🎙️ TTS 생성 시도: {} {} (Script: {})", scriptId, text, ttsScriptPath);
             ProcessBuilder pb = new ProcessBuilder(command);
-            pb.inheritIO(); // 로그 확인을 위해 출력 스트림 연결
+            pb.inheritIO();
             pb.start();
         } catch (Exception e) {
             log.error("❌ TTS 생성 실패: {}", e.getMessage());

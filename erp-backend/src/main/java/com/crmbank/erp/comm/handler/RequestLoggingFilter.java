@@ -12,6 +12,7 @@ import java.io.IOException;
  */
 @Slf4j
 @Component
+@org.springframework.core.annotation.Order(0)
 public class RequestLoggingFilter implements Filter {
 
     @Override
@@ -20,10 +21,12 @@ public class RequestLoggingFilter implements Filter {
         
         HttpServletRequest req = (HttpServletRequest) request;
         String path = req.getRequestURI();
+        String query = req.getQueryString();
+        String fullPath = (query != null) ? path + "?" + query : path;
         
         // 💡 [최종 진단] 모든 요청을 낱낱이 기록하여 Nginx 전달 주소를 확인합니다.
         log.info("📡 [Incoming Request] Method: {}, Path: {}, RemoteIP: {}", 
-                 req.getMethod(), path, req.getRemoteAddr());
+                 req.getMethod(), fullPath, req.getRemoteAddr());
 
         chain.doFilter(request, response);
     }
