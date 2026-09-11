@@ -223,6 +223,7 @@ onMounted(() => {
         },
         {
           title: "전월누계",
+          headerHozAlign: "center",
           columns: [
             { title: "금 액", field: "bamt", width: 130, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
             { title: "%", field: "brate", width: 60, hozAlign: "center" }
@@ -230,6 +231,7 @@ onMounted(() => {
         },
         {
           title: "당 월",
+          headerHozAlign: "center",
           columns: [
             { title: "금 액", field: "camt", width: 130, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 }, cssClass: "text-primary fw-bold" },
             { title: "%", field: "crate", width: 60, hozAlign: "center" }
@@ -237,6 +239,7 @@ onMounted(() => {
         },
         {
           title: "누 계",
+          headerHozAlign: "center",
           columns: [
             { title: "금 액", field: "tamt", width: 130, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
             { title: "%", field: "trate", width: 60, hozAlign: "center" }
@@ -249,4 +252,18 @@ onMounted(() => {
 })
 </script>
 
-<style scoped></style>
+<style scoped>
+.tabulator-instance {
+  width: 100% !important;
+  background-color: #fff;
+  border-bottom: 3px solid #005a9f !important;
+}
+
+/* 🚀 [디자인 표준] 헤더 수직 병합 및 중앙 정렬 */
+:deep(.tabulator-header .tabulator-col:not(.tabulator-col-group) .tabulator-col-content) {
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+</style>

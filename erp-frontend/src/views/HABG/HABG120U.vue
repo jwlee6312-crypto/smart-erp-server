@@ -368,11 +368,23 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.tabulator-instance { width: 100% !important; background-color: #fff; }
+.tabulator-instance {
+  width: 100% !important;
+  background-color: #fff;
+  border-bottom: 3px solid #005a9f !important;
+}
 .erp-table-full th { background-color: #f8f9fa; text-align: center; padding: 5px; font-size: 12px; border: 1px solid #dee2e6; }
 .erp-table-full td { padding: 4px; border: 1px solid #dee2e6; background-color: #fff; }
 .bg-yellow { background-color: #fff9db !important; }
 
 :deep(.tabulator-header .tabulator-col) { background-color: #f1f5f9 !important; border-right: 1px solid #dee2e6 !important; }
 :deep(.tabulator-cell) { border-right: 1px solid #dee2e6 !important; }
+
+/* 🚀 [디자인 표준] 헤더 수직 병합 및 중앙 정렬 */
+:deep(.tabulator-header .tabulator-col:not(.tabulator-col-group) .tabulator-col-content) {
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
 </style>

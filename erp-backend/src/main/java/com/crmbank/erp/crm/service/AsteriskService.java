@@ -35,7 +35,6 @@ public class AsteriskService implements ManagerEventListener {
     private final Map<String, Set<String>> session_channels = new ConcurrentHashMap<>();
     private final Set<String> registered_extens = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    // ⛔ [절대 지우지 마시오] 컨트롤러 참조 필수 메서드
     public Map<String, String> getExtenChannelMap() { return exten_channel_map; }
     public Map<String, String> getExtenLinkedId() { return exten_linked_id; }
     public Map<String, Set<String>> getSessionChannels() { return session_channels; }
@@ -61,7 +60,6 @@ public class AsteriskService implements ManagerEventListener {
         if (ext != null) exten_channel_map.put(ext.trim(), event.getChannel());
     }
 
-    // ⛔ [절대 지우지 마시오] 팝업 발생 핵심 로직 (중복 팝업 완전 제거 버전)
     private void handleNewState(NewStateEvent e) {
         String state = e.getChannelStateDesc();
         String channel = e.getChannel();
@@ -71,16 +69,11 @@ public class AsteriskService implements ManagerEventListener {
         if (ext == null || callerId == null) return;
         String cleanExt = ext.trim();
 
-        // 🚀 [중복 차단 핵심 1] 이미 팝업이 떠 있는 상태라면 절대로 다시 띄우지 않음
         if (exten_caller_channel.containsKey(cleanExt)) return;
-
-        // 🚀 [중복 차단 핵심 2] 시스템 내부 연결 신호는 무시
         if (channel.contains("cti-answer") || channel.contains("Surrogate")) return;
 
         if ("Ringing".equals(state) && !cleanExt.equals(callerId.trim())) {
-            // 발신번호가 너무 짧으면(예: 's', 'admin') 가짜 신호로 간주
             if (callerId.length() < 3) return;
-
             log.info("📢 [POPUP] 신규 고객 전화 수신: {} <- {}", cleanExt, callerId);
             exten_caller_channel.put(cleanExt, channel);
             exten_linked_id.put(cleanExt, e.getUniqueId());
@@ -92,9 +85,7 @@ public class AsteriskService implements ManagerEventListener {
         String agentExt = extractNumberOnly(e.getInterface());
         if (agentExt != null) {
             String cleanExt = agentExt.trim();
-            // 🚀 이미 팝업이 떴다면 큐 신호는 무시 (데이터는 이미 존재함)
             if (exten_caller_channel.containsKey(cleanExt)) return;
-
             log.info("📢 [POPUP] 큐 대기열 신호 수신: {} <- {}", cleanExt, e.getCallerIdNum());
             exten_caller_channel.put(cleanExt, e.getChannel());
             exten_linked_id.put(cleanExt, e.getLinkedId());
@@ -115,30 +106,21 @@ public class AsteriskService implements ManagerEventListener {
             String cleanExt = exten.trim();
             String recFile = exten_linked_id.get(cleanExt);
             sendCtiEvent(cleanExt, "CALL_HANGUP", e.getChannel(), recFile);
-            
-            // 🚀 통화 종료 시에만 정보를 지워서 다음 팝업이 가능하게 함
             exten_channel_map.remove(cleanExt);
             exten_caller_channel.remove(cleanExt);
             exten_linked_id.remove(cleanExt);
         }
     }
 
-    // ⛔ [절대 지우지 마시오] 업계 표준 Redirect 방식 응답
     public void answerCall(String exten) {
         if (exten == null) return;
         String cleanExt = exten.trim();
         String callerChannel = exten_caller_channel.get(cleanExt);
-        
-        if (callerChannel == null) {
-            log.warn("⚠️ [받기 실패] 고객 채널 없음");
-            return;
-        }
-
+        if (callerChannel == null) return;
         try {
-            log.info("🚀 [Redirect] 고객 연결 시도: {} -> {}", callerChannel, cleanExt);
             managerConnection.sendAction(new SetVarAction(callerChannel, "AGENT_EXTEN", cleanExt));
             managerConnection.sendAction(new RedirectAction(callerChannel, "cti-answer-force", "s", 1));
-        } catch (Exception e) { log.error("❌ 받기 오류: {}", e.getMessage()); }
+        } catch (Exception e) {}
     }
 
     public void hangupCall(String exten, String ch) {
@@ -173,7 +155,7 @@ public class AsteriskService implements ManagerEventListener {
             if (customer != null) customer.forEach((k, v) -> data.put(k.toLowerCase(), v));
             else data.put("custnm", "미등록 고객");
             webSocketHandler.sendMessage(exten, objectMapper.writeValueAsString(data));
-        } catch (Exception e) { log.error("❌ 팝업 에러: {}", e.getMessage()); }
+        } catch (Exception e) {}
     }
 
     private void sendCtiEvent(String exten, String type, String channel, String recFile) {
@@ -191,7 +173,6 @@ public class AsteriskService implements ManagerEventListener {
         Matcher m = Pattern.compile("(\\d{3,4})").matcher(s);
         return m.find() ? m.group(1) : null;
     }
-    private boolean isValidExt(String s) { return s != null && s.matches("^\\d{3,4}$"); }
 
     @PostConstruct
     public void init() {
@@ -201,9 +182,8 @@ public class AsteriskService implements ManagerEventListener {
                     if (managerConnection.getState() != org.asteriskjava.manager.ManagerConnectionState.CONNECTED) {
                         managerConnection.addEventListener(this);
                         managerConnection.login();
-                        log.info("✅ [AMI] Asterisk 연결 성공!");
                     }
-                } catch (Exception e) { log.error("❌ [AMI] 실패: {}", e.getMessage()); }
+                } catch (Exception e) {}
                 try { Thread.sleep(5000); } catch (InterruptedException e) { break; }
             }
         }).start();

@@ -174,10 +174,20 @@ const handleymChange = () => search()
 
 const search = async () => {
   try {
+    // 🚀 [해결] 회사코드 대문자 변환 및 MyBatis XML 13개 파라미터 규격 준수
     const res = await api.post('/hapl/HAPL_020U_STR', {
         actkind: 'S0',
-        cmpycd: authStore.cmpycd,
+        cmpycd: authStore.cmpycd?.toUpperCase(), // 세션 'coit' -> DB 'COIT' 변환
+        gubun: '020',
         stdym: searchForm.yy + searchForm.mm,
+        acctcd: '',
+        acctnm: '',
+        deptdivcd: '',
+        deptdivnm: '',
+        itemdivcd: '',
+        itemdivnm: '',
+        remark: '',
+        useyn: 'Y',
         userid: authStore.userid
     })
 
@@ -200,7 +210,8 @@ const save = async () => {
   try {
     const res = await api.post('/hapl/HAPL_020U_STR', {
       ...formData,
-      cmpycd: authStore.cmpycd,
+      gubun: '020', // 🚀 [해결] 저장 시에도 구분값 '020' 하드코딩
+      cmpycd: authStore.cmpycd?.toUpperCase(), // 🚀 [해결] 회사코드 대문자 변환
       stdym: (searchForm.yy + searchForm.mm).replace(/-/g, ''),
       userid: authStore.userid
     })

@@ -214,9 +214,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.tabulator-instance { width: 100% !important; background-color: #fff; }
+.tabulator-instance {
+  width: 100% !important;
+  background-color: #fff;
+  border-bottom: 3px solid #005a9f !important;
+}
 :deep(.tabulator-cell) { border-right: 1px solid #dee2e6 !important; font-size: 12px; }
 :deep(.tabulator-header .tabulator-col) { border-right: 1px solid #dee2e6 !important; background-color: #f8f9fa !important; font-size: 12px; }
 :deep(.tabulator-header .tabulator-col-group) { border-bottom: 1px solid #dee2e6 !important; }
 :deep(.bg-light) { background-color: #f1f5f9 !important; }
+
+/* 🚀 [디자인 표준] 헤더 수직 병합 및 중앙 정렬 */
+:deep(.tabulator-header .tabulator-col:not(.tabulator-col-group) .tabulator-col-content) {
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
 </style>

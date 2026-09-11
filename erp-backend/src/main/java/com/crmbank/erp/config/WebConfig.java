@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${STORAGE_PATH:D:/erp.crmbank.co.kr/storage}")
+    @Value("${STORAGE_PATH:/data/storage/common}")
     private String storagePath;
 
     @Override

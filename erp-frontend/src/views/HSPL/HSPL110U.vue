@@ -237,5 +237,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.tabulator-instance {
+    border-bottom: 3px solid #005a9f !important;
+}
 :deep(.tabulator-row:hover) { background-color: #f0f7ff !important; cursor: pointer; }
+
+/* 🚀 [디자인 표준] 헤더 수직 병합 및 중앙 정렬 */
+:deep(.tabulator-header .tabulator-col:not(.tabulator-col-group) .tabulator-col-content) {
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
 </style>

@@ -20,7 +20,7 @@ sudo fuser -k 8080/tcp 2>/dev/null
 
 echo "[2/6] Fixing directory permissions..."
 sudo chmod -R 777 /var/lib/asterisk/sounds/custom
-sudo chmod -R 777 /data/smart-erp/recordings
+sudo chmod -R 777 /data/storage
 
 # 3. 도커 인프라 재기동 (최신 Timezone 설정 강제 반영)
 echo "[3/6] Refreshing Infrastructure with Timezone Fix (Docker)..."

@@ -276,7 +276,7 @@ onMounted(async () => {
 async function search() {
 	const path = '/user/info'
 	const data = {
-		userid: authStore.userId,
+		userid: authStore.userid,
 	}
 	try {
 		const res = await searchStart(path, data)
@@ -323,6 +323,12 @@ async function save() {
 	try {
 		await saveBody(path, data)
 		await saveImg()
+
+		// 🚀 [해결] 저장 후 authStore의 사진 경로를 즉시 업데이트하여 사이드바에 반영
+		if (form_02.photo_path) {
+			authStore.photo_path = form_02.photo_path
+		}
+
 		resetForm(form_02)
 		await search()
 		vAlert('저장 성공')
@@ -333,24 +339,28 @@ async function save() {
 
 // ✅ 이미지 저장
 async function saveImg() {
+	if (!logoImage.value) return;
+
 	const data = new FormData()
-	if (logoImage.value) {
-		data.append('file', logoImage.value)
-	}
-	data.append('userid', authStore.userId)
+	data.append('file', logoImage.value)
+
+	// 🚀 [해결 핵심] Multipart 데이터와 일반 파라미터 혼선 방지를 위해
+	// userid와 cmpycd를 URL 쿼리 파라미터로 명시적으로 전달합니다.
+	const userid = authStore.userid;
+	const cmpycd = (authStore.cmpycd || '').toUpperCase();
+
 	try {
-		console.log('보낼데이터: ', data)
-		const res = await axios.post(API_URL + '/comm/upload/profile', data, {
-			headers: { 'Content-Type': 'multipart/form-data' },
-			withCredentials: true,
+		console.log('📸 프로필 이미지 업로드 시도:', userid, cmpycd)
+		const res = await api.post(`/comm/upload/profile?userid=${userid}&cmpycd=${cmpycd}`, data, {
+			headers: { 'Content-Type': 'multipart/form-data' }
 		})
 
 		if (res.data && res.data.filepath) {
 			form_02.photo_path = res.data.filepath
-			alert('사진이 임시 업로드되었습니다. 반드시 상단의 [저장] 버튼을 눌러야 최종 반영됩니다.')
 		}
-	} catch (error) {
+	} catch (error: any) {
 		console.error('업로드 실패:', error)
+		vAlertError('이미지 업로드 실패: ' + (error.response?.data || error.message))
 	}
 }
 
@@ -360,8 +370,8 @@ async function imgSearch() {
 	await nextTick()
 	try {
 		if (form_02.photo_path) {
-			// 💡 [보정] 정책 변경 반영: /Upload_Images/{cmpycd}/profile/{filename}
-			const cmpycd = authStore.cmpycd || 'coit'
+			// 💡 [해결] 실제 서버 폴더명인 대문자(COIT)로 고정하여 리눅스 대소문자 문제 해결
+			const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
 			logoPreviewUrl.value = `/Upload_Images/${cmpycd}/profile/${form_02.photo_path}`
 		}
 	} catch (err) {

@@ -1,6 +1,6 @@
 <template>
   <div class="side-bar shadow-sm" :class="{ 'is-collapsed': isCollapsed }">
-    <!-- 유저 프로필 카드 (영역 압축 및 사진 확대 최종 버전) -->
+    <!-- 👤 유저 프로필 카드 (사진 90px 및 세션 정보 강조) -->
     <div v-if="!isCollapsed" class="profile-card">
       <div class="user-details text-center">
         <div class="avatar-area mb-2">
@@ -9,18 +9,20 @@
             <i v-else class="bi bi-person-fill"></i>
           </div>
         </div>
+        <!-- 💡 세션 유지 확인을 위해 정보를 진하게 표시 -->
         <div class="user-info-text">
-          <div class="user-name-info">
-            {{ authStore.usernm }}(내선:{{ authStore.inner_no || '-' }})
+          <div class="user-name-info fw-bolder text-dark">
+            {{ authStore.usernm }}
+            <span class="badge bg-primary text-white ms-1" style="font-size: 11px;">내선:{{ authStore.inner_no || '-' }}</span>
           </div>
-          <div v-if="authStore.email" class="user-email-text">
-            메일:{{ authStore.email }}
+          <div v-if="authStore.email" class="user-email-text fw-bold text-secondary mt-1">
+            {{ authStore.email }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 메뉴 리스트 -->
+    <!-- 📋 메뉴 리스트 (기존 기능 유지) -->
     <div id="accordionMenu" class="menu-list">
       <div v-for="group in groupedItems" :key="group.grpcd" class="w-100">
         <a
@@ -29,7 +31,7 @@
           href="javascript:void(0)"
           @click="toggleGroup(group.grpcd)"
         >
-          <i class="bi bi-folder2-open me-2"></i>
+          <i class="bi bi-folder2-open me-2 text-primary"></i>
           <span v-if="!isCollapsed">{{ group.grpnm }}</span>
         </a>
 
@@ -41,7 +43,6 @@
               class="sb-nav-link"
               :class="{ 'is-active': tabStore.activeTab?.pgmId === item.pgmid }"
               href="javascript:void(0)"
-              :title="item.pgmid"
               @click="goPage(item.pgmid, item.pgmnm, item.grpcd)"
             >
               <i class="bi bi-chevron-right sub-icon"></i>
@@ -60,7 +61,6 @@ import { useMenuStore } from '@/stores/menuStore'
 import { useTabStore } from '@/stores/tabStore'
 import { useAuthStore } from '@/stores/authStore'
 import { addDynamicRoute } from '@/router/dynamicRoute'
-import { API_URL } from '@/config/api'
 
 const props = defineProps({
   isCollapsed: Boolean
@@ -71,15 +71,14 @@ const menuStore = useMenuStore()
 const tabStore = useTabStore()
 const openGroupId = ref<string | null>(null)
 
-// 🚀 프로필 이미지 경로 계산
+// 🚀 프로필 이미지 경로 계산 (리눅스 대소문자 무결성 보장)
 const profileImageSrc = computed(() => {
   if (authStore.photo_path) {
     const path = authStore.photo_path.trim()
     if (path.startsWith('http') || path.startsWith('data:')) return path
 
-    // 💡 [보정] 정책 변경 반영: /Upload_Images/{cmpycd}/profile/{filename}
-    // DB에는 파일명만 저장되어 있으므로 경로를 조합합니다.
-    const cmpycd = authStore.cmpycd || 'coit'
+    // 💡 [해결] 실제 서버 폴더명인 대문자(COIT)로 고정하여 리눅스 대소문자 문제 해결
+    const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
     return `/Upload_Images/${cmpycd}/profile/${path}`
   }
   return ''
@@ -95,9 +94,7 @@ const groupedItems = computed(() => menuStore.groupedSidebarItems)
 function goToProfile() {
   const pgmId = 'HABA910U';
   const pgmNm = '개인정보 관리';
-  const grpCd = '900'; // 시스템 관리 그룹 코드
-
-  // 🚀 공식 메뉴 이동 로직과 동일하게 처리 (탭 추가 및 이동)
+  const grpCd = '900';
   addDynamicRoute(pgmId, pgmNm, grpCd);
   tabStore.addTab({ pgmId: pgmId, pgmNm: pgmNm, path: `/${pgmId}` });
 }
@@ -110,9 +107,9 @@ function goPage(pgmid: string, pgmnm: string, grpcd: string) {
 
 <style scoped>
 .side-bar { background-color: #fff; border-right: 1px solid #dcdfe6; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.profile-card { padding: 15px 10px; border-bottom: 1px solid #ebeef5; flex-shrink: 0; background: #f8f9fa; }
+.profile-card { padding: 20px 10px; border-bottom: 1px solid #ebeef5; flex-shrink: 0; background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%); }
 
-/* 💡 사진 크기 확대 (45px -> 70px) 및 디자인 최적화 */
+/* 💡 사진 및 아이콘 크기 원복 (상담원님 요청 반영) */
 .avatar-placeholder {
   width: 70px;
   height: 70px;
@@ -121,25 +118,22 @@ function goPage(pgmid: string, pgmnm: string, grpcd: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38px;
+  font-size: 38px; /* 🚀 아이콘 크기 원복 */
   color: #005a9f;
   margin: 0 auto;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border: 2px solid #fff;
-  overflow: hidden; /* 💡 사진이 원 밖으로 나가지 않게 */
+  overflow: hidden;
 }
 
-.profile-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-name-info { font-weight: 800; color: #2c3e50; font-size: 14px; margin-top: 10px; line-height: 1.2; }
-.user-email-text { font-size: 11px; color: #606266; margin-top: 4px; word-break: break-all; opacity: 0.8; }
+.profile-img { width: 100%; height: 100%; object-fit: cover; }
+.user-name-info { font-weight: 800; color: #1a202c; font-size: 15px; margin-top: 12px; line-height: 1.2; }
+.user-email-text { font-size: 11px; color: #718096; margin-top: 4px; word-break: break-all; }
 
 .menu-list { flex: 1; overflow-y: auto; }
-.group-title { display: flex; align-items: center; padding: 10px 15px; font-size: 13px; font-weight: 600; color: #303133; text-decoration: none; }
-.sb-nav-link { padding: 8px 15px 8px 35px; font-size: 12px; color: #606266; text-decoration: none; display: flex; align-items: center; }
-.sb-nav-link.is-active { background-color: #ecf5ff; color: #409eff; font-weight: bold; }
+.group-title { display: flex; align-items: center; padding: 12px 15px; font-size: 13px; font-weight: 700; color: #2d3748; text-decoration: none; }
+.sb-nav-link { padding: 9px 15px 9px 35px; font-size: 12.5px; color: #4a5568; text-decoration: none; display: flex; align-items: center; border-left: 3px solid transparent; }
+.sb-nav-link:hover { background-color: #f7fafc; color: #3182ce; }
+.sb-nav-link.is-active { background-color: #ebf8ff; color: #2b6cb0; font-weight: bold; border-left-color: #3182ce; }
+.sub-icon { font-size: 8px; margin-right: 10px; opacity: 0.5; }
 </style>

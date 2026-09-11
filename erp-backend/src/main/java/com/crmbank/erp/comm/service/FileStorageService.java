@@ -17,7 +17,7 @@ import java.util.Objects;
 @Service
 public class FileStorageService {
 
-    @Value("${STORAGE_PATH:D:/erp.crmbank.co.kr/storage}")
+    @Value("${STORAGE_PATH:/data/storage/common}")
     private String storageDirectory;
 
     @PostConstruct

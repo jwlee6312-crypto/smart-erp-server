@@ -31,6 +31,13 @@ const routes = [
                 name: 'HSIO600U',
                 component: () => import('@/views/HSIO/HSIO600U.vue')
             },
+            // 📋 공통 게시판 추가
+            {
+                path: '/HBAA100U',
+                name: '게시판관리',
+                component: () => import('@/views/HBAA/HBAA100U.vue'),
+                meta: { title: '게시판관리' }
+            },
 		],
 	},
     // 💡 고객용 상담실 (로그인 세션 없이 접근 가능)

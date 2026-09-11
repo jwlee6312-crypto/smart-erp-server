@@ -175,8 +175,8 @@ async function save() {
 function playCurrentVoice() {
     if (!selectedScript.value || !audioPlayer.value) return
     const filename = `${selectedScript.value.id}.wav`
-    // 🚀 [최종 해결] 아까 성공했던 Nginx 지름길(/sounds/)을 웹 버튼에도 적용
-    audioPlayer.value.src = `/sounds/${filename}?t=${new Date().getTime()}`
+    // 🚀 [복구] 원래 사용하시던 표준 API 경로(/api/crm/inbound/play-recording)로 완벽하게 되돌립니다.
+    audioPlayer.value.src = `/api/crm/inbound/play-recording?file=${filename}&t=${new Date().getTime()}`
     audioPlayer.value.play().catch(() => vAlertError('음원 파일을 찾을 수 없거나 재생할 수 없습니다.'))
 }
 
