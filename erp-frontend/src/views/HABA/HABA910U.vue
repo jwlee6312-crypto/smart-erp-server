@@ -121,6 +121,7 @@ const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 
 const isUploading = ref(false)
 const localImagePreview = ref('')
+const originalPw = ref('') // 🚀 [보정] 원본 해시 암호 보관용
 
 const formData = reactive({
 	actkind: 'S1', cmpycd: authStore.cmpycd, userid: authStore.userid,
@@ -134,9 +135,9 @@ const profileImageSrc = computed(() => {
 		const path = formData.photo_path.trim()
 		if (path.startsWith('http') || path.startsWith('data:')) return path
 
-		// 💡 [보정] 정책 변경 반영: /Upload_Images/{cmpycd}/profile/{filename}
-		const cmpycd = authStore.cmpycd || 'coit'
-		return `/Upload_Images/${cmpycd}/profile/${path}`
+		// 💡 [최종 보정] 조회 경로를 /api/storage/ 로 명시적으로 통일
+		const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
+		return `/api/storage/${cmpycd}/profile/${path}`
 	}
 	return '/img/default-avatar.png'
 })
@@ -161,7 +162,11 @@ async function fetchInfo() {
 					formData[noUnderKey] = d[key]
 				}
 			})
-			formData.pw_c = formData.pw
+			// 🚀 [보정] 조회된 암호화된 비밀번호(해시)를 별도로 보관하고 입력창은 비웁니다.
+			// 저장 시 입력값이 없으면 이 originalPw를 다시 서버로 보냅니다.
+			originalPw.value = d.pw || d.passwd || ''
+			formData.pw = ''
+			formData.pw_c = ''
 			localImagePreview.value = ''
 		}
 	} catch (e) {
@@ -175,8 +180,14 @@ async function save() {
 	if (formData.pw && formData.pw !== formData.pw_c) return vAlertError('비밀번호 확인이 일치하지 않습니다.')
 
 	try {
+		// 🚀 [보정] 사용자가 비밀번호를 입력하지 않았다면 원본 해시값을 그대로 전송
+		const payload = { ...formData }
+		if (!formData.pw || formData.pw.trim() === '') {
+			payload.pw = originalPw.value
+		}
+
 		const res = await api.post('/haba/HABA_910U_STR', {
-			...formData,
+			...payload,
 			actkind: 'U1'
 		})
 
@@ -213,6 +224,8 @@ async function handleImageUpload(e: any) {
 		const uploadFormData = new FormData()
 		uploadFormData.append('file', file)
 		uploadFormData.append('userid', formData.userid)
+		// 🚀 [보정] 서버 컨트롤러가 요구하는 cmpycd 파라미터를 추가합니다.
+		uploadFormData.append('cmpycd', authStore.cmpycd)
 		const res = await api.post('/comm/upload/profile', uploadFormData)
 		if (res.data?.filepath) {
 			formData.photo_path = res.data.filepath

@@ -40,11 +40,11 @@ export default defineConfig({
 			strict: false,
 		},
 		proxy: {
-			'/Upload_Images': {
+			'/storage': {
 				target: 'http://127.0.0.1:8080',
 				changeOrigin: true,
 				secure: false,
-				rewrite: (path) => path.replace(/^\/Upload_Images/, '/api/Upload_Images'),
+				rewrite: (path) => path.replace(/^\/storage/, '/api/storage'),
 			},
 			'/api': {
 				target: 'http://127.0.0.1:8080',

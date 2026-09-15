@@ -17,9 +17,9 @@
     </div>
 
     <!-- 💡 2. 메인 컨텐츠 영역 -->
-    <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2">
+    <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2" style="min-height: 0;">
       <!-- 🅰️ 조회 조건 영역 -->
-      <div class="card border shadow-sm overflow-hidden">
+      <div class="card border shadow-sm flex-shrink-0">
         <div class="card-body p-0">
           <table class="erp-table-full">
             <tbody>
@@ -38,12 +38,12 @@
       </div>
 
       <!-- 🅲 리포트 영역 (커스텀 테이블) -->
-      <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column">
+      <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column" style="min-height: 0;">
         <div class="card-header bg-light py-1 px-3 border-bottom d-flex justify-content-between align-items-center">
           <span class="fw-bold small text-dark"><i class="bi bi-table me-1"></i> 자재 수불 상세 (4줄 보기)</span>
           <div class="small text-muted text-danger fw-bold">※ 우측으로 스크롤하여 1일부터 말일까지 확인하세요.</div>
         </div>
-        <div class="card-body p-0 flex-grow-1 bg-white overflow-auto scrollbar-custom">
+        <div class="card-body p-0 flex-grow-1 bg-white overflow-auto scrollbar-custom" style="min-height: 0;">
           <table class="report-table">
             <thead>
               <tr class="header-main">
@@ -76,7 +76,7 @@
                   <td rowspan="4" class="frozen-col text-center small">{{ item.itsize }}</td>
                   <td rowspan="4" class="frozen-col text-center small">{{ item.unit }}</td>
                   <td class="frozen-col last-frozen text-center bg-light-blue small">기초</td>
-                  <td v-for="(val, idx) in item.dailyData.Bsqty" :key="idx" class="text-end px-2">
+                  <td v-for="(val, idx) in item.dailyData.bsqty" :key="idx" class="text-end px-2">
                     {{ formatNumber(val, item.qtypnt) }}
                   </td>
                 </tr>
@@ -178,7 +178,7 @@ const fetchList = async () => {
           unit: String(row.unit || '').trim(),
           qtypnt: Number(row.qtypnt || 0),
           dailyData: {
-            Bsqty: Array(lastDayCount).fill(0),
+            bsqty: Array(lastDayCount).fill(0),
             inqty: Array(lastDayCount).fill(0),
             outqty: Array(lastDayCount).fill(0),
             stkqty: Array(lastDayCount).fill(0)
@@ -196,7 +196,7 @@ const fetchList = async () => {
         const key = `qty_${String(i + 1).padStart(2, '0')}`
         const val = Number(row[key] || 0)
 
-        if (gbn === '1') item.dailyData.Bsqty[i] = val
+        if (gbn === '1') item.dailyData.bsqty[i] = val
         else if (gbn === '2') item.dailyData.inqty[i] = val
         else if (gbn === '3') item.dailyData.outqty[i] = val
       }
@@ -204,9 +204,9 @@ const fetchList = async () => {
 
     // 4) 수불 로직 계산: 재고 = 기초 + 입고 - 출고 (익일 기초 = 전일 재고)
     groupedItems.forEach(item => {
-      let runningStock = item.dailyData.Bsqty[0]
+      let runningStock = item.dailyData.bsqty[0]
       for (let i = 0; i < lastDayCount; i++) {
-        item.dailyData.Bsqty[i] = runningStock
+        item.dailyData.bsqty[i] = runningStock
         item.dailyData.stkqty[i] = runningStock + item.dailyData.inqty[i] - item.dailyData.outqty[i]
         runningStock = item.dailyData.stkqty[i]
       }
@@ -237,7 +237,7 @@ const exportExcel = () => {
   // 데이터 행 생성
   reportData.value.forEach(item => {
     const rowTypes = [
-      { label: '기초', data: item.dailyData.Bsqty },
+      { label: '기초', data: item.dailyData.bsqty },
       { label: '입고', data: item.dailyData.inqty },
       { label: '출고', data: item.dailyData.outqty },
       { label: '재고', data: item.dailyData.stkqty }
@@ -284,18 +284,26 @@ onMounted(() => {
 .report-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; border: 1px solid #ccc; font-size: 12.5px; }
 .report-table th, .report-table td { border: 1px solid #dee2e6; padding: 4px; white-space: nowrap; height: 32px; }
 
-/* 고정 헤더 */
-.report-table thead { position: sticky; top: 0; z-index: 10; }
+/* 고정 헤더 및 컬럼 (Sticky) */
+.report-table thead th { position: sticky; top: 0; z-index: 10; }
 .header-main th { background-color: #dfd9bd; color: #333; font-weight: 800; text-align: center; }
-.header-sub th { background-color: #f0ede0; font-size: 11px; text-align: center; }
+.header-sub th { background-color: #f0ede0; font-size: 11px; text-align: center; top: 32px !important; }
 
 /* 좌측 컬럼 고정 (Frozen) */
-.frozen-col { position: sticky; left: 0; z-index: 5; background-color: #fff; }
+.frozen-col { position: sticky; z-index: 5; background-color: #fff; }
+.header-main th.frozen-col { z-index: 11; } /* 헤더와 컬럼 교차 지점 */
+
 .first-col { left: 0; }
-/* 품목명(0) 규격(180) 단위(300) 구분(360) 누적 좌표 */
-.report-table th:nth-child(2), .report-table td:nth-child(2) { left: 180px; }
-.report-table th:nth-child(3), .report-table td:nth-child(3) { left: 300px; }
-.report-table th:nth-child(4), .report-table td:nth-child(4) { left: 360px; }
+/* header-main 및 row-begin (품목명, 규격, 단위, 구분 순서) */
+.header-main th:nth-child(2), .row-begin td:nth-child(2) { left: 180px; }
+.header-main th:nth-child(3), .row-begin td:nth-child(3) { left: 300px; }
+.header-main th:nth-child(4), .row-begin td:nth-child(4) { left: 360px; }
+
+/* row-in, row-out, row-stock (구분 컬럼이 첫 번째 td임) */
+.row-in td:nth-child(1), .row-out td:nth-child(1), .row-stock td:nth-child(1) {
+  position: sticky; left: 360px; z-index: 5; background-color: #fff;
+}
+
 .last-frozen { border-right: 2px solid #bbb !important; }
 
 /* 구분별 배경색 */

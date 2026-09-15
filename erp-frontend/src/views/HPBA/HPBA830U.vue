@@ -47,18 +47,18 @@
                     </select>
                   </div>
                 </td>
-                <th class="required">생산라인</th>
+                <th class="text-center bg-light required">생산라인</th>
                 <td>
-                  <select v-model="formData.linecd" class="form-select form-select-sm" style="width: 150px;" @change="onLineChange">
+                  <select v-model="formData.linecd" class="form-select form-select-sm" @change="onLineChange">
                     <option value="">라인 선택</option>
                     <option v-for="opt in lineOptions" :key="opt.linecd" :value="opt.linecd">
                       [{{ opt.linecd }}] {{ opt.linenm }}
                     </option>
                   </select>
                 </td>
-                <th class="required">생산공정</th>
+                <th class="text-center bg-light required">생산공정</th>
                 <td>
-                   <select v-model="formData.progcd" class="form-select form-select-sm" style="width: 180px;">
+                  <select v-model="formData.progcd" class="form-select form-select-sm">
                     <option value="">공정 선택</option>
                     <option v-for="opt in progOptions" :key="opt.progcd" :value="opt.progcd">
                       [{{ opt.progcd }}] {{ opt.prognm }}
@@ -161,23 +161,26 @@ const generateYearOptions = () => {
 
 const fetchLineOptions = async () => {
   try {
-    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'L0', cmpycd: authStore.cmpycd, gbncd: 'Y' } })
-    lineOptions.value = res.data
+    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'L0', cmpycd: authStore.cmpycd, gbncd: 'Y', code: '' } })
+    lineOptions.value = (res.data || []).map((i: any) => ({
+        linecd: i.linecd || i.code || i.CODE || '',
+        linenm: i.linenm || i.cdnm || i.CDNM || ''
+    }));
+    if (lineOptions.value.length > 0) onLineChange();
   } catch (e) {}
 }
 
-const fetchProgOptions = async (lineCd: string) => {
-  if (!lineCd) { progOptions.value = []; return; }
+const onLineChange = async () => {
   try {
-    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'G0', cmpycd: authStore.cmpycd, linecd: lineCd } })
-    progOptions.value = res.data
+    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'G0', cmpycd: authStore.cmpycd, gbncd: formData.linecd, code: '' } })
+    progOptions.value = (res.data || []).map((i: any) => ({
+        progcd: i.progcd || i.code || i.CODE || '',
+        prognm: i.prognm || i.cdnm || i.CDNM || ''
+    }));
+    if (progOptions.value.length > 0) formData.progcd = progOptions.value[0].progcd;
   } catch (e) {}
 }
 
-const onLineChange = () => {
-    formData.progcd = ''
-    fetchProgOptions(formData.linecd)
-}
 
 const initGrid = () => {
   if (gridElement.value) {
@@ -205,7 +208,7 @@ const initGrid = () => {
             mm: Number(data.ym.substring(4, 6)),
             qty: data.stkqty
         })
-        fetchProgOptions(formData.linecd)
+      //  fetchProgOptions(formData.linecd)
     })
   }
 }
@@ -244,8 +247,9 @@ const initializeFormOnly = () => {
 const initialize = () => {
   resetForm(formData)
   Object.assign(formData, { actkind: 'A0', yy: String(now.getFullYear()), mm: now.getMonth() + 1, linecd: '010', linenm: '통합라인', qty: 0 })
+  onLineChange();
   grid?.clearData(); itemCount.value = 0
-  fetchProgOptions(formData.linecd)
+  // fetchProgOptions(formData.linecd)
 }
 
 const modalVisible = ref(false)
@@ -255,8 +259,8 @@ function openHelp(type: string) {
   let config: any = {}
   if (type === 'ITEM') {
     config = {
-      title: '품목 선택', path: '/ha00/HA00_00P_STR', defaultField: 'itemnm',
-      data: { gubun: 'I0', cmpycd: authStore.cmpycd, codegbn: '210' },
+      title: '품목 선택', path: '/hp00/HP00_000S_STR', defaultField: 'itemnm',
+      data: { gubun: 'I0', cmpycd: authStore.cmpycd, gbncd: '210' },
       columns: [{ title: '코드', field: 'itemcd', width: 100 }, { title: '품목명', field: 'itemnm', width: 250 }, { title: '규격', field: 'itsize', width: 120 }],
       onConfirm: (data: any) => {
           formData.itemcd = data.itemcd;
@@ -274,7 +278,7 @@ const formatDateString = (v: any, sep: string) => v && String(v).length >= 6 ? `
 onMounted(() => {
   generateYearOptions()
   fetchLineOptions()
-  fetchProgOptions(formData.linecd)
+  // fetchProgOptions(formData.linecd)
   nextTick(() => { initGrid(); })
 })
 </script>

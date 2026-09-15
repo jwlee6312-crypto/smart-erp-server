@@ -17,7 +17,7 @@
   <!-- 검사항목 목록 조회 (좌측 그리드용) -->
   <select id="getPdInspClsfyList" parameterType="map" resultType="com.crmbank.erp.hpio.dto.PdInspClsfyDto">
     select a.inspcd,
-           b.CDNM as insp_nm
+           b.cdnm as insp_nm
       from pd_insp_clsfy a
       left outer join HPBA900T_TBL b on a.cmpycd  = b.cmpycd
                                and a.inspcd  = b.CODE

@@ -165,7 +165,7 @@ const masterData = reactive({
 
 const whOptions = ref<any[]>([])
 const modelOptions = ref<any[]>([])
-const closingInfo = reactive({ clsymd: '', sclsym: '', PCLSym: '' })
+const closingInfo = reactive({ clsymd: '', sclsym: '', pclsym: '' })
 
 const uiioym = computed({ get: () => `${masterData.ioym.substring(0, 4)}-${masterData.ioym.substring(4, 6)}`, set: (v) => { if (v) masterData.ioym = v.replace(/-/g, '') } })
 const uiioymd = computed({ get: () => formatDateString(masterData.ioymd, '-'), set: (v) => { if (v) masterData.ioymd = v.replace(/-/g, '') } })
@@ -290,7 +290,7 @@ const importData = async () => {
 
 const saveData = async () => {
   const ioYmd = masterData.ioymd.replace(/-/g, '')
-  if (ioYmd.substring(0, 6) <= closingInfo.PCLSym) return vAlertError('생산 마감된 월입니다.')
+  if (ioYmd.substring(0, 6) <= closingInfo.pclsym) return vAlertError('생산 마감된 월입니다.')
   if (ioYmd.substring(0, 6) <= closingInfo.sclsym) return vAlertError('영업 마감된 월입니다.')
 
   const details = grid?.getData() || []
@@ -386,7 +386,7 @@ onMounted(async () => {
     if (r.data?.length) {
       closingInfo.clsymd = String(Object.values(r.data[0])[0]).trim()
       closingInfo.sclsym = String(Object.values(r.data[0])[1]).trim()
-      closingInfo.PCLSym = String(Object.values(r.data[0])[2]).trim()
+      closingInfo.pclsym = String(Object.values(r.data[0])[2]).trim()
     }
   })
   fetchWhOptions()

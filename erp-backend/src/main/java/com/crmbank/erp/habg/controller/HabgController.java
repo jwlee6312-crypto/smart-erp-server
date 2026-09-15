@@ -47,8 +47,8 @@ public class HabgController {
                 String validationMsg = validateParameters(proc, params);
                 if (validationMsg != null) {
                     return ResponseEntity.badRequest().body(Map.of(
-                        "status", "VALIDATION_ERROR",
-                        "message", "🛠 [PROGRAM VALID ALARM]\n" + validationMsg
+                            "status", "VALIDATION_ERROR",
+                            "message", "🛠 [PROGRAM VALID ALARM]\n" + validationMsg
                     ));
                 }
             }
@@ -82,7 +82,7 @@ public class HabgController {
             if (result.isEmpty()) {
                 result = List.of(Map.of("res", "OK"));
             }
-            
+
             // 🚀 모든 결과를 소문자로 강제 변환하여 프론트엔드 표준 준수
             return ResponseEntity.ok(convertToLowerCaseKeys(result));
 
@@ -102,12 +102,12 @@ public class HabgController {
             int colCount = rs.getMetaData().getColumnCount();
             for (int i = 1; i <= colCount; i++) {
                 Object val = rs.getObject(i);
-                String colName = rs.getMetaData().getColumnLabel(i); 
+                String colName = rs.getMetaData().getColumnLabel(i);
                 if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
                 row.put(colName.toLowerCase(), val == null ? "" : val);
                 values.add(val == null ? "" : val);
             }
-            row.put("returnkeyvalue", values); 
+            row.put("returnkeyvalue", values);
             return row;
         });
     }

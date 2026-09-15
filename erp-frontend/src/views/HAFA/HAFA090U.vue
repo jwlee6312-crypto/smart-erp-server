@@ -11,21 +11,24 @@
 
 	<div class="erp-container d-flex flex-column h-100 bg-white">
 		<!-- [헤더] 1. 상단 액션 바 -->
-		<div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom">
-			<div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
-				<i class="bi bi-calculator me-2 text-primary" style="font-size: 18px;"></i>
-				고정자산 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-				기말처리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-				<span class="text-primary fw-bolder">감가상각계산 (HAFA090U)</span>
-			</div>
-			<div class="btn-group-erp d-flex gap-1 pe-3">
-				<button class="btn-erp btn-save" @click="save">계산실행</button>
+		<div class="erp-header border-bottom bg-white py-2 px-3 sticky-top shadow-sm flex-shrink-0">
+			<div class="d-flex justify-content-between align-items-center w-100" style="max-width: 60%; min-width: 600px;">
+				<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
+					<i class="bi bi-calculator me-2 text-primary" style="font-size: 18px;"></i>
+					고정자산 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+					기말처리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+					<span class="text-primary fw-bolder">감가상각계산 (HAFA090U)</span>
+				</div>
+				<div class="btn-group-erp d-flex gap-1">
+					<button class="btn-erp btn-save" @click="save">계산실행</button>
+				</div>
 			</div>
 		</div>
 
 		<!-- [콘텐츠] 2. 메인 콘텐츠 영역 -->
-		<div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2 bg-light main-content-wrapper align-items-center justify-content-center">
-			<div class="card border shadow-sm bg-white overflow-hidden" style="max-width: 600px; width: 100%;">
+		<div class="flex-grow-1 overflow-auto p-4 bg-light">
+			<div class="d-flex flex-column gap-3" style="max-width: 60%; min-width: 600px;">
+				<div class="card border shadow-sm bg-white overflow-hidden w-100">
 				<div class="card-header bg-white py-2 px-3 border-bottom text-center">
 					<span class="fw-bold small text-dark"><i class="bi bi-gear-fill me-2 text-primary"></i>감가상각 계산 조건 설정</span>
 				</div>
@@ -55,14 +58,18 @@
 					</table>
 				</div>
 				<div class="card-body p-4 bg-white">
-					<div class="alert alert-info border-0 shadow-sm small py-3 px-4 m-0">
+					<div class="alert alert-warning border-start border-4 border-warning shadow-sm small py-3 px-4 m-0 bg-white">
 						<div class="d-flex mb-2">
-							<i class="bi bi-info-circle-fill me-2 fs-5"></i>
-							<span>해당 월의 변동자산에 대해 감가상각을 일괄 계산합니다.</span>
+							<i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-warning"></i>
+							<span class="fw-bold text-dark">작업 시 주의사항</span>
 						</div>
-						<div class="d-flex">
-							<i class="bi bi-info-circle-fill me-2 fs-5"></i>
-							<span>12월 작업 시에는 차기년도 감가상각 기초 데이터를 함께 생성합니다.</span>
+						<div class="ps-4">
+							<div class="d-flex mb-2">
+								<span>해당 월의 변동자산에 대해 감가상각을 일괄 계산합니다.</span>
+							</div>
+							<div class="d-flex">
+								<span>12월 작업 시에는 차기년도 감가상각 기초 데이터를 함께 생성합니다.</span>
+							</div>
 						</div>
 					</div>
 				</div>

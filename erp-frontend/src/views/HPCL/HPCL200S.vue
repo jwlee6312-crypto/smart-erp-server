@@ -31,7 +31,7 @@
             <colgroup>
               <col style="width: 100px;"><col>
               <col style="width: 100px;"><col>
-              <col style="width: 100px;"><col>
+              <col style="width: 300px;"><col>
             </colgroup>
             <tbody>
               <tr>
@@ -153,8 +153,8 @@ const initGrid = () => {
         {
           title: "전 월 이 월",
           columns: [
-            { title: "수량", field: "Bsqty", width: 80, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
-            { title: "단가", field: "BSprice", width: 80, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
+            { title: "수량", field: "bsqty", width: 80, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
+            { title: "단가", field: "bsprice", width: 80, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
             { title: "금액", field: "bsamt", width: 90, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
@@ -162,8 +162,8 @@ const initGrid = () => {
           title: "당 월 입 고",
           columns: [
             { title: "수량", field: "inqty", width: 80, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-success" },
-            { title: "단가", field: "INprice", width: 80, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "Inamt", width: 90, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "단가", field: "inprice", width: 80, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "inamt", width: 90, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
@@ -177,16 +177,16 @@ const initGrid = () => {
         {
           title: "타 계 정",
           columns: [
-            { title: "수량", field: "OUTtqty", width: 80, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
-            { title: "단가", field: "OUTTprice", width: 80, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "OUTtamt", width: 90, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "수량", field: "outtqty", width: 80, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
+            { title: "단가", field: "outtprice", width: 80, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "outtamt", width: 90, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "재 고 현 황",
           columns: [
             { title: "수량", field: "stkqty", width: 80, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "fw-bold" },
-            { title: "단가", field: "STKprice", width: 80, hozAlign: "right", formatter: "money" },
+            { title: "단가", field: "stkprice", width: 80, hozAlign: "right", formatter: "money" },
             { title: "금액", field: "stkamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-primary fw-bold" }
           ]
         }
@@ -198,9 +198,9 @@ const initGrid = () => {
 // 3. 기능 구현
 async function fetchOptions() {
   try {
-    // 💎 요청하신 대로 HS00_000S_STR 'E0', '140' 으로 호출
-    const res = await api.get('/hs00/HS00_000S_STR', {
-      params: { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '140', code: '' }
+    // 💎 요청하신 대로 HP00_000S_STR 'E0', '100' 으로 호출
+    const res = await api.get('/hp00/HP00_000S_STR', {
+      params: { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '100', code: '' }
     })
     // 💎 컬럼명 code, cdnm 으로 매핑
     astOptions.value = res.data.map((i: any) => ({
@@ -231,11 +231,11 @@ async function fetchList() {
 
     const mapped = res.data.map((i: any) => ({
         ...i,
-        BSprice: Number(i.Bsqty) !== 0 ? Math.round(Number(i.bsamt) / Number(i.Bsqty)) : 0,
-        INprice: Number(i.inqty) !== 0 ? Math.round(Number(i.Inamt) / Number(i.inqty)) : 0,
+        bsprice: Number(i.bsqty) !== 0 ? Math.round(Number(i.bsamt) / Number(i.bsqty)) : 0,
+        inprice: Number(i.inqty) !== 0 ? Math.round(Number(i.inamt) / Number(i.inqty)) : 0,
         outprice: Number(i.outqty) !== 0 ? Math.round(Number(i.outamt) / Number(i.outqty)) : 0,
-        OUTTprice: Number(i.OUTtqty) !== 0 ? Math.round(Number(i.OUTtamt) / Number(i.OUTtqty)) : 0,
-        STKprice: Number(i.stkqty) !== 0 ? Math.round(Number(i.stkamt) / Number(i.stkqty)) : 0
+        outtprice: Number(i.outtqty) !== 0 ? Math.round(Number(i.outtamt) / Number(i.outtqty)) : 0,
+        stkprice: Number(i.stkqty) !== 0 ? Math.round(Number(i.stkamt) / Number(i.stkqty)) : 0
     }))
 
     grid?.setData(mapped)

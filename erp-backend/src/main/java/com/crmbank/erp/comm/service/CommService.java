@@ -57,6 +57,12 @@ public class CommService {
         session.setEmail(String.valueOf(userInfo.getOrDefault("email", "")));
         session.setStatus(String.valueOf(userInfo.getOrDefault("status", "10")));
         session.setRouting_mode(String.valueOf(userInfo.getOrDefault("routing_mode", "20")));
+        
+        // 🚀 [해결] DB에서 조회된 photo_path를 세션 객체에 명시적으로 담아줍니다.
+        Object photo = userInfo.get("photo_path");
+        if (photo == null) photo = userInfo.get("PHOTO_PATH"); // 대문자 케이스 대응
+        session.setPhoto_path(photo != null ? String.valueOf(photo).trim() : "");
+        session.setPhoto_path(String.valueOf(userInfo.getOrDefault("photo_path", ""))); // 🚀 사진 경로 추가
 
         param.put("iogbn", "I");
         param.put("ip", ip);

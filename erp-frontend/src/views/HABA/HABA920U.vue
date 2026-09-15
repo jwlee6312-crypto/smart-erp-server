@@ -199,6 +199,7 @@ const { modalVisible, modalProps, openHelp } = useCommonHelp()
 const searchForm = reactive({ word: '' })
 const posOptions = ref<any[]>([]); const grpOptions = ref<any[]>([])
 const gridCount = ref(0); const localImagePreview = ref(''); const isUploading = ref(false)
+const originalPw = ref('') // 🚀 [보정] 원본 해시 암호 보관용
 
 const formData = reactive({
 	actkind: 'S2', cmpycd: authStore.cmpycd, userid: '', pw: '', usernm: '',
@@ -213,9 +214,9 @@ const profileImageSrc = computed(() => {
 		const path = formData.photo_path.trim()
 		if (path.startsWith('http') || path.startsWith('data:')) return path
 
-		// 💡 [보정] 정책 변경 반영: /Upload_Images/{cmpycd}/profile/{filename}
-		const cmpycd = authStore.cmpycd || 'coit'
-		return `/Upload_Images/${cmpycd}/profile/${path}`
+		// 💡 [최종 보정] 조회 경로를 /api/storage/ 로 명시적으로 통일
+		const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
+		return `/api/storage/${cmpycd}/profile/${path}`
 	}
 	return '/img/default-avatar.png'
 })
@@ -242,7 +243,14 @@ async function save() {
 
 	try {
 		const act = isUpdate ? 'U1' : 'I1'
-		const res = await api.post('/haba/HABA_920U_STR', { ...formData, actkind: act, updemp: authStore.userid })
+
+		// 🚀 [보정] 사용자가 비밀번호를 입력하지 않았다면 원본 해시값을 그대로 전송
+		const payload = { ...formData }
+		if (isUpdate && (!formData.pw || formData.pw.trim() === '')) {
+			payload.pw = originalPw.value
+		}
+
+		const res = await api.post('/haba/HABA_920U_STR', { ...payload, actkind: act, updemp: authStore.userid })
 
 		// 🚀 결과 판정 로직 강화 (대소문자 무시 및 필드명 유연화)
 		const resList = res.data || []
@@ -301,6 +309,8 @@ async function handleImageUpload(e: any) {
 		const uploadFormData = new FormData()
 		uploadFormData.append('file', file)
 		uploadFormData.append('userid', formData.userid)
+		// 🚀 [보정] 필수 파라미터 추가
+		uploadFormData.append('cmpycd', authStore.cmpycd)
 
 		// 🚀 [수정] Axios FormData 전송 시 Content-Type 헤더를 수동으로 설정하지 않음 (브라우저가 자동 생성)
 		// 백엔드의 filePath 응답은 interceptor에 의해 filepath(소문자)로 변환됨
@@ -345,7 +355,14 @@ onMounted(async () => {
 			]
 		})
 		mainGrid.on('rowClick', (e, row) => {
-			Object.assign(formData, row.getData()); formData.pw = ''; formData.actkind = 'U0'; localImagePreview.value = ''
+			const rowData = row.getData()
+			Object.assign(formData, rowData)
+
+			// 🚀 [보정] 원본 해시 암호를 보관하고 입력창 초기화
+			originalPw.value = rowData.pw || rowData.passwd || ''
+			formData.pw = ''
+			formData.actkind = 'U0'
+			localImagePreview.value = ''
 		})
 	}
 

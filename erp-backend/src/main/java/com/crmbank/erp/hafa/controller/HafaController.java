@@ -78,7 +78,7 @@ public class HafaController {
             if (result.isEmpty()) {
                 result = List.of(Map.of("res", "OK"));
             }
-            
+
             return ResponseEntity.ok(convertToLowerCaseKeys(result));
 
         } catch (Exception e) {
@@ -97,7 +97,7 @@ public class HafaController {
             int colCount = rs.getMetaData().getColumnCount();
             for (int i = 1; i <= colCount; i++) {
                 Object val = rs.getObject(i);
-                String colName = rs.getMetaData().getColumnLabel(i); 
+                String colName = rs.getMetaData().getColumnLabel(i);
                 if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
                 row.put(colName.toLowerCase(), Objects.requireNonNullElse(val, ""));
                 values.add(Objects.requireNonNullElse(val, ""));

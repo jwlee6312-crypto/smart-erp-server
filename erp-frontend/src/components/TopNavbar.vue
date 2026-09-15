@@ -89,7 +89,7 @@ const openManualPanel = () => {
 </script>
 
 <style scoped>
-.bg-color { background: #005a9f; height: 65px; border-bottom: 2px solid #ffc107; }
+.bg-color { background: #005a9f; height: 65px; border-bottom: 2px solid #000000; }
 .logo-container { width: 180px; display: flex; flex-direction: column; cursor: pointer; }
 .smart-core-logo { font-size: 1.6rem; font-weight: 800; line-height: 1; }
 .text-smart { color: #ffffff; }

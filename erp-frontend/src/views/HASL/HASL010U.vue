@@ -21,7 +21,9 @@
       <div class="btn-group-erp d-flex gap-1 pe-2">
         <button class="btn-erp btn-init" @click="initialize">초기화</button>
         <button class="btn-erp btn-search" @click="searchslips">조회</button>
-        <button class="btn-erp btn-primary" @click="printSlip" :disabled="!masterform.slipno">전표 출력</button>
+        <button class="btn-erp btn-print" @click="printSlip" :disabled="!masterform.slipno">
+            <i class="bi bi-printer"></i> 인쇄
+        </button>
         <button class="btn-erp btn-save" @click="save">저장</button>
         <button v-if="masterform.slipno" class="btn-erp btn-delete" @click="deletedata">삭제</button>
       </div>

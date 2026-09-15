@@ -18,9 +18,9 @@
     </div>
 
     <!-- 💡 2. 메인 컨텐츠 영역 -->
-    <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2">
+    <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2" style="min-height: 0;">
       <!-- 🅰️ 조회 조건 영역 -->
-      <div class="card border shadow-sm overflow-hidden">
+      <div class="card border shadow-sm flex-shrink-0">
         <div class="card-body p-0">
           <table class="erp-table-full">
             <tbody>
@@ -45,11 +45,11 @@
       </div>
 
       <!-- 🅲 그리드 영역 -->
-      <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column">
+      <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column" style="min-height: 0;">
         <div class="card-header bg-light py-1 px-3 border-bottom fw-bold small text-dark">
           <i class="bi bi-list-columns-reverse me-1"></i> 자재 소요 상세 내역
         </div>
-        <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
+        <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column" style="min-height: 0;">
           <div ref="gridElement" class="tabulator-instance flex-grow-1"></div>
         </div>
       </div>

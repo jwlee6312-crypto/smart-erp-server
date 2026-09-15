@@ -254,6 +254,7 @@ const form_02 = reactive(<Form_02>{
 // ✅ 이미지관련
 const loadingLogo = ref(false)
 const logoPreviewUrl = ref<string>('')
+const originalPw = ref('') // 🚀 [보정] 원본 해시 암호 보관용
 const previewLogo = ref<string | null>(null)
 const logoImage = ref<File | null>(null)
 const maxSizeMB = ref(4)
@@ -281,6 +282,11 @@ async function search() {
 	try {
 		const res = await searchStart(path, data)
 		Object.assign(form_02, res)
+
+		// 🚀 [보정] 조회된 원본 해시 암호를 보관하고 입력창은 비웁니다.
+		originalPw.value = res.pw || res.passwd || ''
+		form_02.pw = ''
+		form_02.pwcheck = ''
 		await imgSearch()
 	} catch (error) {
 		console.error(error)
@@ -316,12 +322,17 @@ async function save() {
 			return vAlertError('비밀번호를 입력해주세요')
 		}
 	}
+
 	const path = '/user/save'
-	const data = {
-		...form_02,
+
+	// 🚀 [보정] 비밀번호 입력이 없으면 원본 해시값을 그대로 사용
+	const payload = { ...form_02 }
+	if (!form_02.pw || form_02.pw.trim() === '') {
+		payload.pw = originalPw.value
 	}
+
 	try {
-		await saveBody(path, data)
+		await saveBody(path, payload)
 		await saveImg()
 
 		// 🚀 [해결] 저장 후 authStore의 사진 경로를 즉시 업데이트하여 사이드바에 반영
@@ -370,9 +381,9 @@ async function imgSearch() {
 	await nextTick()
 	try {
 		if (form_02.photo_path) {
-			// 💡 [해결] 실제 서버 폴더명인 대문자(COIT)로 고정하여 리눅스 대소문자 문제 해결
+			// 💡 [최종 보정] 조회 경로를 /api/storage/ 로 명시적으로 통일
 			const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
-			logoPreviewUrl.value = `/Upload_Images/${cmpycd}/profile/${form_02.photo_path}`
+			logoPreviewUrl.value = `/api/storage/${cmpycd}/profile/${form_02.photo_path}`
 		}
 	} catch (err) {
 		console.error('로고 이미지 실패', err)

@@ -149,7 +149,7 @@ async function fetchOptions() {
     const resWh = await api.post('/hs00/HS00_000S_STR', { gubun: 'W0', cmpycd: authStore.cmpycd })
     whOptions.value = resWh.data
 
-    const resAsset = await api.post('/hs00/HS00_000S_STR', { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '140', code: '' })
+    const resAsset = await api.post('/hs00/HS00_000S_STR', { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '100', code: '' })
     assetOptions.value = resAsset.data
   } catch (e) { console.error('옵션 로드 실패') }
 }

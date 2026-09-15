@@ -26,7 +26,7 @@ public class WebConfig implements WebMvcConfigurer {
             location = "file:///" + fixedPath;
         }
         
-        registry.addResourceHandler("/Upload_Images/**")
+        registry.addResourceHandler("/storage/**")
                 .addResourceLocations(location)
                 .setCachePeriod(3600);
     }

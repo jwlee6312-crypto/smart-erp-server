@@ -77,9 +77,9 @@ const profileImageSrc = computed(() => {
     const path = authStore.photo_path.trim()
     if (path.startsWith('http') || path.startsWith('data:')) return path
 
-    // 💡 [해결] 실제 서버 폴더명인 대문자(COIT)로 고정하여 리눅스 대소문자 문제 해결
+    // 💡 [최종 보정] 조회 경로를 /api/storage/ 로 명시적으로 통일하고 대소문자 문제 해결
     const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
-    return `/Upload_Images/${cmpycd}/profile/${path}`
+    return `/api/storage/${cmpycd}/profile/${path}`
   }
   return ''
 })
@@ -131,8 +131,8 @@ function goPage(pgmid: string, pgmnm: string, grpcd: string) {
 .user-email-text { font-size: 11px; color: #718096; margin-top: 4px; word-break: break-all; }
 
 .menu-list { flex: 1; overflow-y: auto; }
-.group-title { display: flex; align-items: center; padding: 12px 15px; font-size: 13px; font-weight: 700; color: #2d3748; text-decoration: none; }
-.sb-nav-link { padding: 9px 15px 9px 35px; font-size: 12.5px; color: #4a5568; text-decoration: none; display: flex; align-items: center; border-left: 3px solid transparent; }
+.group-title { display: flex; align-items: center; padding: 9px 15px; font-size: 13px; font-weight: 700; color: #2d3748; text-decoration: none; }
+.sb-nav-link { padding: 6px 15px 6px 35px; font-size: 12.5px; color: #4a5568; text-decoration: none; display: flex; align-items: center; border-left: 3px solid transparent; }
 .sb-nav-link:hover { background-color: #f7fafc; color: #3182ce; }
 .sb-nav-link.is-active { background-color: #ebf8ff; color: #2b6cb0; font-weight: bold; border-left-color: #3182ce; }
 .sub-icon { font-size: 8px; margin-right: 10px; opacity: 0.5; }

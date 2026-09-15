@@ -542,21 +542,25 @@ public class HsioService {
         String ioymd = nvl(mst.getIoymd()).replace("-", "");
         if (ioymd.length() > 8) ioymd = ioymd.substring(0, 8);
         mst.setIoymd(ioymd);
-        
+        mst.setIoym(ioymd.substring(0, 6));
+        String ioym = mst.getIoym();
+
         mst.setFromdt(nvl(mst.getFromdt()).replace("-", ""));
         mst.setTodt(nvl(mst.getTodt()).replace("-", ""));
-        
+
+        log.info("🔍 [saveOutbound550] send value : {}", mst);
         List<Map<String, Object>> resM = hsioMapper.HSIO_550U_STR(mst);
         if (resM == null || resM.isEmpty()) throw new Exception("출고 마스터 저장 실패 (응답 없음)");
         
         Map<String, Object> mstRow = convertMapToLowerCase(resM.get(0));
-        String ioym = nvl(mstRow.get("ioym"));
+        ioym = nvl(mstRow.get("ioym"));
         String iono = nvl(mstRow.get("iono"));
 
         if ("000000".equals(ioym)) {
             throw new Exception(nvl(iono, "출고 마스터 업무 오류"));
         }
-        
+
+        log.info("🔍 [saveOutbound550] return value ({}) : {}", ioym, iono);
         if (ioym.isEmpty() || iono.isEmpty()) {
             throw new Exception("출고 번호 채번 실패");
         }

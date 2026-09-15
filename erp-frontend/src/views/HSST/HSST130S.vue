@@ -124,8 +124,8 @@ const search = async () => {
 		const res = await api.post('/hsst/HSST_130S_STR', {
 			...searchForm,
 			cmpycd: authStore.cmpycd,
-			fymd: searchForm.fymd.replace(/-/g, ''),
-			tymd: searchForm.tymd.replace(/-/g, '')
+			fromdt: searchForm.fymd.replace(/-/g, ''),
+			todt: searchForm.tymd.replace(/-/g, '')
 		})
 		const data = res.data || []
 		mainGrid?.setData(data)

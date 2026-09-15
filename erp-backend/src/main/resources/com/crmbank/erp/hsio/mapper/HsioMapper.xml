@@ -223,7 +223,9 @@
     </select>
 
     <select id="HSIO_551U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_551u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{iono}, #{iorowno}, #{deptcd}, #{custcd}, #{whcd}, #{area}, #{userid}, #{ioymd}, #{iotype}, #{itemcd}, #{itsize}, #{unit}, #{ioqty}, #{ioamt}, #{iovat}, #{balym}, #{balno}, #{browno}, #{cfmyn}, #{updemp}
+        exec hsio_551u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{iono}, #{iorowno}, #{deptcd}, #{custcd},
+        #{whcd}, #{area}, #{userid}, #{ioymd}, #{iotype}, #{itemcd}, #{itsize}, #{unit}, #{ioqty},
+        #{ioamt}, #{iovat}, #{balym}, #{balno}, #{browno}, #{cfmyn}, #{updemp}
     </select>
 
     <select id="HSIO_560U_STR" resultType="java.util.LinkedHashMap">

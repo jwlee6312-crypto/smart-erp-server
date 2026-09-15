@@ -308,6 +308,10 @@ const save = async () => {
         const outVat = Math.round((Number(item.ordvat) / ordQty) * outQty);
         return {
             ...item,
+            iorowno: '',
+            cfmyn: 'Y',
+            area: '',
+            itsize: item.itsize.replace(/,/g, ''),
             ioqty: outQty,
             ioamt: outAmt,
             iovat: outVat,
@@ -328,13 +332,14 @@ const save = async () => {
             custcd: masterData.custcd || '',
             deptcd: authStore.deptcd || '',
             ioymd: ioymd || '',
+            ioym: ioymd.substring(0, 6),
             iotype: '100',
             whcd: masterData.whcd || '',
-            area: masterData.area || '',
+            area: '',
             userid: authStore.userid || '',
             trnemp: masterData.trnemp || '',
             trancd: masterData.trancd || '',
-            addres: masterData.address || '',
+            address: masterData.address || '',
             d_address: masterData.d_address || '',
             remark: masterData.remark || '',
             cfmyn: 'Y',
@@ -343,6 +348,8 @@ const save = async () => {
         },
         dtl: detailItems
     }
+
+    console.log(saveRequest);
 
     // 🚀 [Seed-Model 표준 루틴] 통합 저장 API 호출 (백엔드 서비스 단에서 무결성 보장)
     const res = await api.post('/hsio/HSIO_550U_SAVE', saveRequest);

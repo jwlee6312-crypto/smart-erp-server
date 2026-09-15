@@ -33,7 +33,7 @@ public class HaaaController {
             @PathVariable String procedure,
             @RequestBody Map<String, Object> params,
             HttpSession session) {
-        
+
         String proc = procedure.toUpperCase();
 
         if (session.getAttribute("user_session") == null) {
@@ -46,7 +46,7 @@ public class HaaaController {
         try {
             fillMissingParameters(proc, params);
             log.info("📋 [haaa] 실행 요청: {}", proc);
-            
+
             List<Map<String, Object>> rawResult;
             if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
                 rawResult = executeJdbcQuery(proc, params);
@@ -61,7 +61,7 @@ public class HaaaController {
 
             if (rawResult == null) return ResponseEntity.notFound().build();
 
-            List<Map<String, Object>> finalResult = rawResult.isEmpty() ? 
+            List<Map<String, Object>> finalResult = rawResult.isEmpty() ?
                     List.of(Map.of("res", "OK")) : rawResult;
 
             return ResponseEntity.ok(convertToLowerCaseKeys(finalResult));

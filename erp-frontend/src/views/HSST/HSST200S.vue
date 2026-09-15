@@ -171,7 +171,7 @@ async function fetchOptions() {
     const resWh = await api.post('/hs00/HS00_000S_STR', { gubun: 'W0', cmpycd: authStore.cmpycd })
     whOptions.value = resWh.data
 
-    const resAsset = await api.post('/hs00/HS00_000S_STR', { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '140', code: '' })
+    const resAsset = await api.post('/hs00/HS00_000S_STR', { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '100', code: '' })
     assetOptions.value = resAsset.data
   } catch (e) { console.error('옵션 로드 실패') }
 }
@@ -182,7 +182,8 @@ async function search() {
       cmpycd: authStore.cmpycd,
       ymd: searchData.ymd,
       whcd: searchData.whcd,
-      astkind: searchData.astkind
+      astkind: searchData.astkind,
+      itemnm: ''
     })
 
     // 🚀 모든 키를 소문자로 변환 (데이터 누락 방지)

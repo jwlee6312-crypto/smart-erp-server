@@ -237,8 +237,9 @@ const formData = reactive<any>({
 const getImageUrl = (filename: string, type: string) => {
 	if (!filename) return ''
 	const baseUrl = API_URL || window.location.origin
-	// 🚀 단순화: 리소스 핸들러 경로와 매핑
-	return `${baseUrl}/Upload_Images/${authStore.cmpycd}/${type}/${filename}`.replace(/([^:]\/)\/+/g, "$1")
+	// 🚀 단순화: 리소스 핸들러 경로와 매핑 (storage로 통일 + 대문자 보정)
+	const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
+	return `${baseUrl}/storage/${cmpycd}/${type}/${filename}`.replace(/([^:]\/)\/+/g, "$1")
 }
 
 const bgOptions = ref<any[]>([])

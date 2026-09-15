@@ -37,7 +37,8 @@ export const useAuthStore = defineStore(
 			usergrp.value = data.usergrp || ''
 			salsyn.value = data.salsyn || ''
 			email.value = data.email || ''
-			photo_path.value = String(data.photo_path || '').trim() // 🚀 사진 경로 매핑 및 공백 제거
+			// 🚀 [보정] photo_path 가 없으면 photopath, PHOTO_PATH 등 유사 키도 검색
+			photo_path.value = String(data.photo_path || data.photopath || data.PHOTO_PATH || '').trim()
 			isAuthenticated.value = !!userid.value
 		}
 

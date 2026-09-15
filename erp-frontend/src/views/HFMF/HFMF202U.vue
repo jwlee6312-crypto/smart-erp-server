@@ -11,100 +11,107 @@
 
   <div class="erp-container d-flex flex-column h-100 bg-white">
     <!-- 🚀 1. 상단 액션 바 -->
-    <div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom">
-      <div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
-        <i class="bi bi-diagram-2 me-2 text-primary" style="font-size: 18px;"></i>
-        원가관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        원가결산 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">공정별배부작업 (HFMF202U)</span>
-      </div>
-      <div class="btn-group-erp d-flex gap-1 pe-3">
-        <button class="btn-erp btn-init" @click="loadInitData">초기화</button>
-        <button class="btn-erp btn-save" @click="handleExecute">배부실행</button>
-        <button class="btn-erp btn-delete" @click="handleCancel">배부취소</button>
+    <div class="erp-header border-bottom bg-white py-2 px-3 sticky-top shadow-sm flex-shrink-0">
+      <div class="d-flex justify-content-between align-items-center w-100" style="max-width: 60%; min-width: 600px;">
+        <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
+          <i class="bi bi-diagram-2 me-2 text-primary" style="font-size: 18px;"></i>
+          원가관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+          원가결산 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+          <span class="text-primary fw-bolder">공정별배부작업 (HFMF202U)</span>
+        </div>
+        <div class="btn-group-erp d-flex gap-1">
+          <button class="btn-erp btn-init" @click="loadInitData">초기화</button>
+          <button class="btn-erp btn-save" @click="handleExecute">배부실행</button>
+          <button class="btn-erp btn-delete" @click="handleCancel">배부취소</button>
+        </div>
       </div>
     </div>
 
     <!-- 💡 2. 메인 컨텐츠 영역 -->
-    <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2 bg-light main-content-wrapper">
+    <div class="flex-grow-1 overflow-auto p-3 bg-light">
+      <div class="d-flex flex-column gap-3" style="max-width: 60%; min-width: 600px;">
 
-      <!-- [상단] 처리 대상 및 조건 -->
-      <div class="card border shadow-sm flex-shrink-0 overflow-hidden">
-        <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center">
-          <span class="fw-bold small text-dark"><i class="bi bi-gear-fill me-2 text-primary"></i>배부 처리 조건</span>
+        <!-- [상단] 처리 대상 및 조건 -->
+        <div class="card border shadow-sm flex-shrink-0 overflow-hidden">
+          <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center">
+            <span class="fw-bold small text-dark"><i class="bi bi-gear-fill me-2 text-primary"></i>배부 처리 조건</span>
+          </div>
+          <div class="card-body p-0 bg-white">
+            <table class="erp-table-dense" width="100%">
+              <colgroup>
+                  <col style="width: 180px" /><col />
+              </colgroup>
+              <tbody>
+                <tr>
+                  <th class="text-center bg-light">1. 최종배부작업년월</th>
+                  <td>
+                    <div class="px-2">
+                      <input :value="dvdYm" class="form-control form-control-sm bg-light text-center fw-bold" readonly style="max-width: 120px;" />
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th class="text-center bg-light required">2. 배부 작업 년월</th>
+                  <td>
+                    <div class="d-flex align-items-center gap-2 px-2">
+                      <input v-model="searchForm.ym" type="month" class="form-control form-control-sm" style="max-width: 150px;" />
+                      <span class="text-primary small fw-bold">※ 원가마감 전 작업을 완료하세요.</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="card-body p-0 bg-white">
-          <table class="erp-table-dense" width="100%">
-            <colgroup>
-                <col style="width: 180px" /><col />
-            </colgroup>
-            <tbody>
-              <tr>
-                <th class="text-center bg-light">1. 최종배부작업년월</th>
-                <td>
-                  <div class="px-2">
-                    <input :value="dvdYm" class="form-control form-control-sm bg-light text-center fw-bold" readonly style="max-width: 120px;" />
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <th class="text-center bg-light required">2. 배부 작업 년월</th>
-                <td>
-                  <div class="d-flex align-items-center gap-2 px-2">
-                    <input v-model="searchForm.ym" type="month" class="form-control form-control-sm" style="max-width: 150px;" />
-                    <span class="text-primary small fw-bold">※ 원가마감 전 작업을 완료하세요.</span>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- [하단] 작업 결과 현황 -->
-      <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column grid-container-right">
-        <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center">
-          <span class="fw-bold small text-dark"><i class="bi bi-clipboard-data me-2 text-success"></i>작업 처리 결과</span>
-        </div>
-        <div class="card-body p-4 bg-white overflow-auto">
-          <div class="row g-5">
-            <div class="col-md-6 border-end">
-              <h6 class="fw-bold text-primary mb-3"><i class="bi bi-clock-history me-2"></i>처리 시간 상세</h6>
-              <div class="d-flex flex-column gap-3">
-                <div class="d-flex align-items-center">
-                  <span class="erp-label" style="min-width: 100px;">시작시간</span>
-                  <input :value="resultInfo.startdt" class="form-control bg-light text-center fw-bold" readonly />
+        <!-- [하단] 작업 결과 현황 -->
+        <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column grid-container-right">
+          <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center">
+            <span class="fw-bold small text-dark"><i class="bi bi-clipboard-data me-2 text-success"></i>작업 처리 결과</span>
+          </div>
+          <div class="card-body p-4 bg-white overflow-auto">
+            <div class="row g-5">
+              <div class="col-md-6 border-end">
+                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-clock-history me-2"></i>처리 시간 상세</h6>
+                <div class="d-flex flex-column gap-3">
+                  <div class="d-flex align-items-center">
+                    <span class="erp-label" style="min-width: 100px;">시작시간</span>
+                    <input :value="resultInfo.startdt" class="form-control bg-light text-center fw-bold" readonly />
+                  </div>
+                  <div class="d-flex align-items-center">
+                    <span class="erp-label" style="min-width: 100px;">종료시간</span>
+                    <input :value="resultInfo.enddt" class="form-control bg-light text-center fw-bold" readonly />
+                  </div>
                 </div>
-                <div class="d-flex align-items-center">
-                  <span class="erp-label" style="min-width: 100px;">종료시간</span>
-                  <input :value="resultInfo.enddt" class="form-control bg-light text-center fw-bold" readonly />
+              </div>
+              <div class="col-md-6">
+                <h6 class="fw-bold text-success mb-3"><i class="bi bi-calculator me-2"></i>공정배부 금액</h6>
+                <div class="d-flex flex-column gap-3">
+                  <div class="d-flex align-items-center">
+                    <span class="erp-label" style="min-width: 100px;">배부전합계</span>
+                    <input :value="Number(resultInfo.bfamt).toLocaleString()" class="form-control bg-light text-end fw-bold" readonly />
+                  </div>
+                  <div class="d-flex align-items-center">
+                    <span class="erp-label" style="min-width: 100px;">배부후합계</span>
+                    <input :value="Number(resultInfo.afamt).toLocaleString()" class="form-control bg-light text-end fw-bold text-success" readonly />
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="col-md-6">
-              <h6 class="fw-bold text-success mb-3"><i class="bi bi-calculator me-2"></i>공정배부 금액</h6>
-              <div class="d-flex flex-column gap-3">
-                <div class="d-flex align-items-center">
-                  <span class="erp-label" style="min-width: 100px;">배부전합계</span>
-                  <input :value="Number(resultInfo.bfamt).toLocaleString()" class="form-control bg-light text-end fw-bold" readonly />
-                </div>
-                <div class="d-flex align-items-center">
-                  <span class="erp-label" style="min-width: 100px;">배부후합계</span>
-                  <input :value="Number(resultInfo.afamt).toLocaleString()" class="form-control bg-light text-end fw-bold text-success" readonly />
-                </div>
+
+            <div class="mt-5 p-3 bg-white rounded border-start border-4 border-warning shadow-sm">
+              <div class="d-flex align-items-center mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-warning"></i>
+                <span class="fw-bold text-dark small">작업 시 주의사항</span>
               </div>
+              <p class="mb-0 small text-muted ps-4">
+                작업장 배부 작업은 공통 제조비용을 각 생산 공정(작업장)별로 배분하는 과정입니다.
+              </p>
             </div>
           </div>
-
-          <div class="mt-5 p-3 bg-light rounded border">
-            <p class="mb-0 small text-muted">
-              <i class="bi bi-info-circle-fill me-2"></i>
-              작업장 배부 작업은 공통 제조비용을 각 생산 공정(작업장)별로 배분하는 과정입니다.
-            </p>
-          </div>
         </div>
-      </div>
 
+      </div>
     </div>
   </div>
 </template>

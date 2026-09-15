@@ -117,7 +117,7 @@ const yearOptions = ref<string[]>([])
 const monthOptions = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
 const lineOptions = ref<any[]>([])
 const progOptions = ref<any[]>([])
-const closingInfo = reactive({ clsymd: '', sclsym: '', PCLSym: '' })
+const closingInfo = reactive({ clsymd: '', sclsym: '', pclsym: '' })
 
 const gridElement = ref<HTMLElement | null>(null)
 let grid: Tabulator | null = null
@@ -130,27 +130,28 @@ const generateYearOptions = () => {
     }
 }
 
-// 🏭 라인/공정 목록 로드
 const fetchLineOptions = async () => {
   try {
-    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'L0', cmpycd: authStore.cmpycd, gbncd: 'Y' } })
-    lineOptions.value = res.data
+    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'L0', cmpycd: authStore.cmpycd, gbncd: 'Y', code: '' } })
+    lineOptions.value = (res.data || []).map((i: any) => ({
+        linecd: i.linecd || i.code || i.CODE || '',
+        linenm: i.linenm || i.cdnm || i.CDNM || ''
+    }));
+    if (lineOptions.value.length > 0) onLineChange();
   } catch (e) {}
 }
 
-const fetchProgOptions = async (lineCd: string) => {
-  if (!lineCd) { progOptions.value = []; return; }
+const onLineChange = async () => {
   try {
-    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'I8', cmpycd: authStore.cmpycd, linecd: lineCd } })
-    progOptions.value = res.data
+    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'G0', cmpycd: authStore.cmpycd, gbncd: searchData.linecd, code: '' } })
+    progOptions.value = (res.data || []).map((i: any) => ({
+        progcd: i.progcd || i.code || i.CODE || '',
+        prognm: i.prognm || i.cdnm || i.CDNM || ''
+    }));
+    if (progOptions.value.length > 0) searchData.progcd = progOptions.value[0].progcd;
   } catch (e) {}
 }
 
-const onLineChange = () => {
-    searchData.progcd = ''
-    fetchProgOptions(searchData.linecd)
-    fetchList()
-}
 
 // 2. 그리드 초기화
 const initGrid = () => {
@@ -166,7 +167,7 @@ const initGrid = () => {
           columns: [
             { title: "코드", field: "itemcd", width: 90, hozAlign: "center", headerSort: false },
             {
-              title: "품 목 명", field: "itemnm", minWidth: 200, headerSort: false,
+              title: "품 목 명", field: "itemnm", minWidth: 150, headerSort: false,
               formatter: "html",
               cellClick: (e, cell) => {
                 const d = cell.getData()
@@ -187,47 +188,46 @@ const initGrid = () => {
               },
               cssClass: "text-primary text-decoration-underline cursor-pointer fw-bold",
               bottomCalc: () => "합 계"
-            },
-            { title: "규격", field: "itsize", width: 120, headerSort: false }
+            }
           ]
         },
         {
           title: "전 월 이 월",
           columns: [
-            { title: "수량", field: "Bsqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
-            { title: "단가", field: "BSprice", width: 70, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
-            { title: "금액", field: "bsamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "수량", field: "bsqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
+            { title: "단가", field: "bsprice", width: 85, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
+            { title: "금액", field: "bsamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "당 월 입 고",
           columns: [
             { title: "수량", field: "inqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-success" },
-            { title: "단가", field: "INprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "Inamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "단가", field: "inprice", width: 85, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "inamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "당 월 출 고",
           columns: [
             { title: "수량", field: "outqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-danger" },
-            { title: "단가", field: "outprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "outamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "단가", field: "outprice", width: 85, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "outamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "타 계 정",
           columns: [
-            { title: "수량", field: "OUTtqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
-            { title: "단가", field: "OUTTprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "OUTtamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "수량", field: "outtqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
+            { title: "단가", field: "outtprice", width: 85, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "outtamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "재 고 현 황",
           columns: [
             { title: "수량", field: "stkqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "fw-bold" },
-            { title: "단가", field: "STKprice", width: 70, hozAlign: "right", formatter: "money" },
+            { title: "단가", field: "stkprice", width: 85, hozAlign: "right", formatter: "money" },
             { title: "금액", field: "stkamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-primary fw-bold" }
           ]
         }
@@ -241,10 +241,10 @@ const fetchClosingStatus = async () => {
   try {
     const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } })
     if (res.data?.length) {
-      closingInfo.PCLSym = String(Object.values(res.data[0])[2]).trim()
-      if (closingInfo.PCLSym.length === 6) {
-          searchData.yy = closingInfo.PCLSym.substring(0, 4)
-          searchData.mm = closingInfo.PCLSym.substring(4, 6)
+      closingInfo.pclsym = String(Object.values(res.data[0])[2]).trim()
+      if (closingInfo.pclsym.length === 6) {
+          searchData.yy = closingInfo.pclsym.substring(0, 4)
+          searchData.mm = closingInfo.pclsym.substring(4, 6)
       }
     }
   } catch (e) {}
@@ -263,11 +263,11 @@ const fetchList = async () => {
 
     const mapped = res.data.map((i: any) => ({
         ...i,
-        BSprice: Number(i.Bsqty) !== 0 ? Math.round(Number(i.bsamt) / Number(i.Bsqty)) : 0,
-        INprice: Number(i.inqty) !== 0 ? Math.round(Number(i.Inamt) / Number(i.inqty)) : 0,
+        bsprice: Number(i.bsqty) !== 0 ? Math.round(Number(i.bsamt) / Number(i.bsqty)) : 0,
+        inprice: Number(i.inqty) !== 0 ? Math.round(Number(i.inamt) / Number(i.inqty)) : 0,
         outprice: Number(i.outqty) !== 0 ? Math.round(Number(i.outamt) / Number(i.outqty)) : 0,
-        OUTTprice: Number(i.OUTtqty) !== 0 ? Math.round(Number(i.OUTtamt) / Number(i.OUTtqty)) : 0,
-        STKprice: Number(i.stkqty) !== 0 ? Math.round(Number(i.stkamt) / Number(i.stkqty)) : 0
+        outtprice: Number(i.outtqty) !== 0 ? Math.round(Number(i.outtamt) / Number(i.outtqty)) : 0,
+        stkprice: Number(i.stkqty) !== 0 ? Math.round(Number(i.stkamt) / Number(i.stkqty)) : 0
     }))
 
     grid?.setData(mapped)
@@ -279,6 +279,7 @@ const fetchList = async () => {
 const initialize = () => {
   resetForm(searchData)
   Object.assign(searchData, { yy: String(now.getFullYear()), mm: String(now.getMonth() + 1).padStart(2, '0'), linecd: '010', progcd: '' })
+  onLineChange();
   grid?.clearData()
   itemCount.value = 0
 }

@@ -42,6 +42,8 @@ public class HsstController {
             params.put("userid", user.getUserid());
             params.put("updemp", user.getUserid());
 
+            log.info("🔍 [HSST] 파라미터 검증 ({}) : {}", proc, params);
+
             List<Map<String, Object>> resultList = new ArrayList<>();
 
             if (params.get("items") instanceof List<?> items) {

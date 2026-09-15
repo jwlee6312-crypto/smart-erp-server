@@ -12,86 +12,95 @@
 
 	<div class="erp-container d-flex flex-column h-100 bg-white">
 		<!-- 🚀 상단 액션 바 (표준 규격) -->
-		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 px-3 sticky-top shadow-sm flex-shrink-0">
-			<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
-				<i class="bi bi-stack me-2 text-primary" style="font-size: 18px;"></i>
-				예산관리 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
-				<span class="text-primary fw-bolder">예산일괄배정 (HABG060U)</span>
-			</div>
-			<div class="btn-group-erp d-flex gap-1 pe-3">
-				<button class="btn-erp btn-save" @click="save">
-					<i class="bi bi-play-fill"></i> 작업실행
-				</button>
+		<div class="erp-header border-bottom bg-white py-2 px-3 sticky-top shadow-sm flex-shrink-0">
+			<div class="d-flex justify-content-between align-items-center w-100" style="max-width: 60%; min-width: 600px;">
+				<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
+					<i class="bi bi-stack me-2 text-primary" style="font-size: 18px;"></i>
+					예산관리 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
+					<span class="text-primary fw-bolder">예산일괄배정 (HABG060U)</span>
+				</div>
+				<div class="btn-group-erp d-flex gap-1">
+					<button class="btn-erp btn-save" @click="save">
+						<i class="bi bi-play-fill"></i> 작업실행
+					</button>
+				</div>
 			</div>
 		</div>
 
 		<!-- 💡 메인 컨텐츠 영역 -->
-		<div class="flex-grow-1 overflow-auto p-4 bg-light main-content-wrapper">
-			<div class="card border shadow-sm mx-auto" style="max-width: 800px;">
-				<div class="card-header bg-white py-2 px-3 border-bottom">
-					<h6 class="mb-0 fw-bold small text-dark"><i class="bi bi-gear-fill me-2 text-primary"></i>배정 작업 조건 설정</h6>
-				</div>
-				<div class="card-body p-4 bg-white">
-					<div class="alert alert-info py-2 px-3 mb-4 small d-flex align-items-center border-0 shadow-sm" style="background-color: #f0f9ff; color: #0369a1;">
-						<i class="bi bi-info-circle-fill me-2 fs-5"></i>
-						<span>조정금액을 일괄 배정합니다. 추가/조기/이월/전용 금액은 자동으로 배정작업에 포함되지 않습니다.</span>
+		<div class="flex-grow-1 overflow-auto p-4 bg-light">
+			<div class="d-flex flex-column gap-3" style="max-width: 60%; min-width: 600px;">
+				<div class="card border shadow-sm bg-white overflow-hidden w-100">
+					<div class="card-header bg-white py-2 px-3 border-bottom">
+						<h6 class="mb-0 fw-bold small text-dark"><i class="bi bi-gear-fill me-2 text-primary"></i>배정 작업 조건 설정</h6>
 					</div>
-
-					<div class="row g-4">
-						<!-- 예산년월 범위 -->
-						<div class="col-12">
-							<div class="d-flex align-items-center">
-								<span class="erp-label" style="min-width: 100px;">예산년월</span>
-								<div class="d-flex align-items-center gap-2 flex-grow-1">
-									<div class="d-flex gap-1 flex-grow-1">
-										<select v-model="form.bugtyyf" class="form-select form-select-sm">
-											<option v-for="year in yearOptions" :key="year" :value="year">{{ year }}년</option>
-										</select>
-										<select v-model="form.bugtmmf" class="form-select form-select-sm">
-											<option v-for="opt in periodOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
-										</select>
-									</div>
-									<span class="text-muted fw-bold">~</span>
-									<div class="d-flex gap-1 flex-grow-1">
-										<select v-model="form.bugtyyt" class="form-select form-select-sm">
-											<option v-for="year in yearOptions" :key="year" :value="year">{{ year }}년</option>
-										</select>
-										<select v-model="form.bugtmmt" class="form-select form-select-sm">
-											<option v-for="opt in periodOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
-										</select>
-									</div>
-								</div>
+					<div class="card-body p-4 bg-white">
+						<div class="alert alert-warning border-start border-4 border-warning shadow-sm small py-3 px-4 mb-4 bg-white">
+							<div class="d-flex mb-2">
+								<i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-warning"></i>
+								<span class="fw-bold text-dark">작업 시 주의사항</span>
+							</div>
+							<div class="ps-4">
+								<span>조정금액을 일괄 배정합니다. 추가/조기/이월/전용 금액은 자동으로 배정작업에 포함되지 않습니다.</span>
 							</div>
 						</div>
 
-						<!-- 예산부서 범위 -->
-						<div class="col-12">
-							<div class="d-flex align-items-center">
-								<span class="erp-label" style="min-width: 100px;">예산부서</span>
-								<div class="d-flex align-items-center gap-2 flex-grow-1">
-									<div class="input-group input-group-sm flex-grow-1">
-										<input v-model="form.deptcdf" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
-										<input v-model="form.deptnmf" type="text" class="form-control" @keydown.enter="openHelp('DEPTF')" placeholder="시작 부서" />
-										<button class="btn btn-outline-secondary" @click="openHelp('DEPTF')"><i class="bi bi-search"></i></button>
-									</div>
-									<span class="text-muted fw-bold">~</span>
-									<div class="input-group input-group-sm flex-grow-1">
-										<input v-model="form.deptcdt" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
-										<input v-model="form.deptnmt" type="text" class="form-control" @keydown.enter="openHelp('DEPTT')" placeholder="종료 부서" />
-										<button class="btn btn-outline-secondary" @click="openHelp('DEPTT')"><i class="bi bi-search"></i></button>
+						<div class="row g-4">
+							<!-- 예산년월 범위 -->
+							<div class="col-12">
+								<div class="d-flex align-items-center">
+									<span class="erp-label" style="min-width: 100px;">예산년월</span>
+									<div class="d-flex align-items-center gap-2 flex-grow-1">
+										<div class="d-flex gap-1 flex-grow-1">
+											<select v-model="form.bugtyyf" class="form-select form-select-sm">
+												<option v-for="year in yearOptions" :key="year" :value="year">{{ year }}년</option>
+											</select>
+											<select v-model="form.bugtmmf" class="form-select form-select-sm">
+												<option v-for="opt in periodOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
+											</select>
+										</div>
+										<span class="text-muted fw-bold">~</span>
+										<div class="d-flex gap-1 flex-grow-1">
+											<select v-model="form.bugtyyt" class="form-select form-select-sm">
+												<option v-for="year in yearOptions" :key="year" :value="year">{{ year }}년</option>
+											</select>
+											<select v-model="form.bugtmmt" class="form-select form-select-sm">
+												<option v-for="opt in periodOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
+											</select>
+										</div>
 									</div>
 								</div>
 							</div>
-						</div>
 
-						<!-- 작업방법 -->
-						<div class="col-12">
-							<div class="d-flex align-items-center">
-								<span class="erp-label" style="min-width: 100px;">작업방법</span>
-								<select v-model="form.wkgbn" class="form-select form-select-sm flex-grow-1 fw-bold">
-									<option value="Y">일괄배정 작업을 합니다.</option>
-									<option value="N">일괄배정 취소작업을 합니다.</option>
-								</select>
+							<!-- 예산부서 범위 -->
+							<div class="col-12">
+								<div class="d-flex align-items-center">
+									<span class="erp-label" style="min-width: 100px;">예산부서</span>
+									<div class="d-flex align-items-center gap-2 flex-grow-1">
+										<div class="input-group input-group-sm flex-grow-1">
+											<input v-model="form.deptcdf" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
+											<input v-model="form.deptnmf" type="text" class="form-control" @keydown.enter="openHelp('DEPTF')" placeholder="시작 부서" />
+											<button class="btn btn-outline-secondary" @click="openHelp('DEPTF')"><i class="bi bi-search"></i></button>
+										</div>
+										<span class="text-muted fw-bold">~</span>
+										<div class="input-group input-group-sm flex-grow-1">
+											<input v-model="form.deptcdt" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
+											<input v-model="form.deptnmt" type="text" class="form-control" @keydown.enter="openHelp('DEPTT')" placeholder="종료 부서" />
+											<button class="btn btn-outline-secondary" @click="openHelp('DEPTT')"><i class="bi bi-search"></i></button>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<!-- 작업방법 -->
+							<div class="col-12">
+								<div class="d-flex align-items-center">
+									<span class="erp-label" style="min-width: 100px;">작업방법</span>
+									<select v-model="form.wkgbn" class="form-select form-select-sm flex-grow-1 fw-bold">
+										<option value="Y">일괄배정 작업을 합니다.</option>
+										<option value="N">일괄배정 취소작업을 합니다.</option>
+									</select>
+								</div>
 							</div>
 						</div>
 					</div>

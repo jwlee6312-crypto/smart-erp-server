@@ -98,7 +98,7 @@ const searchData = reactive({
 
 const yearOptions = ref<string[]>([])
 const monthOptions = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-const closingInfo = reactive({ clsymd: '', sclsym: '', PCLSym: '', wclsym: '' })
+const closingInfo = reactive({ clsymd: '', sclsym: '', pclsym: '', wclsym: '' })
 
 const tableRef = ref<HTMLDivElement | null>(null)
 let grid: Tabulator | null = null
@@ -116,7 +116,7 @@ const initGrids = () => {
       { title: "단위", field: "unit", width: 80, hozAlign: "center" },
       { title: "수량", field: "inqty", width: 100, hozAlign: "right", formatter: "money", formatterParams: { precision: (c:any)=>c.getData().qtypnt||0 } },
       { title: "단가", field: "price", width: 120, hozAlign: "right", editor: "number", formatter: "money", formatterParams: { precision: 2 }, cssClass: "bg-light-yellow fw-bold" },
-      { title: "금액", field: "Inamt", width: 130, hozAlign: "right", editor: "number", formatter: "money", formatterParams: { precision: 0 }, cssClass: "bg-light-blue fw-bold" }
+      { title: "금액", field: "inamt", width: 130, hozAlign: "right", editor: "number", formatter: "money", formatterParams: { precision: 0 }, cssClass: "bg-light-blue fw-bold" }
     ],
   });
 
@@ -126,10 +126,10 @@ const initGrids = () => {
     const qty = Number(data.inqty || 0)
 
     if (field === 'price') {
-      cell.getRow().update({ Inamt: Math.round(qty * Number(data.price || 0)) })
-    } else if (field === 'Inamt') {
+      cell.getRow().update({ inamt: Math.round(qty * Number(data.price || 0)) })
+    } else if (field === 'inamt') {
       if (qty !== 0) {
-        cell.getRow().update({ price: Number((Number(data.Inamt || 0) / qty).toFixed(2)) })
+        cell.getRow().update({ price: Number((Number(data.inamt || 0) / qty).toFixed(2)) })
       }
     }
     cell.getRow().select()
@@ -142,10 +142,10 @@ const fetchClosingStatus = async () => {
     const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } })
     if (res.data?.length) {
       const d = res.data[0]
-      closingInfo.PCLSym = String(d.PCLSym || d.pclsym || '').trim()
-      if (closingInfo.PCLSym.length === 6) {
-        searchData.yy = closingInfo.PCLSym.substring(0, 4)
-        searchData.mm = closingInfo.PCLSym.substring(4, 6)
+      closingInfo.pclsym = String(d.pclsym || d.pclsym || '').trim()
+      if (closingInfo.pclsym.length === 6) {
+        searchData.yy = closingInfo.pclsym.substring(0, 4)
+        searchData.mm = closingInfo.pclsym.substring(4, 6)
       }
     }
   } catch (e) {}
@@ -158,7 +158,7 @@ async function fetchList() {
     })
     const mapped = res.data.map((item: any) => ({
       ...item,
-      price: Number(item.inqty) !== 0 ? Number((Number(item.Inamt) / Number(item.inqty)).toFixed(2)) : 0
+      price: Number(item.inqty) !== 0 ? Number((Number(item.inamt) / Number(item.inqty)).toFixed(2)) : 0
     }))
     grid?.setData(mapped)
     vAlert('조회되었습니다.')
@@ -167,8 +167,8 @@ async function fetchList() {
 
 async function saveData() {
   const ym = searchData.yy + searchData.mm
-  if (ym > closingInfo.PCLSym) {
-    return vAlertError(`생산정보 마감작업(${closingInfo.PCLSym}) 후 작업하시기 바랍니다.`)
+  if (ym > closingInfo.pclsym) {
+    return vAlertError(`생산정보 마감작업(${closingInfo.pclsym}) 후 작업하시기 바랍니다.`)
   }
 
   const selected = grid?.getSelectedData() || []
@@ -180,7 +180,7 @@ async function saveData() {
     for (const item of selected) {
       await api.post('/hpcl/HPCL_110U_STR', {
         actkind: 'U0', cmpycd: authStore.cmpycd, ym: ym,
-        itemcd: item.itemcd, inqty: item.inqty, Inamt: item.Inamt, userid: authStore.userid
+        itemcd: item.itemcd, inqty: item.inqty, inamt: item.inamt, userid: authStore.userid
       })
     }
     vAlert('저장되었습니다.'); fetchList()

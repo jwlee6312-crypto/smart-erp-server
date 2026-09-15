@@ -48,15 +48,15 @@
                 </td>
                 <th class="required">출고창고</th>
                 <td>
-                  <select v-model="searchData.whcd" class="form-select form-select-sm" style="width: 150px;">
-                    <option value="000">전체</option>
-                    <option v-for="opt in whOptions" :key="opt.code" :value="opt.code">{{ opt.cdnm }}</option>
-                  </select>
+                    <select v-model="searchData.whcd" class="form-select form-select-sm" style="font-size: 12px;">
+                        <option value="000">전체</option>
+                        <option v-for="opt in whOptions" :key="opt.whcd" :value="opt.whcd">{{ opt.whnm }}</option>
+                    </select>
                 </td>
                 <th class="required">재고자산</th>
                 <td>
                   <select v-model="searchData.astkind" class="form-select form-select-sm" style="width: 150px;">
-                    <option v-for="opt in astOptions" :key="opt.code" :value="opt.code">{{ opt.cdnm }}</option>
+                      <option v-for="opt in astOptions" :key="opt.code" :value="opt.code">{{ opt.cdnm }}</option>
                   </select>
                 </td>
               </tr>
@@ -134,7 +134,7 @@ const initGrid = () => {
           title: "품목정보", frozen: true,
           columns: [
             {
-              title: "품 목 명", field: "itemnm", minWidth: 200, headerSort: false,
+              title: "품 목 명", field: "itemnm", minWidth: 150, headerSort: false,
               formatter: "html",
               cellClick: (e, cell) => {
                 const d = cell.getData()
@@ -161,17 +161,17 @@ const initGrid = () => {
         {
           title: "전 월 이 월",
           columns: [
-            { title: "수량", field: "Bsqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
-            { title: "단가", field: "BSprice", width: 70, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
-            { title: "금액", field: "bsamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "수량", field: "bsqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
+            { title: "단가", field: "bsprice", width: 70, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
+            { title: "금액", field: "bsamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "당 월 입 고",
           columns: [
             { title: "수량", field: "inqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-success" },
-            { title: "단가", field: "INprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "Inamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "단가", field: "inprice", width: 70, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "inamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
@@ -179,7 +179,7 @@ const initGrid = () => {
           columns: [
             { title: "수량", field: "outqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-danger" },
             { title: "단가", field: "outprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "outamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "금액", field: "outamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
@@ -187,22 +187,22 @@ const initGrid = () => {
           columns: [
             { title: "수량", field: "outmqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
             { title: "단가", field: "OUTMprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "outmamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "금액", field: "outmamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "타 계 정",
           columns: [
-            { title: "수량", field: "OUTtqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
-            { title: "단가", field: "OUTTprice", width: 70, hozAlign: "right", formatter: "money" },
-            { title: "금액", field: "OUTtamt", width: 85, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
+            { title: "수량", field: "outtqty", width: 60, hozAlign: "right", formatter: "money", bottomCalc: "sum" },
+            { title: "단가", field: "outtprice", width: 70, hozAlign: "right", formatter: "money" },
+            { title: "금액", field: "outtamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum" }
           ]
         },
         {
           title: "재 고 현 황",
           columns: [
             { title: "수량", field: "stkqty", width: 70, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "fw-bold" },
-            { title: "단가", field: "STKprice", width: 70, hozAlign: "right", formatter: "money" },
+            { title: "단가", field: "stkprice", width: 70, hozAlign: "right", formatter: "money" },
             { title: "금액", field: "stkamt", width: 100, hozAlign: "right", formatter: "money", bottomCalc: "sum", cssClass: "text-primary fw-bold" }
           ]
         }
@@ -211,17 +211,23 @@ const initGrid = () => {
   }
 }
 
+
 // 3. 비즈니스 로직
 const fetchOptions = async () => {
   try {
-    // 창고 (HS00_000S_STR 'W0')
-    const resWh = await api.get('/comm/codes/WH')
-    whOptions.value = resWh.data
+
+    const reswh = await api.post('/hs00/HS00_000S_STR', { gubun: 'W0', cmpycd: authStore.cmpycd, gbncd: '', code: '', codenm: '', etcval: '' })
+    whOptions.value = reswh.data.map((i: any) => ({ whnm: i.whnm, whcd: i.whcd }));
 
     // 재고자산 (HP00_000S_STR 'E0', '100')
-    const resAst = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '100' } })
-    astOptions.value = resAst.data.filter((i:any) => i.code <= '119')
-    if (astOptions.value.length > 0) searchData.astkind = astOptions.value[0].code
+    const res = await api.get('/hp00/HP00_000S_STR', {
+      params: { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '100', code: '' }
+    })
+    // 💎 컬럼명 code, cdnm 으로 매핑
+    astOptions.value = res.data.map((i: any) => ({
+        code: i.code,
+        cdnm: i.cdnm
+    }))
 
     // 마감 상태에 따른 연월 초기값
     const statusRes = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } })
@@ -250,12 +256,12 @@ const fetchList = async () => {
     // 단가 계산 로직
     const mapped = res.data.map((i: any) => ({
         ...i,
-        BSprice: Number(i.Bsqty) !== 0 ? Math.round(Number(i.bsamt) / Number(i.Bsqty)) : 0,
-        INprice: Number(i.inqty) !== 0 ? Math.round(Number(i.Inamt) / Number(i.inqty)) : 0,
+        bsprice: Number(i.bsqty) !== 0 ? Math.round(Number(i.bsamt) / Number(i.bsqty)) : 0,
+        inprice: Number(i.inqty) !== 0 ? Math.round(Number(i.inamt) / Number(i.inqty)) : 0,
         outprice: Number(i.outqty) !== 0 ? Math.round(Number(i.outamt) / Number(i.outqty)) : 0,
         OUTMprice: Number(i.outmqty) !== 0 ? Math.round(Number(i.outmamt) / Number(i.outmqty)) : 0,
-        OUTTprice: Number(i.OUTtqty) !== 0 ? Math.round(Number(i.OUTtamt) / Number(i.OUTtqty)) : 0,
-        STKprice: Number(i.stkqty) !== 0 ? Math.round(Number(i.stkamt) / Number(i.stkqty)) : 0
+        outtprice: Number(i.outtqty) !== 0 ? Math.round(Number(i.outtamt) / Number(i.outtqty)) : 0,
+        stkprice: Number(i.stkqty) !== 0 ? Math.round(Number(i.stkamt) / Number(i.stkqty)) : 0
     }))
 
     grid?.setData(mapped)
