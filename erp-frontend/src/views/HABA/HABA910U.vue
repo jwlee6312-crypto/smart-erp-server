@@ -180,9 +180,11 @@ async function save() {
 	if (formData.pw && formData.pw !== formData.pw_c) return vAlertError('비밀번호 확인이 일치하지 않습니다.')
 
 	try {
-		// 🚀 [보정] 사용자가 비밀번호를 입력하지 않았다면 원본 해시값을 그대로 전송
-		const payload = { ...formData }
-		if (!formData.pw || formData.pw.trim() === '') {
+		// 🚀 [보정] 비밀번호 수정 여부 플래그 추가
+		const payload = { ...formData, pw_edit_yn: 'N' }
+		if (formData.pw && formData.pw.trim() !== '') {
+			payload.pw_edit_yn = 'Y'
+		} else {
 			payload.pw = originalPw.value
 		}
 

@@ -1,6 +1,7 @@
 package com.crmbank.erp.haba.controller;
 
 import com.crmbank.erp.comm.dto.UserSession;
+import com.crmbank.erp.comm.util.SecurityUtil;
 import com.crmbank.erp.haba.mapper.HabaMapper;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,26 @@ public class HabaController {
         try {
             injectSession(params, session);
             fillMissingParameters(proc, params);
+
+            // 🚀 비밀번호 암호화 및 기본값 처리 (HABA910U, HABA920U 공통)
+            if (proc.equals("HABA_910U_STR") || proc.equals("HABA_920U_STR")) {
+                String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
+                String rawPw = params.get("pw") != null ? String.valueOf(params.get("pw")).trim() : "";
+                String pwEditYn = String.valueOf(params.getOrDefault("pw_edit_yn", "N")).toUpperCase();
+                
+                // 1. 신규 등록(I1, A0 등) 시 암호를 입력하지 않은 경우 default로 'smart' 지정
+                if ((actkind.startsWith("I") || actkind.startsWith("A")) && rawPw.isEmpty()) {
+                    rawPw = "smart";
+                    pwEditYn = "Y"; // 강제 암호화 대상
+                }
+                
+                // 2. 🚀 사용자님의 의견 반영: 비밀번호 수정 플래그(pw_edit_yn)가 'Y'인 경우에만 암호화 수행
+                //    (길이 20자 이하 체크는 안전 장치로 병행)
+                if ("Y".equals(pwEditYn) && !rawPw.isEmpty() && rawPw.length() <= 20) {
+                    params.put("pw", SecurityUtil.encryptSha256(rawPw));
+                    log.info("🔐 [보안] {} 요청의 'pw' 필드를 암호화 처리했습니다. (Flag: Y)", proc);
+                }
+            }
 
             log.info("📋 [haba] 실행 요청: {}", proc);
 
@@ -143,4 +164,5 @@ public class HabaController {
 
         return ResponseEntity.ok(Map.of("success", true));
     }
+
 }

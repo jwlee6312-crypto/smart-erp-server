@@ -22,7 +22,12 @@ public class CommService {
     @Transactional("erpTransactionManager")
     public UserSession login(String cmpycd, String userid, String passwd, String ip) throws Exception {
         Map<String, Object> param = new HashMap<>();
-        param.put("cmpycd", cmpycd.trim());
+        
+        if("smart".equals(cmpycd.trim())) {
+            param.put("cmpycd", "coit");
+        } else {
+            param.put("cmpycd", cmpycd.trim());
+        }
         param.put("userid", userid.trim());
 
         Map<String, Object> companyInfoRaw = commMapper.GET_COMPANY_INFO(param);

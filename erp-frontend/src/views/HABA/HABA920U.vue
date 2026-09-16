@@ -83,14 +83,12 @@
 								</colgroup>
 								<tbody>
 									<tr>
-										<th class="required bg-light">아 이 디</th>
+										<th class="required bg-light text-center">아 이 디</th>
 										<td>
 											<input v-model="formData.userid" type="text" class="form-control form-control-sm fw-bold text-primary" :disabled="formData.actkind === 'U0'" />
 										</td>
-										<th class="required bg-light">비밀번호</th>
-										<td>
-											<input v-model="formData.pw" type="password" class="form-control form-control-sm" placeholder="********" />
-										</td>
+										<th class="required bg-light text-center">성    명</th>
+										<td><input v-model="formData.usernm" type="text" class="form-control form-control-sm" /></td>
 										<td rowspan="4" class="text-center p-2 border-start bg-light bg-opacity-10" style="width: 140px;">
 											<!-- 📸 사진 업로드 영역 -->
 											<div class="photo-upload-container mx-auto position-relative shadow-sm bg-white rounded border overflow-hidden" style="width: 100px; height: 120px;">
@@ -110,10 +108,14 @@
 										</td>
 									</tr>
 									<tr>
-										<th class="required bg-light text-center">성    명</th>
-										<td><input v-model="formData.usernm" type="text" class="form-control form-control-sm" /></td>
-										<th class="bg-light text-center">사    번</th>
-										<td><input v-model="formData.empno" type="text" class="form-control form-control-sm" /></td>
+										<th class="required bg-light text-center">비밀번호</th>
+										<td>
+											<input v-model="formData.pw" type="password" class="form-control form-control-sm" placeholder="변경 시 입력" />
+										</td>
+										<th class="required bg-light text-center">비밀번호 확인</th>
+										<td>
+											<input v-model="formData.pw_c" type="password" class="form-control form-control-sm" placeholder="비밀번호 재입력" />
+										</td>
 									</tr>
 									<tr>
 										<th class="required bg-light text-center">부    서</th>
@@ -123,20 +125,22 @@
 												<button class="btn btn-outline-secondary" @click="handleOpenHelp('DEPT')"><i class="bi bi-search"></i></button>
 											</div>
 										</td>
+										<th class="bg-light text-center">사    번</th>
+										<td><input v-model="formData.empno" type="text" class="form-control form-control-sm" /></td>
+									</tr>
+									<tr>
+										<th class="required bg-light text-center">권한그룹</th>
+										<td>
+											<select v-model="formData.usergrp" class="form-select form-select-sm border-primary-subtle">
+												<option value="">-- 선택 --</option>
+												<option v-for="opt in grpOptions" :key="opt.code" :value="opt.code">{{ opt.cdnm }}</option>
+											</select>
+										</td>
 										<th class="bg-light text-center">직    위</th>
 										<td>
 											<select v-model="formData.positionoff" class="form-select form-select-sm">
 												<option value="">-- 선택 --</option>
 												<option v-for="opt in posOptions" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
-											</select>
-										</td>
-									</tr>
-									<tr>
-										<th class="required bg-light text-center">권한그룹</th>
-										<td colspan="3">
-											<select v-model="formData.usergrp" class="form-select form-select-sm border-primary-subtle" style="max-width: 300px;">
-												<option value="">-- 선택 --</option>
-												<option v-for="opt in grpOptions" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
 											</select>
 										</td>
 									</tr>
@@ -202,7 +206,7 @@ const gridCount = ref(0); const localImagePreview = ref(''); const isUploading =
 const originalPw = ref('') // 🚀 [보정] 원본 해시 암호 보관용
 
 const formData = reactive({
-	actkind: 'S2', cmpycd: authStore.cmpycd, userid: '', pw: '', usernm: '',
+	actkind: 'S2', cmpycd: authStore.cmpycd, userid: '', pw: '', pw_c: '', usernm: '',
 	telno: '', inner_no: '', hpno: '', deptcd: '', deptnm: '', empno: '',
 	positionoff: '', usergrp: '', email: '', pricegbn: '1', useyn: 'Y', salsyn: 'N',
 	photo_path: ''
@@ -238,15 +242,18 @@ async function save() {
 	if (!formData.userid) return vAlertError('사용자 아이디를 입력하세요.')
 	if (!formData.usernm) return vAlertError('성명을 입력하세요.')
 	if (!isUpdate && !formData.pw) return vAlertError('신규 등록 시 비밀번호는 필수입니다.')
+	if (formData.pw && formData.pw !== formData.pw_c) return vAlertError('비밀번호 확인이 일치하지 않습니다.')
 	if (!formData.usergrp) return vAlertError('권한그룹을 선택하세요.')
 	if (!formData.deptcd) return vAlertError('부서를 선택하세요.')
 
 	try {
 		const act = isUpdate ? 'U1' : 'I1'
 
-		// 🚀 [보정] 사용자가 비밀번호를 입력하지 않았다면 원본 해시값을 그대로 전송
-		const payload = { ...formData }
-		if (isUpdate && (!formData.pw || formData.pw.trim() === '')) {
+		// 🚀 [보정] 사용자가 비밀번호를 입력했인지 여부를 플래그로 전송
+		const payload = { ...formData, pw_edit_yn: 'N' }
+		if (formData.pw && formData.pw.trim() !== '') {
+			payload.pw_edit_yn = 'Y'
+		} else if (isUpdate) {
 			payload.pw = originalPw.value
 		}
 
@@ -361,6 +368,7 @@ onMounted(async () => {
 			// 🚀 [보정] 원본 해시 암호를 보관하고 입력창 초기화
 			originalPw.value = rowData.pw || rowData.passwd || ''
 			formData.pw = ''
+			formData.pw_c = ''
 			formData.actkind = 'U0'
 			localImagePreview.value = ''
 		})

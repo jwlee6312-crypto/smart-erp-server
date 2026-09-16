@@ -94,7 +94,7 @@ interface FormData {
 }
 
 const form = reactive<FormData>({
-	cmpycd: '', // 💡 하드코딩 제거 및 초기값 설정
+	cmpycd: 'smart', // 💡 하드코딩 제거 및 초기값 설정
 	userid: '',
 	passwd: '',
 })
