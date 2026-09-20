@@ -346,15 +346,30 @@ public class MHPIO400U extends BaseActivity {
     private void setupWarehouseSpinner() {
         warehouseAdapter = new ArrayAdapter<>(this, R.layout.item_popup_list, new ArrayList<>());
         spWarehouse.setAdapter(warehouseAdapter);
-        apiService.getCommonCode("haionnet", "KOR", "030").enqueue(new Callback<List<CodeDto>>() {
+
+        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String cmpycd = prefs.getString("cmpycd", "coit").trim();
+
+        Map<String, Object> p = new HashMap<>();
+        p.put("gubun", "W0");
+        p.put("cmpycd", cmpycd);
+
+        apiService.executeHs00Procedure("HS00_000S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
-            public void onResponse(@NonNull Call<List<CodeDto>> call, @NonNull Response<List<CodeDto>> response) {
+            public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    warehouseAdapter.addAll(response.body());
+                    List<CodeDto> codes = new ArrayList<>();
+                    for (Map<String, Object> m : response.body()) {
+                        CodeDto dto = new CodeDto();
+                        dto.codecd = getStringValue(m, "whcd");
+                        dto.codenm = getStringValue(m, "whnm");
+                        codes.add(dto);
+                    }
+                    warehouseAdapter.addAll(codes);
                     warehouseAdapter.notifyDataSetChanged();
                 }
             }
-            @Override public void onFailure(@NonNull Call<List<CodeDto>> call, @NonNull Throwable t) {}
+            @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {}
         });
     }
 

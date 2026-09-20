@@ -97,6 +97,14 @@ public class MHSIO010U extends BaseActivity {
         etReqNo.setText("");
         etRemarks.setText("");
         
+        // 🚀 신규 상태에서는 선택 가능하도록 속성 초기화
+        tvReqDate.setClickable(true);
+        tvReqDate.setEnabled(true);
+        tvReqDate.setBackgroundResource(R.drawable.bg_input_field);
+        tvReqDept.setClickable(true);
+        tvReqDept.setEnabled(true);
+        tvReqDept.setBackgroundResource(R.drawable.bg_input_field);
+
         masterData.put("cmpycd", cmpycd);
         masterData.put("deptcd", deptcd);
         masterData.put("reqymd", todayYmd.replace("-", ""));
@@ -134,6 +142,9 @@ public class MHSIO010U extends BaseActivity {
                 row.put("reqqty", 1.0);
                 row.put("imprice", getDoubleVal(item, "incost"));
                 row.put("reqamt", getDoubleVal(item, "incost"));
+                // 🚀 매입/매출 환산 기본값 1 고정
+                row.put("inqty", 1.0);
+                row.put("outqty", 1.0);
                 row.put("_status", "입력");
                 orderItems.add(row);
                 adapter.notifyDataSetChanged();
@@ -252,6 +263,14 @@ public class MHSIO010U extends BaseActivity {
                     String ymd = getStringVal(mst, "reqymd");
                     if (ymd.length() == 8) tvReqDate.setText(String.format("%s-%s-%s", ymd.substring(0,4), ymd.substring(4,6), ymd.substring(6,8)));
                     
+                    // 🚀 조회 후에는 요청일자와 요청부서를 수정할 수 없도록 ReadOnly 처리
+                    tvReqDate.setClickable(false);
+                    tvReqDate.setEnabled(false);
+                    tvReqDate.setBackgroundColor(Color.parseColor("#EEEEEE"));
+                    tvReqDept.setClickable(false);
+                    tvReqDept.setEnabled(false);
+                    tvReqDept.setBackgroundColor(Color.parseColor("#EEEEEE"));
+
                     fetchItems();
                 }
             }
@@ -267,6 +286,9 @@ public class MHSIO010U extends BaseActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     orderItems.clear();
                     for (Map<String, Object> item : response.body()) {
+                        // 🚀 조회 시에도 매입/매출 환산값은 1로 강제 설정
+                        item.put("inqty", 1.0);
+                        item.put("outqty", 1.0);
                         item.put("_status", ""); orderItems.add(item);
                     }
                     adapter.notifyDataSetChanged();

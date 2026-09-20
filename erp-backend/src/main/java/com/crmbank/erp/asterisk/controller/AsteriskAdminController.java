@@ -6,15 +6,14 @@ import com.crmbank.erp.asterisk.mapper.AsteriskMapper;
 import com.crmbank.erp.asterisk.service.AsteriskAdminService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/crm/asterisk")
@@ -26,28 +25,6 @@ public class AsteriskAdminController {
 
     @Value("${asterisk.sounds.path:/var/lib/asterisk/sounds/custom/}")
     private String uploadDir;
-
-    @GetMapping("/extension/template")
-    public List<Map<String, Object>> getIvrTemplate() {
-        return convertListKeysToLowerCase(asteriskAdminService.getStandardIvrTemplate());
-    }
-
-    @PostMapping("/sound/upload")
-    public Map<String, Object> uploadSound(@RequestParam("file") MultipartFile file) {
-        Map<String, Object> result = new HashMap<>();
-        try {
-            Path directory = Paths.get(uploadDir);
-            if (!Files.exists(directory)) Files.createDirectories(directory);
-            Path targetPath = directory.resolve(file.getOriginalFilename());
-            file.transferTo(targetPath);
-            log.info("✅ 음원 업로드 성공: {}", targetPath);
-            result.put("success", true);
-        } catch (IOException e) {
-            log.error("❌ 음원 업로드 실패: {}", e.getMessage());
-            result.put("success", false);
-        }
-        return result;
-    }
 
     @GetMapping("/pjsip/search")
     public List<Map<String, Object>> searchPjsip(@RequestParam Map<String, Object> params) {
@@ -72,8 +49,12 @@ public class AsteriskAdminController {
     @PostMapping("/queue/member/save")
     public void saveQueueMembers(@RequestBody Map<String, Object> params) {
         String queueName = String.valueOf(params.get("queue_name"));
-        List<Map<String, Object>> members = (List<Map<String, Object>>) params.get("members");
-        asteriskAdminService.saveQueueMembers(queueName, members);
+        Object membersObj = params.get("members");
+        if (membersObj instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> members = (List<Map<String, Object>>) membersObj;
+            asteriskAdminService.saveQueueMembers(queueName, members);
+        }
     }
 
     @PostMapping("/queue/save")

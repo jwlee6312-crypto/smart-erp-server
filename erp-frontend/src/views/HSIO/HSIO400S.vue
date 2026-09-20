@@ -26,8 +26,8 @@
 				<div class="card-body p-0 bg-white">
 					<table class="erp-table-full border-0">
 						<colgroup>
-							<col style="width: 100px;" /><col />
-							<col style="width: 100px;" /><col />
+							<col style="width: 100px;" /><col style="width: 250px;" />
+							<col style="width: 100px;" /><col style="width: 200px;" />
 							<col style="width: 100px;" /><col />
 						</colgroup>
 						<tbody>
@@ -48,33 +48,21 @@
 										<input v-model="searchForm.todt" type="date" class="form-control" />
 									</div>
 								</td>
-								<th>영업사원</th>
-								<td>
-									<select v-model="searchForm.salsemp" class="form-select">
-										<option value="000">전체 사원</option>
-										<option v-for="item in empOptions" :key="item.userid" :value="item.userid">{{ item.usernm }}</option>
-									</select>
-								</td>
-							</tr>
-							<tr>
-								<th class="border-bottom-0">거 래 처</th>
-								<td colspan="3" class="border-bottom-0">
+								<th>거 래 처</th>
+								<td class="bg-light-subtle">
 									<div class="d-flex align-items-center gap-1">
-										<div class="input-group input-group-sm flex-nowrap" style="width: 250px;">
+										<div class="input-group input-group-sm flex-nowrap" style="width: 200px;">
 											<input v-model="searchForm.custcdfr" type="text" class="form-control bg-light text-center" style="max-width: 60px;" readonly />
-											<input v-model="searchForm.custnmfr" type="text" class="form-control" placeholder="거래처(시작)" @keyup.enter="openHelp('CUSTFR')" />
+											<input v-model="searchForm.custnmfr" type="text" class="form-control" placeholder="시작" @keyup.enter="openHelp('CUSTFR')" />
 											<button class="btn btn-outline-secondary px-2" @click="openHelp('CUSTFR')"><i class="bi bi-search"></i></button>
 										</div>
 										<span class="text-muted mx-1">~</span>
-										<div class="input-group input-group-sm flex-nowrap" style="width: 250px;">
+										<div class="input-group input-group-sm flex-nowrap" style="width: 200px;">
 											<input v-model="searchForm.custcdto" type="text" class="form-control bg-light text-center" style="max-width: 60px;" readonly />
-											<input v-model="searchForm.custnmto" type="text" class="form-control" placeholder="거래처(종료)" @keyup.enter="openHelp('CUSTTO')" />
+											<input v-model="searchForm.custnmto" type="text" class="form-control" placeholder="종료" @keyup.enter="openHelp('CUSTTO')" />
 											<button class="btn btn-outline-secondary px-2" @click="openHelp('CUSTTO')"><i class="bi bi-search"></i></button>
 										</div>
 									</div>
-								</td>
-								<td colspan="2" class="border-bottom-0 bg-light-subtle text-end px-3">
-									<span class="small text-muted"><i class="bi bi-info-circle me-1"></i> 거래처를 지정하지 않으면 전체를 조회합니다.</span>
 								</td>
 							</tr>
 						</tbody>
@@ -118,12 +106,11 @@ const { resetForm } = useFormReset()
 const { firstDay, today } = getDate()
 
 const searchForm = reactive({
-	deptcd: authStore.deptcd, deptnm: authStore.deptnm,
-	fromdt: firstDay, todt: today, salsemp: '000',
+	deptcd: authStore.deptcd || '00000', deptnm: authStore.deptnm,
+	fromdt: firstDay, todt: today,
 	custcdfr: '', custnmfr: '', custcdto: '', custnmto: ''
 })
 
-const empOptions = ref<any[]>([])
 const listCount = ref(0); const totalSum = ref(0)
 const mainGridRef = ref<HTMLDivElement | null>(null); let mainGrid: Tabulator | null = null
 
@@ -132,14 +119,14 @@ const modalProps = reactive<ModalProps>({ title: '', path: '', defaultField: '',
 
 async function fetchList() {
 	try {
-		const res = await api.post('/comm/executeHS00_000S_STR', {
+		// 🚀 [보정] 부서코드가 없을 경우 '00000' 전송 (자료 조회 보장)
+		const res = await api.post('/hsio/HSIO_400S_STR', {
 			cmpycd: authStore.cmpycd,
-			deptcd: searchForm.deptcd,
+			deptcd: searchForm.deptcd || '00000',
+			custcdfr: searchForm.custcdfr || '',
+			custcdto: searchForm.custcdto || '',
 			fromdt: searchForm.fromdt.replace(/-/g, ''),
-			todt: searchForm.todt.replace(/-/g, ''),
-			custcdfr: searchForm.custcdfr,
-			custcdto: searchForm.custcdto,
-			salsemp: searchForm.salsemp
+			todt: searchForm.todt.replace(/-/g, '')
 		})
 		mainGrid?.setData(res.data || [])
 		listCount.value = res.data?.length || 0
@@ -150,8 +137,8 @@ async function fetchList() {
 
 function initialize() {
 	resetForm(searchForm)
-	searchForm.fromdt = firstDay; searchForm.todt = today; searchForm.salsemp = '000'
-	searchForm.deptcd = authStore.deptcd; searchForm.deptnm = authStore.deptnm
+	searchForm.fromdt = firstDay; searchForm.todt = today;
+	searchForm.deptcd = authStore.deptcd || '00000'; searchForm.deptnm = authStore.deptnm
 	mainGrid?.clearData(); listCount.value = 0; totalSum.value = 0
 }
 
@@ -196,20 +183,17 @@ onMounted(async () => {
 				vertAlign: 'middle'
 			},
 			columns: [
-				{ title: '거래처 명칭', field: 'custnm', minWidth: 200, widthGrow: 2, cssClass: 'fw-bold' },
-				{ title: '현금', field: 'cashamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 110 },
-				{ title: '예금', field: 'bankamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 110 },
-				{ title: '카드', field: 'cardamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 110 },
-				{ title: '어음', field: 'billamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 110 },
-				{ title: '대체', field: 'sangamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 110 },
-				{ title: '기타', field: 'etcamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 110 },
-				{ title: '합계', field: 'amttot', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 130, cssClass: 'fw-bold text-primary bg-light-subtle' }
+				{ title: '거래처 명칭', field: 'custnm', hozAlign: 'left', minWidth: 200, widthGrow: 2, cssClass: 'fw-bold', hozAlign: 'left' },
+				{ title: '현금', field: 'cashamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150 },
+				{ title: '예금', field: 'bankamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150 },
+				{ title: '카드', field: 'cardamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150 },
+				{ title: '어음', field: 'billamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150 },
+				{ title: '대체', field: 'sangamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150 },
+				{ title: '기타', field: 'etcamt', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150 },
+				{ title: '합계', field: 'amttot', hozAlign: 'right', formatter: "money", formatterParams: { precision: 0 }, width: 150, cssClass: 'fw-bold text-primary bg-light-subtle' }
 			]
 		})
 	}
-	api.get('/ha00/HA00_00P_STR', { params: { gubun: 'SD', cmpycd: authStore.cmpycd, gbncd: '', code: '', remark: '' } }).then(r => {
-		if (r.data) empOptions.value = r.data.map((i: any) => ({ userid: String(i.userid || i.userid || Object.values(i)[0]).trim(), usernm: String(i.usernm || i.usernm || Object.values(i)[1]).trim() }))
-	})
 })
 </script>
 

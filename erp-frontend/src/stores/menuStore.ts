@@ -72,4 +72,5 @@ export const useMenuStore = defineStore('menu', {
 			return Array.from(map.values())
 		}
 	},
+	persist: { storage: sessionStorage },
 })

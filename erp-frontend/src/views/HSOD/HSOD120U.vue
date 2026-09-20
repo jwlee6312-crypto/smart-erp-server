@@ -226,7 +226,7 @@ async function search() {
         procyn: searchData.selgbn === 'N' && i.ordemp !== 'Y',
         ord_full: `${i.ordym}-${i.ordno}`,
         ordymd_fmt: formatDateString(i.ordymd, '-'),
-        outymd_fmt: formatDateString(i.OUtymd, '-')
+        outymd_fmt: formatDateString(i.outymd, '-')
       }))
       masterGrid.setData(mappedData)
       allSelected.value = searchData.selgbn === 'N'
@@ -285,7 +285,7 @@ async function processApproval() {
         selgbn: searchData.selgbn,
         ordym: row.ordym,
         ordno: row.ordno,
-        OUtymd: row.outymd_fmt.replace(/-/g, ''),
+        outymd: row.outymd_fmt.replace(/-/g, ''),
         deptcd: row.deptcd,
         whcd: row.whcd,
         ordemp: row.ordemp,

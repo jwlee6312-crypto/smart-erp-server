@@ -12,13 +12,14 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/manual/ai")
 @RequiredArgsConstructor
 public class ManualAiController {
 
-    @Value("${google.ai.gemini.api-key}")
+    @Value("${google.ai.gemini.api-key:}")
     private String geminiApiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
@@ -32,16 +33,18 @@ public class ManualAiController {
         String prognm = params.get("prognm");
 
         try {
-            String prompt = String.format(
-                "당신은 ERP 전문 컨설턴트입니다. 다음은 [%s] %s 프로그램의 업무 매뉴얼 초안입니다.\n\n" +
-                "### 원본 내용:\n%s\n\n" +
-                "이 내용을 바탕으로 신입 사원도 이해하기 쉽게 '업무 절차 중심'의 고도화된 매뉴얼을 HTML 형식으로 작성해 주세요.\n" +
-                "조건:\n" +
-                "1. 디자인은 최신 웹 스타일(Bootstrap 기반)을 사용하여 세련되게 만드세요.\n" +
-                "2. 팁과 주의사항 섹션을 반드시 포함하세요.\n" +
-                "3. 답변은 <div>로 시작하는 HTML 코드 본문만 보내주세요.",
-                progid, prognm, content
-            );
+            String prompt = """
+                당신은 ERP 전문 컨설턴트입니다. 다음은 [%s] %s 프로그램의 업무 매뉴얼 초안입니다.
+                
+                ### 원본 내용:
+                %s
+                
+                이 내용을 바탕으로 신입 사원도 이해하기 쉽게 '업무 절차 중심'의 고도화된 매뉴얼을 HTML 형식으로 작성해 주세요.
+                조건:
+                1. 디자인은 최신 웹 스타일(Bootstrap 기반)을 사용하여 세련되게 만드세요.
+                2. 팁과 주의사항 섹션을 반드시 포함하세요.
+                3. 답변은 <div>로 시작하는 HTML 코드 본문만 보내주세요.
+                """.formatted(progid, prognm, content);
 
             // 💡 가장 안정적인 gemini-pro 모델을 명시적으로 사용
             String model = "gemini-pro";
@@ -60,13 +63,27 @@ public class ManualAiController {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             
             log.info("🚀 Gemini API 호출 (Model: gemini-pro)");
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
 
-            List candidates = (List) response.getBody().get("candidates");
-            Map candidate = (Map) candidates.get(0);
-            Map candidateContent = (Map) candidate.get("content");
-            List parts = (List) candidateContent.get("parts");
-            Map partMap = (Map) parts.get(0);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = response.getBody();
+            if (body == null || !body.containsKey("candidates")) {
+                throw new RuntimeException("API 응답 바디가 비어있습니다.");
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
+            if (candidates == null || candidates.isEmpty()) {
+                throw new RuntimeException("생성된 답변(candidates)이 없습니다.");
+            }
+
+            Map<String, Object> candidate = candidates.getFirst();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> candidateContent = (Map<String, Object>) candidate.get("content");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> parts = (List<Map<String, Object>>) candidateContent.get("parts");
+            Map<String, Object> partMap = parts.getFirst();
             String aiResult = (String) partMap.get("text");
 
             log.info("✅ AI 분석 성공");

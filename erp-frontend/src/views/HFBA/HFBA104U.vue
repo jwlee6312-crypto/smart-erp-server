@@ -167,9 +167,11 @@ const initGrids = () => {
         { title: "No", formatter: "rownum", width: 40, hozAlign: "center" },
         { title: '계정코드', field: 'acct', width: 100, hozAlign: 'center', cssClass: 'fw-bold text-primary' },
         { title: '계정과목명', field: 'acctnm', minWidth: 200, widthGrow: 1.5 },
-        { title: '공정배부기준', field: 'divide_nm1', widthGrow: 1 },
-        { title: '품목배부기준', field: 'divide_nm2', widthGrow: 1 },
-        { title: '비고', field: 'bigo', minWidth: 150 }
+        { title: '공정배부코드', field: 'divide1', width: 150,  hozAlign: 'left' },
+        { title: '공정배부기준명', field: 'divide_nm1', widthGrow: 1, hozAlign: 'left' },
+        { title: '품목배부코드', field: 'divide2', width: 150, hozAlign: 'left' },
+        { title: '품목배부기준', field: 'divide_nm2', widthGrow: 1, hozAlign: 'left' },
+        { title: '비고', field: 'bigo', minWidth: 150, hozAlign: 'left' }
       ]
     })
     mainGrid.on('rowClick', (e, row) => fetchDetail(row.getData()))
@@ -186,9 +188,17 @@ const loadInitData = async () => {
       api.post('/hfba/SELECT_DIVIDE_LIST', { cmpycd: authStore.cmpycd, cdkd: '1040' })
     ])
     clsInfo.wclsym = cls.data[0]?.wclsym || ''
-    acctOptions.value = accts.data || []
-    divide1Options.value = d1.data || []
-    divide2Options.value = d2.data || []
+
+    // 🚀 [보정] 코드값의 공백 제거 (콤보박스 매칭용)
+    const normalizeCodes = (list: any[]) => (list || []).map(i => {
+        const obj: any = {};
+        Object.keys(i).forEach(k => { obj[k.toLowerCase()] = typeof i[k] === 'string' ? i[k].trim() : i[k] });
+        return obj;
+    });
+
+    acctOptions.value = normalizeCodes(accts.data)
+    divide1Options.value = normalizeCodes(d1.data)
+    divide2Options.value = normalizeCodes(d2.data)
 
     if (acctOptions.value.length > 0) {
       detailForm.acct = acctOptions.value[0].acct
@@ -202,13 +212,20 @@ const handleSearch = async () => {
     const { data } = await api.post('/hfba/FBA1040U_STR', {
       cmpycd: authStore.cmpycd, actkind: 'S0', ym: searchForm.ym, acct: '', divide1: '', divide2: '', userid: authStore.userid
     })
+    console.log("📊 [FBA1040U_STR 수신 데이터]:", data);
     mainGrid?.setData(data)
     vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }
 }
 
 const fetchDetail = (row: any) => {
-  Object.assign(detailForm, { ...row, mode: 'U' });
+  // 🚀 [핵심 보정] 문자열 데이터 트림 처리하여 콤보박스 바인딩 무결성 확보
+  const trimmedRow = { ...row };
+  Object.keys(trimmedRow).forEach(key => {
+    if (typeof trimmedRow[key] === 'string') trimmedRow[key] = trimmedRow[key].trim();
+  });
+
+  Object.assign(detailForm, { ...trimmedRow, mode: 'U' });
 }
 
 const onAcctChange = () => {
@@ -223,14 +240,28 @@ const save = async () => {
   if (!confirm('저장하시겠습니까?')) return
 
   try {
-    const actkind = detailForm.mode === 'U' ? 'U0' : 'A0'
-    await api.post('/hfba/FBA1040U_STR', {
-      ...detailForm, actkind, cmpycd: authStore.cmpycd, ym: searchForm.ym, userid: authStore.userid
-    })
-    vAlert('처리되었습니다.')
-    handleSearch()
-    handleReset()
-  } catch (e) { vAlertError('저장 실패') }
+    // 🚀 [보정] 프로시저 요구 규격에 맞춰 파라미터 조립 (actkind, ym, cmpycd 명시적 포함)
+    const params = {
+      ...detailForm,
+      actkind: detailForm.mode === 'U' ? 'A0' : 'A0',
+      ym: searchForm.ym,
+      cmpycd: authStore.cmpycd,
+      userid: authStore.userid
+    }
+    console.log("📊 [FBA1040U_STR 요청 데이터]:", params);
+    const res = await api.post('/hfba/FBA1040U_STR', params)
+    const resultData = res.data[0]
+
+    if (resultData && (resultData.result === 'Y' || resultData.res === 'OK')) {
+      vAlert(resultData.msg || '처리되었습니다.')
+      handleSearch()
+      handleReset()
+    } else {
+      vAlertError(resultData.msg || '처리 중 오류가 발생했습니다.')
+    }
+  } catch (e) {
+    vAlertError('서버 통신 실패')
+  }
 }
 
 const deleteData = async () => {

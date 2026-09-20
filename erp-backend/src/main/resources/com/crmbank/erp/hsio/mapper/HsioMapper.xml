@@ -43,7 +43,7 @@
     </select>
 
     <select id="HSIO_080S_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_085s_str #{cmpycd}, #{deptcd}, #{custcd}, #{custnm}, #{fromdt}, #{todt}
+        exec hsio_080s_str #{cmpycd}, #{deptcd}, #{custcd}, #{custnm}, #{fromdt}, #{todt}
     </select>
 
     <select id="HSIO_082S_STR" resultType="java.util.LinkedHashMap">
@@ -157,6 +157,10 @@
 
     <select id="HSIO_325U_STR" resultType="java.util.LinkedHashMap">
         exec hsio_325u_str #{actkind}, #{cmpycd}, #{deptcd}, #{fromdt}, #{todt}, #{userid}, #{iogbn}, #{imym}, #{imno}, #{slipkind}, #{slipymd}, #{slipno}, #{dacctcd}, #{dacctnm}, #{cacctcd}, #{cacctnm}, #{imamt}, #{remark}, #{custcd}, #{custnm}, #{updemp}
+    </select>
+
+    <select id="HSIO_400S_STR" resultType="java.util.LinkedHashMap">
+        exec hsio_400s_str #{cmpycd}, #{deptcd}, #{custcdfr}, #{custcdto}, #{fromdt}, #{todt}
     </select>
 
     <select id="HSIO_410S_STR" resultType="java.util.LinkedHashMap">

@@ -80,6 +80,9 @@ public interface ApiService {
     @POST("hsio/HSIO_510U_SAVE")
     Call<ApiResponse<Map<String, Object>>> saveHsio510U(@Body Map<String, Object> payload);
 
+    @POST("hsio/HSIO_550U_SAVE")
+    Call<ApiResponse<Map<String, Object>>> saveHsio550U(@Body Map<String, Object> payload);
+
     @POST("hsio/HSIO_580U_SAVE")
     Call<ApiResponse<Map<String, Object>>> saveHsio580U(@Body Map<String, Object> payload);
 
@@ -88,14 +91,6 @@ public interface ApiService {
 
     @POST("logout")
     Call<Void> logout();
-
-    @GET("popup/pop-item")
-    Call<List<ItemDto>> searchItems(
-        @Query("cmpycd") String cmpycd,
-        @Query("nacd") String nacd,
-        @Query("sch_itemnm") String schItemNm,
-        @Query("sch_astkind") String schAstKind
-    );
 
     @GET("popup/pop-cust")
     Call<List<CustomerDto>> searchCustomers(

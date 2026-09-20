@@ -43,6 +43,7 @@
               class="sb-nav-link"
               :class="{ 'is-active': tabStore.activeTab?.pgmId === item.pgmid }"
               href="javascript:void(0)"
+              :title="item.pgmid"
               @click="goPage(item.pgmid, item.pgmnm, item.grpcd)"
             >
               <i class="bi bi-chevron-right sub-icon"></i>

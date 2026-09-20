@@ -4,14 +4,40 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Center Business "S" Icon -->
+    <!-- Professionally Adjusted 'Like/Best' Icon -->
+
+    <!-- Smooth Rounded Background Square (Squircle Style) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,30h40v10h-40z M30,50h48v10h-48z M30,70h40v10h-40z" />
-    <path
-        android:fillColor="#FFC107"
-        android:pathData="M70,30h8v50h-8z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M25,20h58v8h-58z M25,80h58v8h-58z" />
+        android:fillColor="#1877F2"
+        android:pathData="M54,16 C20,16 16,20 16,54 C16,88 20,92 54,92 C88,92 92,88 92,54 C92,20 88,16 54,16 Z" />
+
+    <!-- Precisely Centered Thumbs Up Symbol -->
+    <group
+        android:translateX="29"
+        android:translateY="35">
+
+        <!-- Wrist / Cuff Part -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M0,12 c0,-3 2.5,-5.5 5.5,-5.5 h1 c3 0 5.5,2.5 5.5,5.5 v24 c0,3 -2.5,5.5 -5.5,5.5 h-1 c-3,0 -5.5,-2.5 -5.5,-5.5 z" />
+
+        <!-- Refined Hand and Thumb -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M16,12
+                       c0,-5 4,-12 9,-12
+                       s6,4 6,9
+                       v7
+                       h14
+                       c4,0 6,2.5 6,5.5
+                       s-2,5.5 -5,5.5
+                       c3,0 4,2.5 4,5
+                       s-2,5 -4,5
+                       c2.5,0 3.5,2.5 3.5,5
+                       s-2,5 -6,5
+                       h-15
+                       c-7,0 -13,-7 -13,-16
+                       v-19
+                       z" />
+    </group>
 </vector>

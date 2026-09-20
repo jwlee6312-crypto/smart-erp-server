@@ -3,7 +3,6 @@ package com.crmbank.erp.comm.controller;
 import com.crmbank.erp.comm.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 import java.util.UUID;
 
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/comm/upload")
@@ -31,10 +31,9 @@ public class FileUploadController {
             }
 
             String originalFilename = file.getOriginalFilename();
-            String extension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
+            String extension = (originalFilename != null && originalFilename.contains(".")) 
+                ? originalFilename.substring(originalFilename.lastIndexOf(".")) 
+                : "";
             
             // 파일명 중복 방지
             String fileName = "profile_" + userid + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
@@ -65,10 +64,9 @@ public class FileUploadController {
             }
 
             String originalFilename = file.getOriginalFilename();
-            String extension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
+            String extension = (originalFilename != null && originalFilename.contains("."))
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : "";
 
             // 폴더 구조: storage/{cmpycd}/{type}/
             String subPath = cmpycd + "/" + type;

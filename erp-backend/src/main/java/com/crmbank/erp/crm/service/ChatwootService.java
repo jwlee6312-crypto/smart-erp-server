@@ -52,7 +52,7 @@ public class ChatwootService {
         return s.contains(".") ? s.split("\\.")[0] : s;
     }
 
-    public List<Map> getMessages(String encryptedEmail) {
+    public List<Map<String, Object>> getMessages(String encryptedEmail) {
         String email = getPlainEmail(encryptedEmail);
         if (email == null || email.isEmpty()) return new ArrayList<>();
         try {
@@ -63,11 +63,14 @@ public class ChatwootService {
             if (conversationId == null) return new ArrayList<>();
 
             String url = String.format("%s/api/v1/accounts/%s/conversations/%s/messages", chatwootUrl, accountId, conversationId);
-            ResponseEntity<Object> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Object.class);
+            @SuppressWarnings("rawtypes")
+            ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             
             // Log set to TRACE to stop console flooding
             log.trace("[Chatwoot History] Fetched messages for ConvID: {}", conversationId);
-            return (List<Map>) sanitize(extractList(res.getBody()));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> result = (List<Map<String, Object>>) sanitize(extractList(res.getBody()));
+            return result;
         } catch (Exception e) {
             log.error("[Chatwoot] getMessages Error: {}", e.getMessage());
         }
@@ -83,12 +86,13 @@ public class ChatwootService {
             if (contactId == null) return;
 
             String url = String.format("%s/api/v1/accounts/%s/contacts/%s/conversations", chatwootUrl, accountId, contactId);
-            ResponseEntity<Object> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Object.class);
-            List<Map> list = extractList(res.getBody());
+            @SuppressWarnings("rawtypes")
+            ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            List<Map<String, Object>> list = extractList(res.getBody());
 
             if (list != null) {
                 String tid = cleanId(inboxId);
-                for (Map c : list) {
+                for (Map<String, Object> c : list) {
                     if (tid.equals(cleanId(c.get("inbox_id")))) {
                         String convId = cleanId(c.get("id"));
                         String deleteUrl = String.format("%s/api/v1/accounts/%s/conversations/%s", chatwootUrl, accountId, convId);
@@ -168,8 +172,10 @@ public class ChatwootService {
             Map<String, Object> item = new HashMap<>();
             item.put("attribute_key", "email"); item.put("filter_operator", "equal_to"); item.put("values", Collections.singletonList(email));
             filterBody.put("payload", Collections.singletonList(item));
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> res = restTemplate.postForEntity(filterUrl, new HttpEntity<>(filterBody, headers), Map.class);
-            List<Map> list = (List<Map>) res.getBody().get("payload");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> list = (List<Map<String, Object>>) res.getBody().get("payload");
             if (list != null && !list.isEmpty()) {
                 String id = cleanId(list.get(0).get("id"));
                 contactIdCache.put(email, id);
@@ -177,6 +183,7 @@ public class ChatwootService {
             }
             Map<String, Object> body = new HashMap<>();
             body.put("email", email); if (name != null) body.put("name", name); body.put("inbox_id", inboxId);
+            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> cRes = restTemplate.postForEntity(chatwootUrl + "/api/v1/accounts/" + accountId + "/contacts", new HttpEntity<>(body, headers), Map.class);
             String id = extractId(cRes.getBody());
             if (id != null) contactIdCache.put(email, id);
@@ -188,8 +195,8 @@ public class ChatwootService {
         try {
             String url = String.format("%s/api/v1/accounts/%s/contacts", chatwootUrl, accountId);
             ResponseEntity<Object> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Object.class);
-            List<Map> list = extractList(res.getBody());
-            for (Map m : list) if (email.equalsIgnoreCase((String) m.get("email"))) return cleanId(m.get("id"));
+            List<Map<String, Object>> list = extractList(res.getBody());
+            for (Map<String, Object> m : list) if (email.equalsIgnoreCase((String) m.get("email"))) return cleanId(m.get("id"));
         } catch (Exception e) { }
         return null;
     }
@@ -216,11 +223,11 @@ public class ChatwootService {
         try {
             String url = String.format("%s/api/v1/accounts/%s/contacts/%s/conversations", chatwootUrl, accountId, contactId);
             ResponseEntity<Object> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Object.class);
-            List<Map> list = extractList(res.getBody());
+            List<Map<String, Object>> list = extractList(res.getBody());
             if (list != null && !list.isEmpty()) {
                 String tid = cleanId(inboxId);
                 list.sort((a, b) -> Long.compare(Long.parseLong(cleanId(b.get("id"))), Long.parseLong(cleanId(a.get("id")))));
-                for (Map c : list) if (tid.equals(cleanId(c.get("inbox_id")))) return cleanId(c.get("id"));
+                for (Map<String, Object> c : list) if (tid.equals(cleanId(c.get("inbox_id")))) return cleanId(c.get("id"));
             }
         } catch (Exception e) { }
         return null;
@@ -233,23 +240,36 @@ public class ChatwootService {
         restTemplate.postForEntity(url, new HttpEntity<>(body, headers), Map.class);
     }
 
-    private String extractId(Map body) {
+    private String extractId(@SuppressWarnings("rawtypes") Map body) {
         if (body == null) return null;
         Object data = body.containsKey("payload") ? body.get("payload") : body;
         if (data instanceof Map) {
+            @SuppressWarnings("rawtypes")
             Map m = (Map) data;
             if (m.containsKey("id")) return cleanId(m.get("id"));
-            if (m.containsKey("contact") && m.get("contact") instanceof Map) return cleanId(((Map)m.get("contact")).get("id"));
+            if (m.containsKey("contact") && m.get("contact") instanceof Map contact) {
+                return cleanId(contact.get("id"));
+            }
         }
         return null;
     }
 
-    private List<Map> extractList(Object body) {
-        if (body instanceof List) return (List<Map>) body;
+    private List<Map<String, Object>> extractList(Object body) {
+        if (body instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> list = (List<Map<String, Object>>) body;
+            return list;
+        }
         if (body instanceof Map) {
+            @SuppressWarnings("rawtypes")
             Map map = (Map) body;
+            @SuppressWarnings("unchecked")
             Object p = map.getOrDefault("payload", map.get("data"));
-            if (p instanceof List) return (List<Map>) p;
+            if (p instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> list = (List<Map<String, Object>>) p;
+                return list;
+            }
         }
         return new ArrayList<>();
     }

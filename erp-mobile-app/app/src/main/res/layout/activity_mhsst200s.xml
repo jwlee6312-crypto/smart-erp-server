@@ -30,6 +30,33 @@
         android:orientation="vertical"
         android:padding="12dp">
 
+        <!-- 🚀 추가: 기준일자 선택 영역 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="wrap_content"
+                android:text="기준일자"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#F44336"/>
+            <TextView
+                android:id="@+id/tvBaseDate"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_input_field"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:text="2025-02-24"
+                android:textColor="#333333"
+                android:textSize="14sp"
+                android:paddingEnd="12dp"/>
+        </LinearLayout>
+
         <!-- 조회 영역: 1줄 구성 -->
         <LinearLayout
             android:layout_width="match_parent"

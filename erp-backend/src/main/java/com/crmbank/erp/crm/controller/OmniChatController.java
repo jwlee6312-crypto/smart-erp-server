@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/omni/chat")
@@ -48,7 +49,7 @@ public class OmniChatController {
     }
 
     @GetMapping("/messages")
-    public List<Map> getMessages(@RequestParam String email) {
+    public List<Map<String, Object>> getMessages(@RequestParam String email) {
         return omniChatwootService.getMessages(email);
     }
 

@@ -38,9 +38,9 @@
 								<div class="d-flex align-items-center px-2">
 									<span class="erp-label me-2">배송담당</span>
 									<div class="input-group input-group-sm flex-nowrap" style="max-width: 300px;">
-										<input v-model="searchForm.TRNEMP" type="text" class="form-control text-center bg-white" style="max-width: 80px;" readonly />
-										<input v-model="searchForm.TRNempnm" type="text" class="form-control" placeholder="담당자 선택" @keyup.enter="openHelp('TRNEMP')" />
-										<button class="btn btn-outline-secondary px-2" @click="openHelp('TRNEMP')"><i class="bi bi-search"></i></button>
+										<input v-model="searchForm.trnemp" type="text" class="form-control text-center bg-white" style="max-width: 80px;" readonly />
+										<input v-model="searchForm.trnempnm" type="text" class="form-control" placeholder="담당자 선택" @keyup.enter="openHelp('trnemp')" />
+										<button class="btn btn-outline-secondary px-2" @click="openHelp('trnemp')"><i class="bi bi-search"></i></button>
 									</div>
 								</div>
 							</td>
@@ -48,7 +48,7 @@
 								<div class="d-flex align-items-center px-2">
 									<span class="erp-label me-2">출고일자</span>
 									<div class="d-flex align-items-center gap-1" style="max-width: 200px;">
-										<input v-model="searchForm.OUtymd" type="date" class="form-control form-control-sm" />
+										<input v-model="searchForm.outymd" type="date" class="form-control form-control-sm" />
 									</div>
 								</div>
 							</td>
@@ -88,9 +88,9 @@ const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 
 const searchForm = reactive({
-	TRNEMP: authStore.userid,
-	TRNempnm: authStore.usernm,
-	OUtymd: new Date().toISOString().substring(0, 10)
+	trnemp: authStore.userid,
+	trnempnm: authStore.usernm,
+	outymd: new Date().toISOString().substring(0, 10)
 })
 
 const mainGridRef = ref<HTMLDivElement | null>(null); let mainGrid: Tabulator | null = null
@@ -100,7 +100,8 @@ const search = async () => {
 		const res = await api.post('/hsio/HSIO_660S_STR', {
 			...searchForm,
 			cmpycd: authStore.cmpycd,
-			OUtymd: searchForm.OUtymd?.replace(/-/g, '') || ''
+            trnemp: searchForm.trnemp || '',
+			outymd: searchForm.outymd?.replace(/-/g, '') || ''
 		})
 		mainGrid?.setData(res.data || [])
 		vAlert('조회되었습니다.')
@@ -109,9 +110,9 @@ const search = async () => {
 
 const initialize = () => {
 	resetForm(searchForm);
-	searchForm.TRNEMP = authStore.userid;
-	searchForm.TRNempnm = authStore.usernm;
-	searchForm.OUtymd = new Date().toISOString().substring(0, 10);
+	searchForm.trnemp = authStore.userid;
+	searchForm.trnempnm = authStore.usernm;
+	searchForm.outymd = new Date().toISOString().substring(0, 10);
 	mainGrid?.clearData();
 }
 
@@ -121,12 +122,12 @@ const modalVisible = ref(false);
 const modalProps = reactive<ModalProps>({ title: '', path: '', defaultField: '', columns: [], data: {}, onConfirm: () => {}, type: 'table' })
 
 function openHelp(type: string) {
-	if (type === 'TRNEMP') {
+	if (type === 'trnemp') {
 		Object.assign(modalProps, {
 			title: '배송담당자 선택', path: '/ha00/HA00_00P_STR', defaultField: 'cdnm',
 			data: { gubun: 'U1', cmpycd: authStore.cmpycd },
 			columns: [{ title: '코드', field: 'code', width: 100 }, { title: '성명', field: 'cdnm', width: 200 }],
-			onConfirm: (d: any) => { searchForm.TRNEMP = d.code; searchForm.TRNempnm = d.cdnm }
+			onConfirm: (d: any) => { searchForm.trnemp = d.code; searchForm.trnempnm = d.cdnm }
 		})
 	}
 	modalVisible.value = true
@@ -140,11 +141,13 @@ onMounted(() => {
 			placeholder: "조회된 자료가 없습니다.",
 			columnDefaults: { headerSort: false, headerHozAlign: "center", hozAlign: 'right', vertAlign: "middle" },
 			columns: [
-				{ title: "품목명", field: "itemnm", minWidth: 250, widthGrow: 2, hozAlign: "left", cssClass: "fw-bold" },
-				{ title: "규격", field: "itsize", width: 150, hozAlign: "left" },
-				{ title: "단위", field: "unit", width: 80, hozAlign: "center" },
-				{ title: "배송지역", field: "areanm", width: 180, hozAlign: "left" },
+				{ title: "품목명", field: "itemnm", minWidth: 200, widthGrow: 1, hozAlign: "left", cssClass: "fw-bold" },
+				{ title: "규격", field: "itsize", width: 120, hozAlign: "left" },
+				{ title: "단위", field: "unit", width: 60, hozAlign: "center" },
 				{ title: "수량", field: "ioqty", width: 110, formatter: "money", formatterParams: { precision: 0 } },
+                { title: "우편번호", field: "postno", width: 70, hozAlign: "left" },
+				{ title: "주소", field: "address", width: 250, hozAlign: "left" },
+				{ title: "상세주소", field: "d_address", width: 120, hozAlign: "center" },
 				{ title: "비고", field: "remark", minWidth: 200, hozAlign: "left" }
 			]
 		})

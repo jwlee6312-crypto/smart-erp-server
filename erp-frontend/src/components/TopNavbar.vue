@@ -75,7 +75,6 @@ const logout = async () => { await authStore.logout() }
 const closeAllTabs = () => {
   if (confirm('열려있는 모든 탭을 닫으시겠습니까?')) {
     tabStore.closeAllTabs()
-    window.location.href = '/'
   }
 }
 

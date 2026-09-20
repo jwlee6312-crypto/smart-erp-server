@@ -46,6 +46,7 @@ public interface HsioMapper {
     List<Map<String, Object>> HSIO_320U_STR(Object params);
     List<Map<String, Object>> HSIO_325U_STR(Object params);
     List<Map<String, Object>> HSIO_410S_STR(Object params);
+    List<Map<String, Object>> HSIO_400S_STR(Object params);
     List<Map<String, Object>> HSIO_470S_STR(Object params);
     List<Map<String, Object>> HSIO_490U_STR(Object params);
     List<Map<String, Object>> HSIO_491U_STR(Object params);

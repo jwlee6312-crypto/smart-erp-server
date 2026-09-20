@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/crm/cti")

@@ -287,7 +287,7 @@ async function selectCust(cust: any) {
   masterData.address = cust.address || cust.addres || cust.ADDRESS || '';
   masterData.d_address = cust.d_address || cust.d_addres || cust.D_ADDRESS || '';
   masterData.postno = cust.postno || cust.POSTNO || '';
-  masterData.trnemp = cust.trnemp || cust.TRNEMP || '';
+  masterData.trnemp = cust.trnemp || cust.trnemp || '';
 
   fetchDetail(masterData);
 }

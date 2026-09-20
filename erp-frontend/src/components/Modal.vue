@@ -1,66 +1,72 @@
+<!--
+	=============================================================
+	컴포넌트명	: 공통 조회 팝업 (Airtight Focus Trap 적용판)
+	작성일자	: 2025.03.15
+	설명		: 팝업 이탈 0% 보장, 조회버튼 탭 스킵으로 그리드 진입 속도 최적화
+	=============================================================
+-->
+
 <template>
 	<div class="modal-root-wrapper">
 		<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
-		<div v-if="visible" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.5); z-index: 1060; backdrop-filter: blur(2px);">
-			<div :class="props.modalProps.large ? 'modal-dialog modal-lg modal-dialog-centered' : 'modal-dialog modal-dialog-centered'" style="max-height: 85vh;">
-				<div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+		<div
+			v-if="visible"
+			class="modal fade show d-block"
+			tabindex="-1"
+			@keydown.esc="close"
+			style="background: rgba(0, 0, 0, 0.5); z-index: 1060; backdrop-filter: blur(2px);"
+		>
+			<div :class="props.modalProps.large ? 'modal-dialog modal-lg modal-dialog-centered' : 'modal-dialog modal-dialog-centered'">
+				<!-- 🚀 팝업 전체 포커스 제어 컨테이너 -->
+				<div class="modal-content border-0 shadow-lg" style="border-radius: 8px; overflow: hidden;" @keydown="handleAirtightTrap">
+					<!-- 헤더 -->
 					<div class="modal-header py-2 bg-white border-bottom shadow-sm">
-						<h5 class="modal-title fw-bolder text-dark d-flex align-items-center" style="font-size: 15px;">
-							<span class="bg-primary p-1 rounded me-2 d-flex align-items-center justify-content-center" style="width: 22px; height: 22px;">
-								<i class="bi bi-search text-white" style="font-size: 12px;"></i>
-							</span>
-							{{ props.modalProps.title || '데이터 조회' }}
+						<h5 class="modal-title fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
+							<i class="bi bi-search text-primary me-2"></i> {{ props.modalProps.title || '데이터 조회' }}
 						</h5>
-						<button type="button" class="btn-close shadow-none" style="font-size: 12px;" @click="close"></button>
+						<button type="button" class="btn-close shadow-none" style="font-size: 10px;" tabindex="-1" @click="close"></button>
 					</div>
 
+					<!-- 본문 -->
 					<div class="modal-body p-3 bg-light">
-						<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-							<div class="d-flex align-items-center gap-2">
-								<div class="input-group input-group-sm shadow-sm" style="width: 250px;">
-									<span class="input-group-text bg-white border-end-0 text-muted">
-										<i class="bi bi-funnel"></i>
-									</span>
-									<input
-										v-model="filterValue"
-										type="text"
-										class="form-control border-start-0 ps-0 shadow-none"
-										:placeholder="`${props.modalProps.title?.replace(' 선택', '')} 검색...`"
-										@keyup.enter="search"
-									/>
-								</div>
-
-								<!-- 💡 날짜 검색 필터 추가 -->
-								<div v-if="props.modalProps.searchDate" class="d-flex align-items-center gap-1 shadow-sm rounded overflow-hidden">
-									<input v-model="startDate" type="date" class="form-control form-control-sm border-0" style="width: 130px; font-size: 12px;" />
-									<span class="px-1 text-muted" style="font-size: 11px;">~</span>
-									<input v-model="endDate" type="date" class="form-control form-control-sm border-0" style="width: 130px; font-size: 12px;" />
-								</div>
-
-								<button class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" @click="search" :disabled="loading">조회</button>
+						<!-- 검색 바 -->
+						<div class="d-flex align-items-center gap-2 mb-3">
+							<div class="input-group input-group-sm shadow-sm" style="width: 300px;">
+								<span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-funnel"></i></span>
+								<input
+									ref="filterInputRef"
+									v-model="filterValue"
+									type="text"
+									class="form-control border-start-0 ps-0 shadow-none"
+									tabindex="0"
+									:placeholder="`${props.modalProps.title?.replace(' 선택', '')} 검색...`"
+									@keyup.enter="search"
+								/>
 							</div>
-
-							<div v-if="totalCount > 0" class="badge bg-white text-dark border px-3 py-2 fw-normal rounded-pill shadow-sm">
-								조회: <span class="text-primary fw-bold">{{ totalCount.toLocaleString() }}</span> 건
-							</div>
+							<!-- 💡 조회 버튼은 탭 스킵 처리 (엔터로 대체) -->
+							<button class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" tabindex="-1" @click="search" :disabled="loading">조회</button>
 						</div>
 
-						<div class="popup-grid-container border rounded-3 bg-white shadow-sm overflow-hidden" style="height: 480px; position: relative;">
+						<!-- 📊 데이터 그리드 (이동 목표) -->
+						<div
+							ref="gridWrapperRef"
+							class="popup-grid-container border rounded bg-white shadow-sm overflow-hidden"
+							style="height: 450px; position: relative; outline: none;"
+							tabindex="0"
+							@keydown="handleGridKey"
+						>
 							<div v-if="loading" class="loading-overlay">
-								<div class="spinner-grow text-primary mb-2" role="status" style="width: 2rem; height: 2rem;"></div>
-								<div class="fw-bold text-primary small">검색 중...</div>
+								<div class="spinner-border text-primary" role="status"></div>
 							</div>
 							<div ref="popupRef" style="height: 100%; width: 100%;"></div>
 						</div>
-
-						<div class="mt-2 text-muted" style="font-size: 11px;">
-							<i class="bi bi-info-circle me-1 text-primary"></i> 항목을 클릭하여 선택하십시오.
-						</div>
+						<div class="mt-2 text-muted x-small">※ 탭 이동: 검색어 ➔ 그리드(방향키) ➔ 취소 ➔ 검색어</div>
 					</div>
 
-					<div class="modal-footer py-2 bg-white border-top border-0 text-end">
-						<button type="button" class="btn btn-outline-secondary btn-sm px-4 rounded-pill fw-bold" @click="close">취소</button>
+					<!-- 푸터 -->
+					<div class="modal-footer py-1 bg-white border-top text-end">
+						<button ref="cancelBtnRef" type="button" class="btn btn-outline-secondary btn-sm px-4 fw-bold" tabindex="0" @click="close">취소</button>
 					</div>
 				</div>
 			</div>
@@ -78,107 +84,113 @@ import { useAlerts } from '@/composables/useAlerts'
 import type { ModalProps } from '@/types/modal'
 
 const props = defineProps<{ visible: boolean, modalProps: ModalProps }>()
-const emit = defineEmits(['update:visible', 'confirm', 'close'])
+const emit = defineEmits(['update:visible', 'close'])
 const { showAlert, showError, alertMessage } = useAlerts()
 
+const filterInputRef = ref<HTMLInputElement | null>(null)
+const gridWrapperRef = ref<HTMLElement | null>(null)
+const cancelBtnRef = ref<HTMLElement | null>(null)
 const popupRef = ref<HTMLElement | null>(null)
 const popupGrid = ref<Tabulator | null>(null)
 const filterValue = ref<string>('')
 const loading = ref(false)
-const totalCount = ref(0)
-const startDate = ref('')
-const endDate = ref('')
 
-watch(() => props.visible, async (isVisible) => {
-	if (!isVisible) {
-		if (popupGrid.value) { popupGrid.value.destroy(); popupGrid.value = null; }
-		filterValue.value = '';
-		totalCount.value = 0;
-		return
+function close() {
+	emit('update:visible', false);
+	emit('close');
+}
+
+// ⌨️ 1. 완벽한 포커스 트랩 (외부 이탈 100% 차단)
+function handleAirtightTrap(e: KeyboardEvent) {
+	if (e.key !== 'Tab') return;
+
+	// 포커스 가능한 요소 자동 추출
+	const focusable = [filterInputRef.value, gridWrapperRef.value, cancelBtnRef.value].filter(el => !!el);
+	const first = focusable[0] as HTMLElement;
+	const last = focusable[focusable.length - 1] as HTMLElement;
+
+	if (e.shiftKey) { // Shift + Tab
+		if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+	} else { // Tab
+		if (document.activeElement === last) { e.preventDefault(); first.focus(); }
 	}
+}
 
-	await nextTick()
+// ⌨️ 2. 그리드 전용 조작 (방향키, 엔터)
+function handleGridKey(e: KeyboardEvent) {
+	if (!popupGrid.value) return;
+	const allRows = popupGrid.value.getRows("active");
+	if (allRows.length === 0) return;
 
-	setTimeout(() => {
-		if (!popupRef.value) return
+	const selected = popupGrid.value.getSelectedRows()[0];
+	const idx = selected ? allRows.indexOf(selected) : -1;
 
-		popupGrid.value = new Tabulator(popupRef.value, {
-			layout: 'fitColumns',
-			height: '100%',
-			pagination: "local",
-			paginationSize: 15,
-			paginationSizeSelector: [15, 30, 50],
-			data: [],
-			columns: props.modalProps.columns || [],
-			columnDefaults: {
-				headerHozAlign: 'center',
-				headerSort: true,
-				minWidth: 80,
-				vertAlign: 'middle',
-			},
-			placeholder: "데이터가 없습니다."
-		})
-
-		search()
-
-		popupGrid.value.on('rowClick', (_e, row) => {
-			props.modalProps.onConfirm?.(row.getData())
-			close()
-		})
-	}, 100)
-})
+	if (e.key === 'ArrowDown') {
+		e.preventDefault();
+		const next = allRows[idx + 1];
+		if (next) { popupGrid.value.deselectRow(); next.select(); next.getElement().scrollIntoView({block:'nearest'}); }
+	} else if (e.key === 'ArrowUp') {
+		e.preventDefault();
+		const prev = allRows[idx - 1];
+		if (prev) { popupGrid.value.deselectRow(); prev.select(); prev.getElement().scrollIntoView({block:'nearest'}); }
+	} else if (e.key === 'Enter') {
+		e.preventDefault();
+		if (selected) {
+			props.modalProps.onConfirm?.(selected.getData());
+			close();
+		}
+	}
+}
 
 async function search() {
 	if (!popupGrid.value) return
 	loading.value = true;
 	try {
+		// 🚀 [보정] 기존에 정의된 code(예: 배송처 조회의 부모코드)가 있는 경우 검색어로 덮어쓰지 않음
 		const body = {
 			...props.modalProps.data,
-			gubun: props.modalProps.data.gubun || '',
-			codenm: filterValue.value || props.modalProps.data.codenm || '',
-			etcval: props.modalProps.data.etcval || ''
+			codenm: filterValue.value || '',
 		}
 
+		// 💡 호출 시 넘겨준 code가 없을 때만 검색어를 code로 사용 (전사 확산 표준)
 		if (!props.modalProps.data.code) {
 			body.code = filterValue.value || '';
-		} else {
-			body.code = props.modalProps.data.code;
 		}
 
 		const res = await api.post(props.modalProps.path, body)
-		const resData = res.data || (Array.isArray(res.data) ? res.data : [])
-		totalCount.value = resData.length
-
-		if (popupGrid.value) {
-			await popupGrid.value.setData(resData)
-			popupGrid.value.redraw(true)
-		}
-	} catch (error) {
-		console.error('팝업 조회 실패:', error)
+		await popupGrid.value.setData(res.data || [])
+		if (res.data?.length > 0) popupGrid.value.selectRow(popupGrid.value.getRows()[0]);
+	} catch (e) {
+		console.error('조회 실패', e)
 	} finally {
 		loading.value = false;
 	}
 }
 
-function close() { emit('update:visible', false) }
+watch(() => props.visible, async (isVisible) => {
+	if (!isVisible) { if (popupGrid.value) { popupGrid.value.destroy(); popupGrid.value = null; } filterValue.value = ''; return }
+
+	await nextTick()
+	setTimeout(() => filterInputRef.value?.focus(), 150)
+
+	setTimeout(() => {
+		if (!popupRef.value) return
+		popupGrid.value = new Tabulator(popupRef.value, {
+			layout: 'fitColumns', height: '100%', selectable: 1, headerSort: false,
+			columns: props.modalProps.columns || [],
+			columnDefaults: { headerHozAlign: 'center', vertAlign: 'middle' },
+			placeholder: "데이터 없음"
+		})
+		search()
+		popupGrid.value.on('rowClick', (_e, row) => { props.modalProps.onConfirm?.(row.getData()); close(); })
+	}, 100)
+})
 </script>
 
 <style scoped>
-.loading-overlay {
-	position: absolute;
-	top: 0; left: 0; right: 0; bottom: 0;
-	background: rgba(255, 255, 255, 0.7);
-	z-index: 100;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	backdrop-filter: blur(1px);
-}
-.popup-grid-container :deep(.tabulator) { border: none !important; font-size: 13px !important; }
-.popup-grid-container :deep(.tabulator-header) { background-color: #f8fafc !important; border-bottom: 1px solid #e2e8f0 !important; color: #475569 !important; }
-.popup-grid-container :deep(.tabulator-row:hover) { background-color: #f0f9ff !important; cursor: pointer; }
-.popup-grid-container :deep(.tabulator-footer) { background-color: #fff !important; border-top: 1px solid #e2e8f0 !important; padding: 5px !important; }
-.popup-grid-container :deep(.tabulator-page) { border: 1px solid #e2e8f0 !important; margin: 0 2px !important; padding: 2px 8px !important; border-radius: 4px !important; background: #fff !important; color: #64748b !important; font-size: 12px; }
-.popup-grid-container :deep(.tabulator-page.active) { background-color: #0d6efd !important; color: white !important; border-color: #0d6efd !important; }
+.loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.popup-grid-container :deep(.tabulator-row.tabulator-selected) { background-color: #005a9f !important; color: #ffffff !important; font-weight: bold !important; }
+.popup-grid-container :deep(.tabulator-row.tabulator-selected .tabulator-cell) { color: #ffffff !important; }
+.popup-grid-container:focus { border: 2px solid #005a9f !important; box-shadow: 0 0 0 4px rgba(0, 90, 159, 0.1) !important; }
+.x-small { font-size: 11px; }
 </style>

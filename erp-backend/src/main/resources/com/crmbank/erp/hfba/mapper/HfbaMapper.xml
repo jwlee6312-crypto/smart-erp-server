@@ -7,6 +7,7 @@
             #{cdnm}, #{remark}, #{dispord},  #{useyn}, #{userid}
     </select>
 
+
     <select id="FBA1040U_STR" resultType="java.util.LinkedHashMap">
         exec fba1040u_str #{cmpycd}, #{actkind}, #{ym}, #{acct}, #{acctnm},
         #{divide1}, #{divide2}, #{divide3}, #{divide4}, #{divide5}, #{divide6}, #{divide7},
