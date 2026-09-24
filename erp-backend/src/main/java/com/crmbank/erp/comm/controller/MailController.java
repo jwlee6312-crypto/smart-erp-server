@@ -15,13 +15,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * 메일 발송 통합 컨트롤러 (공통)
  * 발주서, 거래명세서, 상담 초대 기능 통합
  */
-@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -44,7 +42,7 @@ public class MailController {
     }
 
     @PostMapping("/send-invite")
-    public ResponseEntity<ApiResponse<String>> sendInvite(@RequestBody InviteRequest request, HttpSession session) {
+    public ResponseEntity<ApiResponse<String>> sendInvite(@RequestBody InviteRequest request, HttpSession session) throws Exception {
         String fromEmail = getDecryptedEmail(session.getAttribute("email"));
         String cmpycd = (String) session.getAttribute("cmpycd");
         String userid = (String) session.getAttribute("userid");
@@ -82,7 +80,7 @@ public class MailController {
             (String)session.getAttribute("nacd"), 
             (String)session.getAttribute("userid")
         );
-        return ResponseEntity.ok(ApiResponse.success(String.format(Locale.getDefault(), "총 [%d]건 발주서 메일 전송 완료", totalCount)));
+        return ResponseEntity.ok(ApiResponse.success(String.format("총 [%d]건 발주서 메일 전송 완료", totalCount)));
     }
 
     @PostMapping("/send-statement")
@@ -96,7 +94,7 @@ public class MailController {
             (String)session.getAttribute("nacd"), 
             (String)session.getAttribute("userid")
         );
-        return ResponseEntity.ok(ApiResponse.success(String.format(Locale.getDefault(), "총 [%d]건 거래명세서 메일 전송 완료", totalCount)));
+        return ResponseEntity.ok(ApiResponse.success(String.format("총 [%d]건 거래명세서 메일 전송 완료", totalCount)));
     }
 
     @GetMapping("/search")

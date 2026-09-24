@@ -174,7 +174,7 @@ const orgTree = computed(() => {
 
 async function search() {
 	try {
-		const res = await api.post('/haba/haba_060u_str', { actkind: 'S0', cmpycd: authstore.cmpycd, deptnm: searchForm.deptnm_s })
+		const res = await api.post('/haba/HABA_060U_STR', { actkind: 'S0', cmpycd: authstore.cmpycd, deptnm: searchForm.deptnm_s })
 		const processed = res.data || [];
 		allDepts.value = processed;
 		mainGrid?.setData(processed)
@@ -186,7 +186,7 @@ async function save() {
 	if (!formData.deptcd || !formData.deptnm) return vAlertError('필수값 확인')
 	try {
 		const act = formData.actkind === 'S0' ? 'A0' : 'U0';
-		await api.post('/haba/haba_060u_str', { ...formData, actkind: act, updemp: authstore.userid })
+		await api.post('/haba/HABA_060U_STR', { ...formData, actkind: act, updemp: authstore.userid })
 		vAlert('저장되었습니다.'); search()
 	} catch (e) { vAlertError('저장 실패') }
 }
@@ -207,7 +207,7 @@ function initialize() {
 
 function openDeptHelp() {
 	Object.assign(modalProps, {
-		title: '부서 검색', path: '/ha00/ha00_00p_str', data: { gubun: 'D0', cmpycd: authstore.cmpycd, gbncd: '', code: '', remark: '' },
+		title: '부서 검색', path: '/ha00/HA00_00P_STR', data: { gubun: 'D0', cmpycd: authstore.cmpycd, gbncd: '', code: '', remark: '' },
 		columns: [{ title: '부서코드', field: 'deptcd', width: 100 }, { title: '부서명', field: 'deptnm', width: 200 }],
 		onConfirm: (d: any) => { formData.updept = d.deptcd; formData.updeptnm = d.deptnm; }
 	});

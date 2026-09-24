@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
-        log.error("🔥 [전역 예외 발생] : {}", e.getMessage());
+        log.error("🔥 [전역 예외 발생] : {}", e.getMessage(), e);
         // 모든 에러 메시지를 ApiResponse 표준 구조로 반환하여 프론트엔드 일관성 유지
         return ResponseEntity.internalServerError()
                 .body(ApiResponse.serverError(e.getMessage()));

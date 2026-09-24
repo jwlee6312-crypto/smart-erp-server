@@ -181,14 +181,14 @@ async function fetchClosingInfo() {
 
 async function fetchList() {
   try {
-    const res = await api.post('/hsio/HSIO_131U_STR', {
+    const res = await api.post('/hsio/HSIO_131U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       iogbn: '100',
       fromdt: searchForm.fromdt.replace(/-/g, ''),
       todt: searchForm.todt.replace(/-/g, ''),
       deptcd: searchForm.deptcd
-    });
+    }]);
     console.log(res.data)
     grid?.setData(res.data || []);
     calcTotalSum();

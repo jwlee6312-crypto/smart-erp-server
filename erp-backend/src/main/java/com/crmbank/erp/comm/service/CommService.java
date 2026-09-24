@@ -21,13 +21,14 @@ public class CommService {
 
     @Transactional("erpTransactionManager")
     public UserSession login(String cmpycd, String userid, String passwd, String ip) throws Exception {
-        Map<String, Object> param = new HashMap<>();
-        
-        if("smart".equals(cmpycd.trim())) {
-            param.put("cmpycd", "coit");
-        } else {
-            param.put("cmpycd", cmpycd.trim());
+        // 🚀 [보안 정책] 'smart' 코드로 접근 시 내부적으로 'COIT'으로 강제 전환 처리 (회사명 비공개 원칙)
+        String effectiveCmpycd = cmpycd.trim();
+        if ("smart".equalsIgnoreCase(effectiveCmpycd)) {
+            effectiveCmpycd = "COIT";
         }
+
+        Map<String, Object> param = new HashMap<>();
+        param.put("cmpycd", effectiveCmpycd);
         param.put("userid", userid.trim());
 
         Map<String, Object> companyInfoRaw = commMapper.GET_COMPANY_INFO(param);
@@ -50,24 +51,19 @@ public class CommService {
         }
 
         UserSession session = new UserSession();
-        session.setCmpycd(String.valueOf(companyInfo.getOrDefault("cmpycd", cmpycd)));
-        session.setCmpynm(String.valueOf(companyInfo.getOrDefault("cmpynm", "")));
-        session.setUserid(String.valueOf(userInfo.getOrDefault("userid", userid)));
-        session.setUsernm(String.valueOf(userInfo.getOrDefault("usernm", "")));
-        session.setInner_no(String.valueOf(userInfo.getOrDefault("inner_no", "")));
-        session.setHpno(String.valueOf(userInfo.getOrDefault("hpno", "")));
-        session.setDeptcd(String.valueOf(userInfo.getOrDefault("deptcd", "")));
-        session.setDeptnm(String.valueOf(userInfo.getOrDefault("deptnm", "")));
-        session.setUsergrp(String.valueOf(userInfo.getOrDefault("usergrp", "")));
-        session.setEmail(String.valueOf(userInfo.getOrDefault("email", "")));
-        session.setStatus(String.valueOf(userInfo.getOrDefault("status", "10")));
-        session.setRouting_mode(String.valueOf(userInfo.getOrDefault("routing_mode", "20")));
-        
-        // 🚀 [해결] DB에서 조회된 photo_path를 세션 객체에 명시적으로 담아줍니다.
-        Object photo = userInfo.get("photo_path");
-        if (photo == null) photo = userInfo.get("PHOTO_PATH"); // 대문자 케이스 대응
-        session.setPhoto_path(photo != null ? String.valueOf(photo).trim() : "");
-        session.setPhoto_path(String.valueOf(userInfo.getOrDefault("photo_path", ""))); // 🚀 사진 경로 추가
+        // 🚀 [뿌리 수술] 로그인 시점에 DB에서 가져온 모든 정보의 공백을 원천 제거하여 세션 오염 방지
+        session.setCmpycd(String.valueOf(companyInfo.getOrDefault("cmpycd", cmpycd)).trim());
+        session.setCmpynm(String.valueOf(companyInfo.getOrDefault("cmpynm", "")).trim());
+        session.setUserid(String.valueOf(userInfo.getOrDefault("userid", userid)).trim());
+        session.setUsernm(String.valueOf(userInfo.getOrDefault("usernm", "")).trim());
+        session.setInner_no(String.valueOf(userInfo.getOrDefault("inner_no", "")).trim());
+        session.setHpno(String.valueOf(userInfo.getOrDefault("hpno", "")).trim());
+        session.setDeptcd(String.valueOf(userInfo.getOrDefault("deptcd", "")).trim());
+        session.setDeptnm(String.valueOf(userInfo.getOrDefault("deptnm", "")).trim());
+        session.setUsergrp(String.valueOf(userInfo.getOrDefault("usergrp", "")).trim());
+        session.setEmail(String.valueOf(userInfo.getOrDefault("email", "")).trim());
+        session.setStatus(String.valueOf(userInfo.getOrDefault("status", "10")).trim());
+        session.setRouting_mode(String.valueOf(userInfo.getOrDefault("routing_mode", "20")).trim());
 
         param.put("iogbn", "I");
         param.put("ip", ip);

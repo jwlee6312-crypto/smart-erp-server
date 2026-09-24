@@ -24,15 +24,13 @@
         android:layout_weight="1"
         android:background="@drawable/bg_input_field"
         android:hint="금액"
-        android:inputType="numberDecimal"
+        android:inputType="number"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
         android:gravity="end|center_vertical"
         android:textColor="#333333"
         android:textSize="13sp"
-        android:layout_marginEnd="4dp"
-        android:imeOptions="actionNext"
-        android:nextFocusForward="@id/etRefNo"/>
+        android:layout_marginEnd="4dp"/>
 
     <!-- 관리번호 -->
     <EditText
@@ -47,8 +45,7 @@
         android:textColor="#333333"
         android:textSize="13sp"
         android:focusable="true"
-        android:layout_marginEnd="4dp"
-        android:imeOptions="actionDone"/>
+        android:layout_marginEnd="4dp"/>
 
     <!-- 삭제 버튼 -->
     <ImageButton

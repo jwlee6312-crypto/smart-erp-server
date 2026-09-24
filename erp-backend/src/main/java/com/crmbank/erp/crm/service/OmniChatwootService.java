@@ -46,7 +46,7 @@ public class OmniChatwootService {
         return plainEmail;
     }
 
-    public List<Map<String, Object>> getMessages(String email) {
+    public List<Map> getMessages(String email) {
         try {
             String contactId = getOrCreateContact(email, "", createHeaders());
             if (contactId == null) return new ArrayList<>();
@@ -54,13 +54,8 @@ public class OmniChatwootService {
             if (conversationId == null) return new ArrayList<>();
 
             String url = String.format("%s/api/v1/accounts/%s/conversations/%s/messages", chatwootUrl, accountId, conversationId);
-            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(createHeaders()), Map.class);
-            if (res.getBody() != null && res.getBody().containsKey("payload")) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> payload = (List<Map<String, Object>>) res.getBody().get("payload");
-                return payload;
-            }
+            if (res.getBody() != null && res.getBody().containsKey("payload")) return (List<Map>) res.getBody().get("payload");
         } catch (Exception e) { log.error("❌ [OmniChat] 메시지 조회 실패: {}", e.getMessage()); }
         return new ArrayList<>();
     }
@@ -93,22 +88,15 @@ public class OmniChatwootService {
     private String getOrCreateContact(String email, String name, HttpHeaders headers) {
         try {
             String searchUrl = String.format("%s/api/v1/accounts/%s/contacts/search?q=%s", chatwootUrl, accountId, email);
-            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> res = restTemplate.exchange(searchUrl, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             if (res.getBody() != null && res.getBody().containsKey("payload")) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> payload = (List<Map<String, Object>>) res.getBody().get("payload");
+                List<Map> payload = (List<Map>) res.getBody().get("payload");
                 if (!payload.isEmpty()) return payload.get(0).get("id").toString();
             }
             Map<String, Object> body = new HashMap<>();
             body.put("email", email); if (name != null) body.put("name", name);
-            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> createRes = restTemplate.postForEntity(chatwootUrl + "/api/v1/accounts/" + accountId + "/contacts", new HttpEntity<>(body, headers), Map.class);
-            if (createRes.getBody() != null) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> payloadMap = (Map<String, Object>) createRes.getBody().get("payload");
-                return payloadMap.get("id").toString();
-            }
+            if (createRes.getBody() != null) return ((Map)createRes.getBody().get("payload")).get("id").toString();
         } catch (Exception e) { }
         return null;
     }
@@ -132,23 +120,16 @@ public class OmniChatwootService {
         String url = String.format("%s/api/v1/accounts/%s/conversations", chatwootUrl, accountId);
         Map<String, Object> body = new HashMap<>();
         body.put("contact_id", contactId); body.put("inbox_id", id);
-        @SuppressWarnings("rawtypes")
         ResponseEntity<Map> res = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), Map.class);
         Object data = res.getBody().get("payload") != null ? res.getBody().get("payload") : res.getBody();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> dataMap = (Map<String, Object>) data;
-        return dataMap.get("id").toString();
+        return ((Map)data).get("id").toString();
     }
 
     private String findFirstValidInboxId(HttpHeaders headers) {
         try {
             String url = String.format("%s/api/v1/accounts/%s/inboxes", chatwootUrl, accountId);
             ResponseEntity<Object> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Object.class);
-            Object body = res.getBody();
-            if (body == null) return null;
-            
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> inboxes = (body instanceof List) ? (List<Map<String, Object>>) body : (List<Map<String, Object>>) ((Map<String, Object>)body).get("payload");
+            List<Map> inboxes = (res.getBody() instanceof List) ? (List<Map>) res.getBody() : (List<Map>) ((Map)res.getBody()).get("payload");
             if (inboxes != null && !inboxes.isEmpty()) return inboxes.get(0).get("id").toString();
         } catch (Exception e) { }
         return null;
@@ -157,12 +138,10 @@ public class OmniChatwootService {
     private String getOpenConversationId(String contactId, HttpHeaders headers) {
         try {
             String url = String.format("%s/api/v1/accounts/%s/contacts/%s/conversations", chatwootUrl, accountId, contactId);
-            @SuppressWarnings("rawtypes")
             ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             if (res.getBody() != null && res.getBody().containsKey("payload")) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> payload = (List<Map<String, Object>>) res.getBody().get("payload");
-                for (Map<String, Object> conv : payload) if ("open".equals(conv.get("status"))) return conv.get("id").toString();
+                List<Map> payload = (List<Map>) res.getBody().get("payload");
+                for (Map conv : payload) if ("open".equals(conv.get("status"))) return conv.get("id").toString();
             }
         } catch (Exception e) { }
         return null;

@@ -81,6 +81,8 @@ import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import AppAlert from '@/components/AppAlert.vue'
+import { useAuthStore } from '@/stores/authStore'
+const authStore = useAuthStore()
 
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 
@@ -93,17 +95,23 @@ const mainGridRef = ref<HTMLElement | null>(null)
 let mainGrid: Tabulator | null = null
 
 const handleSearch = async () => {
-	try {
-		const ym = searchForm.ym.replace('-', '')
-		const { data } = await api.post('/the/basicInfo/fmf/callFmf2180rStr', {
-			ym, mmgbn: searchForm.mmgbn, actkind: 'S0', costcd: '10000'
-		})
-		if (data.data) {
-			mainGrid?.setData(data.data)
-			vAlert('조회되었습니다.')
-		}
-	} catch (e) { vAlertError('조회 실패') }
+  try {
+    const yymm = searchForm.ym.replace('-', '')
+    // 🚀 1. 올바른 백엔드 URL 경로(/hfmf/FMF2180R_STR) 및 매퍼 파라미터(cmpycd, yymm, itemcd) 전송
+    const res = await api.post('/hfmf/FMF2180R_STR', {
+      cmpycd: authStore.cmpycd,
+      yymm: yymm,
+      itemcd: ''
+    })
+
+    // 🚀 2. 표준 반환 데이터(res.data) 직접 바인딩
+    mainGrid?.setData(res.data || [])
+    vAlert('조회되었습니다.')
+  } catch (e) {
+    vAlertError('조회 실패')
+  }
 }
+
 
 const handleExport = () => {
 	mainGrid?.download('xlsx', `외주가공제조원가현황_${searchForm.ym}.xlsx`)

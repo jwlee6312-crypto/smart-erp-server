@@ -134,7 +134,7 @@ let maingrid: Tabulator | null = null
 
 async function fetchupmu() {
 	try {
-		const res = await api.post('/ha00/ha00_00p_str', { gubun: 'e0', gbncd: '320', cmpycd: authstore.cmpycd })
+		const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'e0', gbncd: '320', cmpycd: authstore.cmpycd })
 		if (res.data) {
 			const processed = res.data || [];
 			upmuoptions.value = processed.map((n: any) => ({ codecd: n.codecd || n.code, codenm: n.codenm || n.cdnm }))
@@ -149,7 +149,7 @@ async function fetchupmu() {
 async function search() {
 	if (!searchform.upmucd) return
 	try {
-		const res = await api.post('/haaa/haaa_810u_str', { actkind: 'S0', upmucd: searchform.upmucd, cmpycd: authstore.cmpycd })
+		const res = await api.post('/haaa/HAAA_810U_STR', { actkind: 'S0', upmucd: searchform.upmucd, cmpycd: authstore.cmpycd })
 		maingrid?.setData(res.data || [])
 		valert('조회되었습니다.')
 	} catch (e) { valerterror('조회 실패') }
@@ -160,7 +160,7 @@ async function save() {
 	if (!confirm('저장하시겠습니까?')) return
 	try {
 		const act = formdata.actkind === 'S0' ? 'A0' : 'U0';
-		const res = await api.post('/haaa/haaa_810u_str', { ...formdata, actkind: act })
+		const res = await api.post('/haaa/HAAA_810U_STR', { ...formdata, actkind: act })
 		const resdata = res.data?.[0] || {};
 		if (resdata.result === 'N') return valerterror(resdata.msg || '저장 실패')
 
@@ -171,7 +171,7 @@ async function save() {
 async function deletedata() {
 	if (!confirm('삭제하시겠습니까?')) return
 	try {
-		await api.post('/haaa/haaa_810u_str', { ...formdata, actkind: 'D0' })
+		await api.post('/haaa/HAAA_810U_STR', { ...formdata, actkind: 'D0' })
 		valert('삭제되었습니다.'); search(); initialize()
 	} catch (e) { valerterror('삭제 실패') }
 }

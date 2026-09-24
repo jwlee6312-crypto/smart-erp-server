@@ -114,14 +114,14 @@ const handleOpenHelp = (type: string) => {
 
 async function fetchList() {
   try {
-    const res = await api.post('/hsio/HSIO_141U_STR', {
+    const res = await api.post('/hsio/HSIO_141U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       iogbn: '100',
       fromdt: searchform.fromdt.replace(/-/g, ''),
       todt: searchform.todt.replace(/-/g, ''),
       deptcd: searchform.deptcd
-    });
+    }]);
     grid?.setData(res.data || []);
     activeitemcount.value = 0;
     vAlert('조회되었습니다.')

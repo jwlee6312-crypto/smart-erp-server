@@ -177,7 +177,7 @@ async function openResultModal(data: any) {
     regForm.remark = data.call_memo || '';
     if (resultCodes.value.length === 0) {
         // 💡 920: 상담결과 코드
-        const res = await api.post('/hs00/hs00_000s_str', { gubun: 'GB', cmpycd: authStore.cmpycd, gbncd: '920' })
+        const res = await api.post('/hs00/HS00_000S_STR', { gubun: 'GB', cmpycd: authStore.cmpycd, gbncd: '920' })
         resultCodes.value = res.data || []
     }
     showModal.value = true;

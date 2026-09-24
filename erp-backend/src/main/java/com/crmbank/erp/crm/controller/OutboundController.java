@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
-@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/crm/outbound")
@@ -123,12 +122,8 @@ public class OutboundController {
     @PostMapping("/attr-mapper/save")
     public void saveAttrMapper(@RequestBody Map<String, Object> payload, HttpSession session) {
         Map<String, Object> params = getParams(payload, session);
-        Object listObj = payload.get("list");
-        if (listObj instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> list = (List<Map<String, Object>>) listObj;
-            outboundService.saveAttrMapperBatch(params, list);
-        }
+        List<Map<String, Object>> list = (List<Map<String, Object>>) payload.get("list");
+        outboundService.saveAttrMapperBatch(params, list);
     }
 
     // 7. 통계 및 기타 정보

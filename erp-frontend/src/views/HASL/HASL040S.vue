@@ -85,7 +85,7 @@ let maingrid: any = null
 
 const search = async () => {
   try {
-    const res = await api.post('/hasl/hasl_040s_str', {
+    const res = await api.post('/hasl/HASL_040S_STR', {
       cmpycd: authstore.cmpycd,
       search_gbn: searchform.searchgbn,
       keyword: searchform.keyword

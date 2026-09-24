@@ -227,9 +227,9 @@ const maingridelement = ref<HTMLDivElement | null>(null); let maingrid: Tabulato
 const loadinitdata = async () => {
   try {
     const [resgbn, resstatus, resio] = await Promise.all([
-      api.post('/ha00/ha00_00p_str', { gubun: 'E0', gbncd: '270', cmpycd: authstore.cmpycd }),
-      api.post('/ha00/ha00_00p_str', { gubun: 'E0', gbncd: '280', cmpycd: authstore.cmpycd }),
-      api.post('/ha00/ha00_00p_str', { gubun: 'E0', gbncd: '340', cmpycd: authstore.cmpycd })
+      api.post('/ha00/HA00_00P_STR', { gubun: 'E0', gbncd: '270', cmpycd: authstore.cmpycd }),
+      api.post('/ha00/HA00_00P_STR', { gubun: 'E0', gbncd: '280', cmpycd: authstore.cmpycd }),
+      api.post('/ha00/HA00_00P_STR', { gubun: 'E0', gbncd: '340', cmpycd: authstore.cmpycd })
     ])
     const map = (r: any) => r.data.map((n: any) => ({ codecd: n.code || n.codecd, codenm: n.cdnm || n.codenm }))
     options.custgbn = map(resgbn)

@@ -1,15 +1,8 @@
-<!--기본정보/환경설정 [ERP 프리미엄 고밀도 표준 - 최종 보정안] -->
+<!--기본정보/환경설정 [ERP 프리미엄 고밀도 표준 - 원본 ASP 기능 완전 복구 버전] -->
 <template>
 	<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
 	<div class="erp-container">
-		<!-- 📢 시스템 공지 바 (작업 중 안내) -->
-		<div class="alert alert-warning m-0 py-1 px-3 border-0 border-bottom rounded-0 d-flex align-items-center shadow-sm" style="font-size: 12px; background-color: #fff9db;">
-			<i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>
-			<span class="fw-bold text-dark">시스템 고도화 작업 안내:</span>
-			<span class="ms-2">현재 환경설정 기능 표준화 작업이 진행 중입니다. 일부 기능 사용 시 주의하시기 바랍니다.</span>
-		</div>
-
 		<!-- 🚀 1. 상단 액션 바 -->
 		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 shadow-sm sticky-top">
 			<div class="fw-bold ps-3 text-dark d-flex align-items-center" style="font-size: 14px;">
@@ -24,7 +17,7 @@
 			</div>
 		</div>
 
-		<!-- 💡 2. 메인 설정 영역 (3열 밸런스 배치) -->
+		<!-- 💡 2. 메인 설정 영역 -->
 		<div class="flex-grow-1 overflow-auto p-3 d-flex flex-column gap-3">
 
 			<!-- 🅰️ 결재 및 마감 통제 -->
@@ -137,6 +130,15 @@
 										<option value="Y">외부연동</option>
 									</select>
 								</td>
+								<th>카드 대행사</th>
+								<td>
+									<div class="input-group input-group-sm">
+										<input v-model="formData.cardcustnm" class="form-control fw-bold text-primary" readonly placeholder="대행사 선택" />
+										<button class="btn btn-outline-secondary px-2" @click="popVisible.cust = true"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+							</tr>
+							<tr>
 								<th>여신 확인</th>
 								<td>
 									<div class="form-check form-switch m-0 d-flex align-items-center justify-content-center h-100">
@@ -144,24 +146,18 @@
 										<label class="form-check-label ms-2 small fw-bold" for="yeosinSwitch">사용</label>
 									</div>
 								</td>
-								<th></th>
-								<td></td>
-							</tr>
-							<tr>
-								<th>기타 옵션</th>
-								<td colspan="5">
-									<div class="d-flex gap-4 px-2 h-100 align-items-center">
-										<div class="form-check">
-											<input v-model="formData.iocnfmyn" type="checkbox" class="form-check-input" true-value="Y" false-value="N" id="ioCheck" />
-											<label for="ioCheck" class="small fw-bold">출고확정 단계 필수</label>
-										</div>
-										<!-- 🚀 [신규 추가] 상담 AI 자동 요약 스위치 -->
-										<div class="form-check form-switch ms-3">
-											<input v-model="formData.ai_mode" class="form-check-input" type="checkbox" true-value="auto" false-value="manual" id="aiModeSwitch">
-											<label class="form-check-label small fw-bold text-primary" for="aiModeSwitch">
-												<i class="bi bi-robot me-1"></i>상담 시 AI 자동 요약 사용
-											</label>
-										</div>
+								<th>출고 확정</th>
+								<td>
+									<div class="form-check form-switch m-0 d-flex align-items-center justify-content-center h-100">
+										<input v-model="formData.iocnfmyn" class="form-check-input mt-0" type="checkbox" true-value="Y" false-value="N" id="iocnfmSwitch">
+										<label class="form-check-label ms-2 small fw-bold" for="iocnfmSwitch">필수</label>
+									</div>
+								</td>
+								<th>상담 AI 요약</th>
+								<td>
+									<div class="form-check form-switch m-0 d-flex align-items-center justify-content-center h-100">
+										<input v-model="formData.ai_mode" class="form-check-input mt-0" type="checkbox" true-value="auto" false-value="manual" id="aiModeSwitch">
+										<label class="form-check-label ms-2 small fw-bold text-primary" for="aiModeSwitch">사용</label>
 									</div>
 								</td>
 							</tr>
@@ -170,11 +166,11 @@
 				</div>
 			</div>
 
-			<!-- 💡 3. 하단 이미지 영역: 로고 및 직인 -->
+			<!-- 💡 3. 하단 이미지 영역: 로고 및 직인 (삭제 기능 포함) -->
 			<div class="card border-0 shadow-sm overflow-hidden flex-shrink-0">
-				<div class="card-header bg-white py-2 px-3 border-bottom d-flex align-items-center">
-					<i class="bi bi-image me-2 text-secondary"></i>
-					<span class="fw-bold small text-dark">회사 인장 및 로고 관리</span>
+				<div class="card-header bg-white py-2 px-3 border-bottom d-flex align-items-center justify-content-between">
+					<div><i class="bi bi-image me-2 text-secondary"></i><span class="fw-bold small text-dark">회사 인장 및 로고 관리</span></div>
+					<span class="badge bg-light text-secondary border fw-normal">90x25 / 70x70 규격 권장</span>
 				</div>
 				<div class="card-body p-0 bg-white">
 					<table class="erp-table-full border-0">
@@ -187,18 +183,20 @@
 								<th>회사 로고</th>
 								<td>
 									<div class="d-flex align-items-center gap-2 flex-nowrap">
-										<input type="file" class="form-control" style="max-width: 300px;" @change="e => onFileChange(e, 'logoimg')" />
-										<div v-if="formData.logoimg" class="border rounded p-1 bg-white">
+										<input type="file" class="form-control" style="max-width: 250px;" @change="e => onFileChange(e, 'logoimg')" />
+										<div v-if="formData.logoimg" class="d-flex align-items-center gap-2 border rounded p-1 bg-light">
 											<img :src="getImageUrl(formData.logoimg, 'logoimg')" height="25" />
+											<button class="btn btn-xs btn-outline-danger border-0 p-0 px-1" title="삭제" @click="handleDeleteImage('D1')"><i class="bi bi-trash-fill"></i></button>
 										</div>
 									</div>
 								</td>
 								<th>공인 직인</th>
 								<td>
 									<div class="d-flex align-items-center gap-2 flex-nowrap">
-										<input type="file" class="form-control" style="max-width: 300px;" @change="e => onFileChange(e, 'stampimg')" />
-										<div v-if="formData.stampimg" class="border rounded p-1 bg-white">
+										<input type="file" class="form-control" style="max-width: 250px;" @change="e => onFileChange(e, 'stampimg')" />
+										<div v-if="formData.stampimg" class="d-flex align-items-center gap-2 border rounded p-1 bg-light">
 											<img :src="getImageUrl(formData.stampimg, 'stampimg')" height="50" />
+											<button class="btn btn-xs btn-outline-danger border-0 p-0 px-1" title="삭제" @click="handleDeleteImage('D2')"><i class="bi bi-trash-fill"></i></button>
 										</div>
 									</div>
 								</td>
@@ -209,11 +207,15 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- 🚀 도움창 팝업 연동 -->
+	<SaleCustHelp v-model:visible="popVisible.cust" @confirm="onCustConfirm" @close="restoreFocus" />
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import AppAlert from '@/components/AppAlert.vue'
+import SaleCustHelp from '@/components/help/SaleCustHelp.vue'
 import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
@@ -225,19 +227,23 @@ const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 
 const uiDate = reactive({ yy: '',mm: '', dd: '' })
+const popVisible = reactive({ cust: false })
 const formData = reactive<any>({
 	actkind: 'S0', cmpycd: authStore.cmpycd, userid: authStore.userid,
 	gline1: '', gline2: '', gline3: '', gline4: '', gline5: '',
-	bgtype: '000', cardcust: '', mnfyn: 'N', stkgbn: '100',
+	bgtype: '000', cardcust: '', cardcustnm: '', mnfyn: 'N', stkgbn: '100',
 	stokyn: 'Y', pricegbn: '1', slipyn: 'N', yeosinyn: 'N', iocnfmyn: 'N',
-	balcnfmyn: 'N', outacctyn: 'N', logoimg: '', stampimg: '',
-	ai_mode: 'manual'
+	outacctyn: 'N', logoimg: '', stampimg: '', ai_mode: 'manual'
 })
+
+const restoreFocus = () => {}
+const onCustConfirm = (d: any) => {
+	formData.cardcust = d.custcd; formData.cardcustnm = d.custnm;
+}
 
 const getImageUrl = (filename: string, type: string) => {
 	if (!filename) return ''
 	const baseUrl = API_URL || window.location.origin
-	// 🚀 단순화: 리소스 핸들러 경로와 매핑 (storage로 통일 + 대문자 보정)
 	const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
 	return `${baseUrl}/storage/${cmpycd}/${type}/${filename}`.replace(/([^:]\/)\/+/g, "$1")
 }
@@ -246,39 +252,31 @@ const bgOptions = ref<any[]>([])
 
 async function fetchConfig() {
 	try {
-		const res = await api.post('/haba/HABA_100U_STR', {
-			actkind: 'S0',
-			cmpycd: authStore.cmpycd
-		})
-
+		const res = await api.post('/haba/HABA_100U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd })
 		if (res.data && res.data.length > 0) {
 			const d = res.data[0]
-			console.log('📡 [HABA100U] Config Loaded:', d)
-
-			// 🚀 [복구] 가공 없이 백엔드 응답을 그대로 formData에 할당 (정확한 필드명 매칭)
 			Object.assign(formData, d)
-
+			if (d.custnm) formData.cardcustnm = d.custnm;
 			const rawClsymd = formData.clsymd || ''
 			if (rawClsymd && rawClsymd.length >= 8) {
 				uiDate.yy = rawClsymd.substring(0, 4)
 				uiDate.mm = rawClsymd.substring(4, 6)
 				uiDate.dd = rawClsymd.substring(6, 8)
 			}
-			vAlert('환경설정 정보를 성공적으로 로드했습니다.')
-		} else {
-			vAlert('조회된 설정 정보가 없습니다.')
+			vAlert('환경설정 정보를 로드했습니다.')
 		}
 	} catch (e) { vAlertError('설정 로드 실패') }
 }
 
 async function save() {
 	if (!uiDate.yy || !uiDate.mm || !uiDate.dd) return vAlertError('마감 기준일을 입력하십시오.')
+	const mm = String(uiDate.mm).padStart(2, '0'); const dd = String(uiDate.dd).padStart(2, '0');
 	try {
-		// 🚀 [표준] XML 21개 파라미터 스펙에 맞춰 하나하나 명시적으로 나열하여 전송
+		// 🚀 [표준] 사용자 확정 XML 22개 파라미터 스펙 엄수
 		const param = {
 			actkind: 'U0',
 			cmpycd: authStore.cmpycd,
-			clsymd: `${uiDate.yy}${uiDate.mm}${uiDate.dd}`,
+			clsymd: `${uiDate.yy}${mm}${dd}`,
 			gline1: formData.gline1,
 			gline2: formData.gline2,
 			gline3: formData.gline3,
@@ -299,11 +297,21 @@ async function save() {
 			ai_mode: formData.ai_mode,
 			updemp: authStore.userid
 		}
-
 		await api.post('/haba/HABA_100U_STR', param)
 		vAlert('환경설정이 저장되었습니다.')
 		fetchConfig()
 	} catch (e) { vAlertError('저장 실패') }
+}
+
+/** 🚀 [해결] 로고/직인 이미지 삭제 처리 (ASP D1, D2 로직 이식) */
+async function handleDeleteImage(kind: string) {
+	if (!confirm('이미지를 삭제하시겠습니까?')) return
+	try {
+		const param = { ...formData, actkind: kind, updemp: authStore.userid }
+		await api.post('/haba/HABA_100U_STR', param)
+		vAlert('이미지가 삭제되었습니다.')
+		fetchConfig()
+	} catch (e) { vAlertError('이미지 삭제 실패') }
 }
 
 function initialize() {
@@ -311,38 +319,38 @@ function initialize() {
 }
 
 const onFileChange = async (e: any, target: string) => {
-	const file = e.target.files[0]
-	if (!file) return
-
-	const data = new FormData()
-	data.append('file', file)
-	data.append('cmpycd', authStore.cmpycd)
-	data.append('type', target) // logoimg or stampimg
-
+	const file = e.target.files[0]; if (!file) return
+	const data = new FormData(); data.append('file', file); data.append('cmpycd', authStore.cmpycd); data.append('type', target)
 	try {
-		vAlert(target === 'logoimg' ? '로고 업로드 중...' : '직인 업로드 중...')
-		const res = await api.post('/comm/upload/company', data, {
-			headers: { 'Content-Type': 'multipart/form-data' }
-		})
-
-		// 🚀 백엔드 응답 키값(filename)과 일치 여부 확인 및 보정
+		const res = await api.post('/comm/upload/company', data, { headers: { 'Content-Type': 'multipart/form-data' } })
 		const filename = res.data.filename || res.data.fileName
-		if (filename) {
-			formData[target] = filename
-			vAlert('✅ 업로드 성공. [저장] 버튼을 눌러 확정해 주세요.')
-		}
-	} catch (err) {
-		console.error('❌ 업로드 실패:', err)
-		vAlertError('파일 업로드에 실패했습니다.')
-	}
+		if (filename) { formData[target] = filename; vAlert('업로드 성공. 저장 버튼을 눌러주세요.') }
+	} catch (err) { vAlertError('파일 업로드 실패') }
 }
 
 onMounted(async () => {
-	try {
-		// 💡 403 Forbidden 방지를 위해 POST로 변경
-		const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'E0', gbncd: '320', cmpycd: authStore.cmpycd })
-		bgOptions.value = res.data.map((i: any) => ({ codecd: String(i.codecd || i.codecd).trim(), codenm: String(i.codenm || i.codenm).trim() }))
-	} catch (e) { console.error('코드 로드 실패') }
+	// 🚀 [해결] 지시 사항 반영: 회사코드는 공백, gbncd는 '200' 지정
+	api.post('/ha00/HA00_00P_STR', {
+		gubun: 'E0',
+		cmpycd: ' ',
+		gbncd: '200',
+		code: ' '
+	}).then(r => {
+		bgOptions.value = r.data.map((i: any) => ({
+			codecd: String(i.codecd || '').trim(),
+			codenm: String(i.codenm || '').trim()
+		}))
+	})
 	fetchConfig()
 })
 </script>
+
+<style scoped>
+.erp-container { height: 100%; display: flex; flex-direction: column; background-color: #f8f9fa; }
+.erp-table-full { width: 100%; table-layout: fixed; }
+.erp-table-full th { background-color: #f1f3f5; padding: 10px; font-size: 12px; font-weight: 600; color: #495057; border: 1px solid #dee2e6; text-align: center; }
+.erp-table-full td { padding: 8px; border: 1px solid #dee2e6; vertical-align: middle; background-color: #fff; }
+.erp-table-full th.required::after { content: ' *'; color: #e03131; }
+.btn-xs { padding: 1px 5px; font-size: 10px; }
+input:focus, select:focus { border-color: #339af0; box-shadow: 0 0 0 0.2rem rgba(51, 154, 240, 0.25); outline: none; }
+</style>

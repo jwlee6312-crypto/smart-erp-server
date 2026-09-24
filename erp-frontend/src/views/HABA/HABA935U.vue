@@ -116,7 +116,7 @@ let grid2: Tabulator | null = null
 // 2. 기초 데이터 로드
 async function fetchGrp() {
   try {
-    const res = await api.post('/hs00/hs00_000s_str', { gubun: 'GB', cmpycd: authStore.cmpycd, gbncd: '600' })
+    const res = await api.post('/hs00/HS00_000S_STR', { gubun: 'GB', cmpycd: authStore.cmpycd, gbncd: '600' })
     if (res.data) {
       userGrpData.value = res.data.map((i: any) => ({
         codecd: (i.code || i.codecd || '').toString().trim(),
@@ -132,7 +132,7 @@ async function fetchGrp() {
 
 async function fetchUpmu() {
   try {
-    const res = await api.post('/ha00/ha00_00p_str', { gubun: 'E0', gbncd: '320', cmpycd: authStore.cmpycd })
+    const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'E0', gbncd: '320', cmpycd: authStore.cmpycd })
     if (res.data) {
       upmuData.value = res.data.map((i: any) => ({
         codecd: (i.codecd || i.code || '').toString().trim(),
@@ -150,7 +150,7 @@ async function fetchUpmu() {
 async function fetchCategories() {
   if (!form_01.usergrp || !form_01.upmucd) return
   try {
-    const res = await api.post('/haba/haba_935u_str', { actkind: 'S1', usergrp: form_01.usergrp, upmucd: form_01.upmucd, cmpycd: authStore.cmpycd })
+    const res = await api.post('/haba/HABA_935U_STR', { actkind: 'S1', usergrp: form_01.usergrp, upmucd: form_01.upmucd, cmpycd: authStore.cmpycd })
     grid1?.setData(res.data || [])
     grid2?.clearData()
     selectedGroupName.value = ''
@@ -161,7 +161,7 @@ async function fetchPermissions(grpcd: string, grpnm: string) {
   form_01.grpcd = grpcd
   selectedGroupName.value = grpnm
   try {
-    const res = await api.post('/haba/haba_935u_str', { actkind: 'S0', usergrp: form_01.usergrp, upmucd: form_01.upmucd, grpcd: grpcd, cmpycd: authStore.cmpycd })
+    const res = await api.post('/haba/HABA_935U_STR', { actkind: 'S0', usergrp: form_01.usergrp, upmucd: form_01.upmucd, grpcd: grpcd, cmpycd: authStore.cmpycd })
     grid2?.setData(res.data || [])
   } catch (e) { vAlertError('권한 로드 실패') }
 }
@@ -175,7 +175,7 @@ async function saveAll() {
     for (const row of rows) {
       // 변수명 소문자, 값 대문자 'Y'/'N' 표준 준수
 
-      await api.post('/haba/haba_935u_str', {
+      await api.post('/haba/HABA_935U_STR', {
         actkind: 'U0',
         cmpycd: authStore.cmpycd,
         usergrp: form_01.usergrp,

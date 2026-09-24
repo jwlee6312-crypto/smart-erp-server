@@ -188,7 +188,7 @@ const initgrids = () => {
 
 async function searchcustomers() {
   try {
-    const res = await api.post('/hsba/hsba_190u_str', {
+    const res = await api.post('/hsba/HSBA_190U_STR', {
       actkind: 'S1', cmpycd: authstore.cmpycd, custcd: '', custnm: searchdata.qcustnm || '',
       rowno: '', deptnm: '', damdang: '', telno: '', email: '', useyn: '', userid: authstore.userid
     })
@@ -198,7 +198,7 @@ async function searchcustomers() {
 
 async function fetchdamlist() {
   try {
-    const res = await api.post('/hsba/hsba_190u_str', {
+    const res = await api.post('/hsba/HSBA_190U_STR', {
       actkind: 'S0', cmpycd: authstore.cmpycd, custcd: masterdata.custcd,
       custnm: '', rowno: '', deptnm: '', damdang: '', telno: '', email: '', useyn: '', userid: authstore.userid
     })
@@ -212,7 +212,7 @@ async function save() {
   if (!confirm('저장하시겠습니까?')) return
   try {
     const payload = { ...masterdata, telno: (masterdata.telno || '').replace(/-/g, ''), userid: authstore.userid }
-    const res = await api.post('/hsba/hsba_190u_str', payload)
+    const res = await api.post('/hsba/HSBA_190U_STR', payload)
     const resdata = res.data?.[0];
     if (resdata?.result === 'N') return valerterror(resdata.msg || '저장 실패')
 

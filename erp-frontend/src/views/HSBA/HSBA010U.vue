@@ -242,8 +242,8 @@ const initgrid = () => {
 
 async function fetchoptions() {
   try {
-    const p1 = api.get('/hs00/hs00_000s_str', { params: { gubun: 'e0', cmpycd: authstore.cmpycd, gbncd: '100' } })
-    const p2 = api.get('/hs00/hs00_000s_str', { params: { gubun: 'U0', cmpycd: authstore.cmpycd, gbncd: '', code: '' } })
+    const p1 = api.get('/hs00/HS00_000S_STR', { params: { gubun: 'e0', cmpycd: authstore.cmpycd, gbncd: '100' } })
+    const p2 = api.get('/hs00/HS00_000S_STR', { params: { gubun: 'U0', cmpycd: authstore.cmpycd, gbncd: '', code: '' } })
     const [r1, r2] = await Promise.all([p1, p2])
     assetoptions.value = r1.data.map((n: any) => ({ codecd: n.code || n.codecd, codenm: n.cdnm || n.codenm }))
     unitoptions.value = r2.data.map((n: any) => ({ codecd: n.unit, codenm: n.unitnm }))
@@ -252,7 +252,7 @@ async function fetchoptions() {
 
 async function search() {
   try {
-    const res = await api.post('/hsba/hsba_010u_str', {
+    const res = await api.post('/hsba/HSBA_010U_STR', {
       actkind: 'S0', cmpycd: authstore.cmpycd,
       astkind: searchdata.sch_astkind,
       itemnm: searchdata.sch_itemnm,
@@ -267,7 +267,7 @@ async function save() {
   if (!masterdata.itemnm || !masterdata.itsize) return valerterror('품목명과 규격은 필수입니다.')
   if (!confirm('저장하시겠습니까?')) return
   try {
-    const res = await api.post('/hsba/hsba_010u_str', {
+    const res = await api.post('/hsba/HSBA_010U_STR', {
     ...masterdata,
     userid: authstore.userid,
      stock: 0, qtypnt: 0 })
@@ -297,7 +297,7 @@ function openhelp(type: string) {
   if (type === 'agrp') {
     config = {
       title: '대분류 선택',
-      path: '/hs00/hs00_000s_str',
+      path: '/hs00/HS00_000S_STR',
       data: { gubun: 'g0', gbncd: masterdata.astkind },
       field: 'agrpnm',
       columns: [{ title: '코드', field: 'agrpcd', width: 80 }, { title: '분류명', field: 'agrpnm', width: 180 }]
@@ -305,7 +305,7 @@ function openhelp(type: string) {
   } else if (type === 'bgrp') {
     config = {
       title: '중분류 선택',
-      path: '/hs00/hs00_000s_str',
+      path: '/hs00/HS00_000S_STR',
       data: { gubun: 'g1', gbncd: masterdata.astkind, code: masterdata.agrpcd },
       field: 'bgrpnm',
       columns: [{ title: '코드', field: 'bgrpcd', width: 80 }, { title: '분류명', field: 'bgrpnm', width: 180 }]
@@ -313,7 +313,7 @@ function openhelp(type: string) {
   } else if (type === 'cust') {
     config = {
       title: '거래처 선택',
-      path: '/ha00/ha00_00p_str',
+      path: '/ha00/HA00_00P_STR',
       data: { gubun: 'c4' },
       field: 'custnm',
       columns: [{ title: '코드', field: 'custcd', width: 100 }, { title: '거래처명', field: 'custnm', width: 200 }]

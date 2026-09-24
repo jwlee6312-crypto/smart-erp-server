@@ -6,19 +6,18 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
  * [HPBA] 생산기준 통합 컨트롤러 (사용자 정의 최종 표준형)
  */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hpba")
@@ -27,117 +26,282 @@ public class HpbaController {
 
     private final HpbaMapper hpbaMapper;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(@PathVariable String procedure, @RequestBody Map<String, Object> params, HttpSession session) {
-        String proc = procedure.toUpperCase();
+    // ==========================================
+    // 1. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
+
+    @PostMapping("/HPBA_100U_STR")
+    public ResponseEntity<?> callHPBA_100U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_100U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_100U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_100U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_130U_STR")
+    public ResponseEntity<?> callHPBA_130U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_130U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_130U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_130U_STR(params);
+
+        if ("S".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_200U_STR")
+    public ResponseEntity<?> callHPBA_200U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_200U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_200U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_200U_STR(params);
+
+        if ("S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_210U_STR")
+    public ResponseEntity<?> callHPBA_210U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_210U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_210U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_210U_STR(params);
+
+        if ("S0".equals(actkind) || "B0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_800U_STR")
+    public ResponseEntity<?> callHPBA_800U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_800U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_800U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_800U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_810U_STR")
+    public ResponseEntity<?> callHPBA_810U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_810U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_810U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_810U_STR(params);
+
+        if ( "S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_820U_STR")
+    public ResponseEntity<?> callHPBA_820U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_820U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_820U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_820U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_830U_STR")
+    public ResponseEntity<?> callHPBA_830U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_830U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_830U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_830U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_840U_STR")
+    public ResponseEntity<?> callHPBA_840U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_840U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_840U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_840U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPBA_900U_STR")
+    public ResponseEntity<?> callHPBA_900U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPBA_900U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPBA_900U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpbaMapper.HPBA_900U_STR(params);
+
+        if ( "S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 2. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
+    }
+
+    private void injectSession(Map<String, Object> params, HttpSession session) {
         UserSession user = (UserSession) session.getAttribute("user_session");
-        if (user == null) return ResponseEntity.status(401).build();
+        if (user != null) {
+            if (params.get("cmpycd") == null || params.get("cmpycd").toString().trim().isEmpty()) {
+                params.put("cmpycd", user.getCmpycd());
+            }
+            if (params.get("userid") == null || params.get("userid").toString().trim().isEmpty()) {
+                params.put("userid", user.getUserid());
+            }
+            params.put("updemp", user.getUserid());
+        }
+    }
 
+    private void fillMissingParameters(String proc, Map<String, Object> params) {
         try {
-            params.put("cmpycd", user.getCmpycd());
-            params.put("userid", user.getUserid());
+            String statementId = HpbaMapper.class.getName() + "." + proc;
+            if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
+            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
+            BoundSql boundSql = ms.getBoundSql(params);
 
-            List<Map<String, Object>> resultList = new ArrayList<>();
-
-            if (params.get("items") instanceof List<?> items) {
-                for (Object itemObj : items) {
-                    if (itemObj instanceof Map<?, ?> item) {
-                        Map<String, Object> p = new HashMap<>(params);
-                        p.putAll((Map<String, Object>) item);
-                        p.remove("items");
-                        resultList.addAll(executeInternal(proc, p));
+            for (ParameterMapping pm : boundSql.getParameterMappings()) {
+                String prop = pm.getProperty();
+                if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
+                    String cleanProp = prop.trim();
+                    if (!params.containsKey(cleanProp) || params.get(cleanProp) == null || params.get(cleanProp).toString().trim().isEmpty()) {
+                        params.put(cleanProp, "");
                     }
+                    if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
-            } else {
-                resultList = executeInternal(proc, params);
             }
-
-            return ResponseEntity.ok(convertToLowerCaseKeys(resultList));
-
-        } catch (Exception e) {
-            log.error("❌ [HPBA] {} Error: {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    private List<Map<String, Object>> executeInternal(String proc, Map<String, Object> params) {
-        String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase().trim();
-
-        // 💡 표준: 쓰기 액션(A, U, D, DR) 및 집계(C)인 경우 무결성 수신을 위해 직접 실행 및 로깅
-        if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U") || actkind.startsWith("D") || actkind.equals("DR") || actkind.equals("C"))) {
-            return executeDirectSql(proc, params);
-        }
-
-        // 💡 사용자 정의 표준: 명시적인 Switch-Case 호출
-        List<Map<String, Object>> result;
-        switch (proc) {
-            case "HPBA_100U_STR": result = hpbaMapper.HPBA_100U_STR(params); break;
-            case "HPBA_130U_STR": result = hpbaMapper.HPBA_130U_STR(params); break;
-            case "HPBA_200U_STR": result = hpbaMapper.HPBA_200U_STR(params); break;
-            case "HPBA_210U_STR": result = hpbaMapper.HPBA_210U_STR(params); break;
-            case "HPBA_800U_STR": result = hpbaMapper.HPBA_800U_STR(params); break;
-            case "HPBA_810U_STR": result = hpbaMapper.HPBA_810U_STR(params); break;
-            case "HPBA_820U_STR": result = hpbaMapper.HPBA_820U_STR(params); break;
-            case "HPBA_830U_STR": result = hpbaMapper.HPBA_830U_STR(params); break;
-            case "HPBA_840U_STR": result = hpbaMapper.HPBA_840U_STR(params); break;
-            case "HPBA_900U_STR": result = hpbaMapper.HPBA_900U_STR(params); break;
-            default:
-                result = invokeMapper(proc, params);
-                if (result == null) result = executeDirectSql(proc, params);
-                break;
-        }
-        return result != null ? result : new ArrayList<>();
-    }
-
-    private List<Map<String, Object>> invokeMapper(String proc, Map<String, Object> params) {
-        try {
-            Method method = HpbaMapper.class.getMethod(proc, Map.class);
-            return (List<Map<String, Object>>) method.invoke(hpbaMapper, params);
-        } catch (NoSuchMethodException e) {
-            return null;
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
-    }
-
-    private List<Map<String, Object>> executeDirectSql(String proc, Map<String, Object> params) {
-        String sql = buildPositionalSql(proc, params);
-        log.info("==>  Direct Executing: {}", sql);
-        try {
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> row = new LinkedHashMap<>();
-                int colCount = rs.getMetaData().getColumnCount();
-                for (int k = 1; k <= colCount; k++) {
-                    String label = rs.getMetaData().getColumnLabel(k).toLowerCase();
-                    row.put(label, rs.getObject(k) == null ? "" : rs.getObject(k));
-                }
-                return row;
-            });
-        } catch (Exception e) {
-            if (e.getMessage() != null && (e.getMessage().contains("No ResultSet") || e.getMessage().contains("did not return a result set"))) {
-                return new ArrayList<>();
-            }
-            throw e;
-        }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
-            // 💡 [주의] 이 부분만 해당 컨트롤러의 매퍼 클래스명으로 수정하세요 (예: HsodMapper.class)
             String statementId = HpbaMapper.class.getName() + "." + proc;
-
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
 
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
-                // XML에 정의된 #{이름}과 100% 일치하는 값만 추출 (VUE 순서 상관없음)
                 Object val = params.get(pm.getProperty().trim());
-
-                // NULL/공백 치환 및 유니코드(N) 처리하여 왜곡 차단
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }

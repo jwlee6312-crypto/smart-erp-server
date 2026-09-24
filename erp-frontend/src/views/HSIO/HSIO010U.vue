@@ -1,50 +1,82 @@
 <!--
 	=============================================================
-	프로그램명	: 입고요청등록 (HSIO010U) - 키보드 표준 프로토타입
-	작성일자	: 2025.03.15 (수정)
-	설명        : 탭 이동 표준, 전역 단축키, 품목명 Input 기반 Enter 팝업 연동
+	프로그램명	: 구매요청 (HSIO010U)
+	작성일자	: 2025.02.24
+	설명        : 구매요청 마스터/상세 관리 (HSOD100U 표준 적용 및 구매전용 품목검색 적용)
 	=============================================================
 -->
 
 <template>
   <AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
-  <Modal v-model:visible="modalVisible" :modalProps="modalProps" @close="restoreFocus" />
 
-  <div class="erp-container d-flex flex-column h-100 bg-white" @keydown="handleGlobalShortcuts">
-    <!-- 🚀 1. 상단 액션 바 -->
-    <div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom" style="height: 48px !important;">
+  <!-- 🚀 전용 팝업 라이브러리 (HSOD100U 규격) -->
+  <DeptHelp
+    v-model:visible="popVisible.dept"
+    @confirm="onDeptConfirm"
+    @close="restoreFocus"
+  />
+  <SaleCustHelp
+    v-model:visible="popVisible.cust"
+    @confirm="onCustConfirm"
+    @close="restoreFocus"
+  />
+  <!-- 🚀 구매시스템 전용 품목 검색 적용 -->
+  <PurchItemHelp
+    v-model:visible="popVisible.item"
+    @confirm="onItemConfirm"
+    @close="restoreFocus"
+  />
+
+  <div class="erp-container d-flex flex-column h-100 bg-white">
+    <!-- [1] 상단 액션 바 -->
+    <div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom">
       <div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-cart-check-fill me-2 text-primary" style="font-size: 18px;"></i>
         구매관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
         구매요청 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
         <span class="text-primary fw-bolder">구매요청 (HSIO010U)</span>
       </div>
-      <div class="btn-group-erp d-flex gap-1 pe-2">
+      <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize" tabindex="-1">신규(N)</button>
         <button class="btn-erp btn-search" @click="search" tabindex="-1">조회(F)</button>
         <button class="btn-erp btn-save" @click="save" :disabled="form_02.sts === 'Y' || isClosed" tabindex="-1">저장(S)</button>
-        <button class="btn-erp btn-delete" @click="handleFullDelete" :disabled="!form_02.reqno || form_02.reqno === '0000' || form_02.sts === 'Y' || isClosed" tabindex="-1">삭제(D)</button>
+        <button class="btn-erp btn-delete" @click="handleFullDelete" :disabled="form_02.sts === 'Y' || isClosed" tabindex="-1">삭제(D)</button>
       </div>
     </div>
 
-    <!-- 💡 2. 메인 컨텐츠 영역 -->
+    <!-- [2] 메인 컨텐츠 영역 -->
     <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2 bg-light main-content-wrapper">
-      <!-- [상단] 조회 필터 (Tabindex: 101~102) -->
+
+      <!-- 상단 조회 필터 -->
       <div class="card border shadow-sm flex-shrink-0 overflow-hidden">
         <div class="card-body p-0 bg-white">
           <table class="erp-table-dense" width="100%">
             <colgroup>
-                <col style="width: 10%" /><col style="width: 40%" />
-                <col style="width: 10%" /><col style="width: 40%" />
+              <col style="width: 10%" />
+              <col style="width: 40%" />
+              <col style="width: 10%" />
+              <col style="width: 40%" />
             </colgroup>
             <tbody>
               <tr>
                 <th class="text-center bg-light small">요청일자</th>
-                <td class="d-flex align-items-center border-0 gap-1" style="height: 32px;">
-                  <DateForm v-model:fromdt="form_01.fromdt" v-model:todt="form_01.todt" :tabindex="101" />
+                <td>
+                  <DateForm
+                    v-model:fromdt="form_01.fromdt"
+                    v-model:todt="form_01.todt"
+                    :tabindex="101"
+                  />
                 </td>
                 <th class="text-center bg-light small">부서명</th>
-                <td><input v-model="form_01.deptnm" class="form-control form-control-sm" placeholder="검색어 입력" @keyup.enter="search" tabindex="102" /></td>
+                <td>
+                  <input
+                    v-model="form_01.deptnm"
+                    class="form-control form-control-sm"
+                    placeholder="부서명 검색"
+                    @keyup.enter="search"
+                    tabindex="102"
+                  />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -52,7 +84,7 @@
       </div>
 
       <div class="d-flex gap-2 flex-grow-1 overflow-hidden" style="min-height: 0;">
-        <!-- 좌측 그리드 -->
+        <!-- 좌측: 요청 목록 -->
         <div class="card border shadow-sm d-flex flex-column overflow-hidden grid-container-left" style="width: 350px; min-width: 350px;">
           <div class="card-header bg-white py-1 px-3 border-bottom fw-bold small text-dark">요청 목록</div>
           <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
@@ -60,8 +92,8 @@
           </div>
         </div>
 
+        <!-- 우측: 마스터 상세 폼 -->
         <div class="flex-grow-1 d-flex flex-column gap-2 overflow-hidden">
-          <!-- 마스터 폼 (Tabindex: 1~4) -->
           <div class="card border shadow-sm flex-shrink-0 overflow-hidden">
             <div class="card-body p-0 bg-white">
               <table class="erp-table-dense w-100">
@@ -77,13 +109,22 @@
                     <td colspan="3">
                       <div class="input-group input-group-sm">
                         <input ref="firstFocusRef" v-model="form_02.deptnm" class="form-control" readonly tabindex="1" />
-                        <button class="btn btn-outline-secondary" @click="handleOpenHelp('DEPT')" tabindex="2"><i class="bi bi-search"></i></button>
+                        <button class="btn btn-outline-secondary" @click="handleOpenHelp('DEPT')" :disabled="form_02.sts === 'Y' || isClosed" tabindex="2">
+                          <i class="bi bi-search"></i>
+                        </button>
                       </div>
                     </td>
                     <th class="bg-light small text-center">요청번호</th>
-                    <td><input :value="form_02.reqym && form_02.reqno ? `${form_02.reqym}-${form_02.reqno}` : ''" class="form-control bg-light text-primary fw-bold text-center" readonly tabindex="-1" placeholder="자동생성" /></td>
+                    <td>
+                      <input
+                        :value="displayReqNo"
+                        class="form-control bg-light text-primary fw-bold text-center"
+                        readonly tabindex="-1"
+                        placeholder="자동생성"
+                      />
+                    </td>
                     <th class="required bg-light small text-center">요청일자</th>
-                    <td><input v-model="form_02.reqymd" type="date" class="form-control" tabindex="3" :readonly="form_02.sts === 'Y' || isClosed" /></td>
+                    <td><input v-model="form_02.reqymd" type="date" class="form-control" :readonly="form_02.sts === 'Y' || isClosed" tabindex="3" /></td>
                   </tr>
                   <tr>
                     <th class="bg-light small text-center">특기사항</th>
@@ -92,8 +133,8 @@
                         ref="remarkRef"
                         v-model="form_02.remark"
                         class="form-control"
-                        tabindex="4"
                         :readonly="form_02.sts === 'Y' || isClosed"
+                        tabindex="4"
                         @keydown.tab="handleRemarkTab"
                       />
                     </td>
@@ -103,13 +144,13 @@
             </div>
           </div>
 
-          <!-- 품목 그리드 (Tabindex: 5) -->
+          <!-- 하단: 요청 품목 리스트 -->
           <div class="card border shadow-sm flex-grow-1 d-flex flex-column overflow-hidden grid-container-right">
             <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
-              <span class="fw-bold small text-dark"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>요청 품목 리스트</span>
+              <span class="fw-bold small text-dark d-flex align-items-center"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>요청 품목 리스트</span>
               <div class="btn-group-erp d-flex gap-1">
-                <button class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold" @click="addRow" :disabled="form_02.sts === 'Y' || isClosed" style="font-size: 11px;">+ 행추가</button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold" @click="deleteSelectedRows" :disabled="form_02.sts === 'Y' || isClosed" style="font-size: 11px;">- 행삭제</button>
+                 <button class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold" @click="addRow" :disabled="form_02.sts === 'Y' || isClosed" style="font-size: 11px;">+ 행추가</button>
+                 <button class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold" @click="deleteSelectedRows" :disabled="form_02.sts === 'Y' || isClosed" style="font-size: 11px;">- 행삭제</button>
               </div>
             </div>
             <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
@@ -123,237 +164,377 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, computed, nextTick, onUnmounted } from 'vue'
+import { reactive, ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
-import AppAlert from '@/components/AppAlert.vue'
-import Modal from '@/components/Modal.vue'
-import DateForm from '@/components/DateForm.vue'
+
 import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
-import { useCommonHelp } from '@/composables/useCommonHelp'
 import { getDate } from '@/composables/useDate'
 import { useManualStore } from '@/stores/manualStore'
+import { useSearchStore } from '@/stores/useSearchStore'
+import { useRoute } from 'vue-router'
 
+import AppAlert from '@/components/AppAlert.vue'
+import DateForm from '@/components/DateForm.vue'
+
+// 🚀 전용 팝업 임포트
+import DeptHelp from '@/components/help/DeptHelp.vue'
+import SaleCustHelp from '@/components/help/SaleCustHelp.vue'
+import PurchItemHelp from '@/components/help/PurchItemHelp.vue'
+
+// 1. 공통 상태 및 훅 초기화
 const authStore = useAuthStore()
 const { firstDay, today } = getDate()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
-const { modalVisible, modalProps, openHelp, restoreFocus, lastActiveElement } = useCommonHelp()
 const manualStore = useManualStore()
+const searchStore = useSearchStore()
+const route = useRoute()
 
+// 2. 참조 및 상태 관리 변수 (완전 독립 구조)
 const firstFocusRef = ref<HTMLInputElement | null>(null)
 const remarkRef = ref<HTMLInputElement | null>(null)
-const form_01 = reactive({ fromdt: firstDay, todt: today, deptnm: '' })
-const form_02 = reactive<any>({
-  actkind: 'S', cmpycd: authStore.cmpycd, fromdt: firstDay, todt: today, reqym: today.substring(0, 7).replace('-', ''), reqno: '0000',
-  deptcd: authStore.deptcd, deptnm: authStore.deptnm, reqymd: today, req_userid: authStore.userid,
-  inymd: today, remark: '', sts: 'N', totsum: 0
+const lastActiveElement = ref<HTMLElement | null>(null)
+const popVisible = reactive({
+  dept: false,
+  cust: false,
+  item: false
 })
+const isSaving = ref(false)
 
 const closingInfo = reactive({ sclsym: '' })
-const tableRef1 = ref<HTMLDivElement | null>(null); const tableRef2 = ref<HTMLDivElement | null>(null)
-let grid1: Tabulator | null = null; let grid2: Tabulator | null = null
+let activeRow: any = null
+
+// 3. 데이터 모델링
+const form_01 = reactive({
+  fromdt: firstDay,
+  todt: today,
+  deptnm: ''
+})
+
+const form_02 = reactive<any>({
+  cmpycd: authStore.cmpycd,
+  deptcd: authStore.deptcd,
+  deptnm: authStore.deptnm,
+  reqym: today.substring(0, 7).replace('-', ''),
+  reqno: '0000',
+  reqymd: today,
+  req_userid: authStore.userid,
+  remark: '',
+  sts: 'N'
+})
+
+// 4. 연산 및 감시자
+const displayReqNo = computed(() => {
+  if (!form_02.reqno || form_02.reqno === '0000') return ''
+  return `${form_02.reqym}-${form_02.reqno}`
+})
 
 const isClosed = computed(() => {
   if (!closingInfo.sclsym || !form_02.reqymd) return false
   return form_02.reqymd.replace(/-/g, '').substring(0, 6) <= closingInfo.sclsym
 })
 
-// ⌨️ [표준 가이드] 팝업 에디터 (Enter ➔ 팝업, Tab ➔ 이동)
-const lookupEditor = (cell: any, onRendered: any, success: any, cancel: any) => {
-    const container = document.createElement("div");
-    container.className = "w-100 h-100 d-flex align-items-center justify-content-between px-2";
-    container.innerHTML = `<input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" style="font-size:12px; flex: 1;" value="${cell.getValue() || ''}"><i class="bi bi-search text-primary ms-1" style="font-size: 11px;"></i>`;
-    const input = container.querySelector("input") as HTMLInputElement;
-    onRendered(() => { input.focus(); input.select(); });
-    input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault(); e.stopPropagation();
-            const cellEl = cell.getElement();
-            success(input.value);
-            cellEl.focus();
-            handleOpenHelp('ITEM', cell.getRow());
-        }
-        else if (e.key === "Tab" && e.shiftKey) {
-            if (cell.getRow() === grid2?.getRows("active")[0]) { e.preventDefault(); cancel(); remarkRef.value?.focus(); }
-        }
-    });
-    return container;
-};
+// 5. 그리드 참조
+const tableRef1 = ref<HTMLDivElement | null>(null)
+const tableRef2 = ref<HTMLDivElement | null>(null)
+let grid1: Tabulator | null = null
+let grid2: Tabulator | null = null
 
-function focusGrid() { if (grid2) { const rows = grid2.getRows("active"); if (rows.length > 0) nextTick(() => rows[0].getCell("itemnm").edit()); } }
-function handleRemarkTab(e: KeyboardEvent) { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); focusGrid(); } }
+// 6. 비즈니스 로직 함수 (HSOD100U 표준 강제 적용)
+const initialize = () => {
+  resetForm(form_02)
+  activeRow = null
+  lastActiveElement.value = null
+  isSaving.value = false
 
-function handleGlobalShortcuts(e: KeyboardEvent) {
-    if (e.altKey) {
-        const key = e.key.toLowerCase();
-        if (key === 'f') { e.preventDefault(); search(); }
-        else if (key === 's') { e.preventDefault(); save(); }
-        else if (key === 'n') { e.preventDefault(); initialize(); }
-        else if (key === 'd') { e.preventDefault(); handleFullDelete(); }
-        else if (key === 'h') { e.preventDefault(); manualStore.open('HSIO010U'); }
+  Object.assign(form_02, {
+    cmpycd: authStore.cmpycd,
+    reqno: '0000',
+    reqymd: today,
+    reqym: today.substring(0, 7).replace('-', ''),
+    deptcd: authStore.deptcd,
+    deptnm: authStore.deptnm,
+    req_userid: authStore.userid,
+    sts: 'N'
+  })
+
+  // 🚀 [표준] 잔상 물리적 파괴 후 깨끗한 빈 행 5개 생성
+  if (grid2 && grid2.element) {
+    grid2.setData([])
+    for (let i = 0; i < 5; i++) {
+      grid2.addRow({ reqqty: 0, imprice: 0, reqamt: 0 }, false)
     }
+  }
+  nextTick(() => firstFocusRef.value?.focus())
 }
 
-const initGrids = () => {
-  grid1 = new Tabulator(tableRef1.value!, {
-    layout: "fitColumns", height: "100%", placeholder: "데이터 없음",
-    columns: [
-      { title: "No", formatter: "rownum", width: 40, hozAlign: "center", headerSort: false },
-      { title: "요청부서", field: "deptnm", hozAlign: "left", headerSort: false },
-      { title: "요청번호", field: "reqno_full", hozAlign: "center", width: 120, cssClass: "fw-bold text-primary", headerSort: false,
-        formatter: (c) => { const d = c.getData(); return d.reqym && d.reqno ? `${d.reqym}-${d.reqno}` : ''; }
-      }
-    ],
-  });
-  grid1.on("rowClick", (e, row) => fetchDetail(row.getData()));
-
-  grid2 = new Tabulator(tableRef2.value!, {
-    layout: "fitColumns", height: "100%", placeholder: "품목 없음", selectable: true,
-    keybindings: { "navNext": "9" },
-    columnDefaults: { headerHozAlign: 'center', headerSort: false, vertAlign: "middle" },
-    columns: [
-      { title: "선택", width: 40, hozAlign: "center", formatter: "rowSelection", titleFormatter: "rowSelection" },
-      { title: "상태", field: "_status", width: 60, hozAlign: "center", formatter: (c) => {
-          const v = c.getValue();
-          if (v === '입력') return '<span class="badge bg-primary">입력</span>';
-          if (v === '수정') return '<span class="badge bg-warning text-dark">수정</span>';
-          if (v === '삭제') return '<span class="badge bg-danger">삭제</span>';
-          return '';
-      }},
-      { title: "No", formatter: "rownum", width: 40, hozAlign: "center" },
-      { title: "품목명", field: "itemnm", minWidth: 200, widthGrow: 1, cssClass: 'fw-bold text-primary', editor: lookupEditor,
-        cellDblClick: (e, cell) => handleOpenHelp('ITEM', cell.getRow()),
-        cellClick: (e, cell) => { if(!cell.isEditing()) cell.edit(); }
-      },
-      { title: "단위", field: "unit", width: 70, hozAlign: "center" },
-      { title: "수량", field: "reqqty", width: 100, hozAlign: "right", editor: "number",
-        cellKeyDown: (e, cell) => { if (e.key === "Tab" && !e.shiftKey) { calcRow(cell.getRow()); } },
-        formatter: "money", formatterParams: { precision: 0 }, cellEdited: (cell) => calcRow(cell.getRow())
-      },
-      { title: "단가", field: "imprice", width: 110, hozAlign: "right", editor: "number",
-        cellKeyDown: (e, cell) => {
-            if (e.key === "Tab" && !e.shiftKey) {
-                e.preventDefault(); calcRow(cell.getRow());
-                const nextRow = cell.getRow().getNextRow();
-                if (nextRow) { nextRow.select(); nextRow.getCell("itemnm").edit(); }
-                else { addRow(); setTimeout(() => { const rs = grid2?.getRows("active") || []; rs[rs.length-1].getCell("itemnm").edit(); }, 50); }
-            }
-        },
-        formatter: "money", formatterParams: { precision: 0 }, cellEdited: (cell) => calcRow(cell.getRow())
-      },
-      { title: "금액", field: "reqamt", width: 120, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
-      { title: "삭제", width: 40, hozAlign: "center", formatter: (c) => "<i class='bi bi-trash text-danger'></i>", cellClick: (e, cell) => handleRowAction(cell.getRow()) }
-    ]
-  });
+const restoreFocus = () => {
+  nextTick(() => {
+    if (lastActiveElement.value) {
+      const el = lastActiveElement.value
+      el.focus()
+      setTimeout(() => {
+        const currentIdx = el.tabIndex
+        if (currentIdx > 0) {
+          const nextEl = document.querySelector(`[tabindex="${currentIdx + 1}"]`) as HTMLElement
+          if (nextEl) {
+            nextEl.focus()
+            if (nextEl instanceof HTMLInputElement) nextEl.select()
+          }
+        }
+      }, 100)
+    }
+  })
 }
 
-const updateRowStatus = (row: any) => { const d = row.getData(); if (d._state === 'EXIST' && d._status !== '삭제') row.update({ _status: '수정' }); }
+// 7. 전용 팝업 확정 콜백
+const onDeptConfirm = (d: any) => {
+  form_02.deptcd = d.deptcd
+  form_02.deptnm = d.deptnm
+}
+
+const onCustConfirm = (d: any) => {
+  // 구매요청은 거래처 미사용 (표준 규격 유지)
+}
+
+const onItemConfirm = (d: any) => {
+  if (!activeRow) return
+  activeRow.update({
+    itemcd: d.itemcd,
+    itemnm: d.itemnm,
+    itsize: d.itsize || '',
+    unit: d.unit || 'EA',
+    imprice: d.incost || 0,
+    reqqty: 1,
+    reqamt: d.incost || 0,
+    _status: '입력',
+    _state: 'NEW'
+  })
+  calcRow(activeRow)
+  setTimeout(() => activeRow.getCell("reqqty").edit(), 150)
+}
+
+// 8. 그리드 에디터 및 계산
+const lookupEditor = (cell: any, onRendered: any, success: any, cancel: any) => {
+  const container = document.createElement("div")
+  container.className = "w-100 h-100 d-flex align-items-center justify-content-between px-2"
+  container.innerHTML = `
+    <input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" style="font-size:12px; flex: 1;" value="${cell.getValue() || ''}">
+    <i class="bi bi-search text-primary ms-1" style="font-size: 11px;"></i>
+  `
+  const input = container.querySelector("input") as HTMLInputElement
+  onRendered(() => { input.focus(); input.select(); })
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); e.stopPropagation()
+      success(input.value)
+      handleOpenHelp('ITEM', cell.getRow())
+    }
+  })
+  return container
+}
+
 const calcRow = (row: any) => {
-  const d = row.getData(); const amt = Math.floor(Number(d.reqqty || 0) * Number(d.imprice || 0));
-  row.update({ reqamt: amt });
-  updateRowStatus(row);
-}
-
-async function search() {
-  try {
-    const res = await api.post('/hsio/HSIO_010U_STR', { actkind: 'L', cmpycd: authStore.cmpycd, fromdt: form_01.fromdt.replace(/-/g, ''), todt: form_01.todt.replace(/-/g, ''), deptnm: form_01.deptnm });
-    grid1?.setData(res.data); vAlert('조회되었습니다(Alt+F)');
-  } catch (e: any) { vAlertError('조회 실패'); }
-}
-
-async function fetchDetail(row: any) {
-  const fYmd = (d: string) => d && d.length === 8 ? `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}` : today;
-  Object.assign(form_02, { ...row, reqymd: fYmd(row.reqymd) });
-  try {
-    const res = await api.post('/hsio/HSIO_011U_STR', { actkind: 'S', cmpycd: authStore.cmpycd, reqym: row.reqym, reqno: row.reqno });
-    grid2?.setData(res.data.map((i: any) => ({ ...i, _state: 'EXIST', _status: '' })));
-  } catch (e: any) { vAlertError('상세 로드 실패'); }
-}
-
-async function save() {
-  if (!form_02.deptcd) return vAlertError('요청부서를 선택하세요.');
-  const details = grid2?.getData().filter((r: any) => r._status && r.itemcd && Number(r.reqqty || 0) > 0 && Number(r.reqamt || 0) > 0) || [];
-  if (!details.length && (!form_02.reqno || form_02.reqno === '0000')) return vAlertError('저장할 유효한 품목이 없습니다.');
-
-  try {
-    const payload = {
-      mst: {
-        ...form_02, asgbn: 'N', reqymd: form_02.reqymd.replace(/-/g, ''),
-        actkind: (!form_02.reqno || form_02.reqno === '0000') ? 'A0' : 'U0',
-        updemp: authStore.userid
-      },
-      dtl: details.map((d: any) => ({
-        ...d, actkind: d._status === '입력' ? 'A1' : (d._status === '삭제' ? 'D1' : 'U1'), updemp: authStore.userid
-      }))
-    };
-    await api.post('/hsio/HSIO_010U_SAVE', payload);
-    vAlert('저장되었습니다(Alt+S)'); initialize(); search();
-  } catch (e: any) { vAlertError('저장 오류'); }
-}
-
-const handleOpenHelp = (type: string, target?: any) => {
-  lastActiveElement.value = document.activeElement as HTMLElement;
-  if (type === 'DEPT') {
-    Object.assign(modalProps, {
-      title: '부서 선택', path: '/ha00/HA00_00P_STR', defaultField: 'deptnm',
-      data: { gubun: 'D0', cmpycd: authStore.cmpycd, gbncd: '', code: '', remark: '' },
-      columns: [{ title: '코드', field: 'deptcd', width: 80, hozAlign: 'center' }, { title: '부서명', field: 'deptnm', width: 200 }],
-      onConfirm: (d: any) => { form_02.deptcd = d.deptcd; form_02.deptnm = d.deptnm }
-    })
-    modalVisible.value = true
-  } else if (type === 'ITEM') {
-    Object.assign(modalProps, {
-      title: '품목 선택', path: '/hs00/HS00_000S_STR', defaultField: 'itemnm',
-      data: { gubun: 'I1', cmpycd: authStore.cmpycd, gbncd: '3', code: '', remark: '' },
-      columns: [{ title: '품목코드', field: 'itemcd', width: 100, hozAlign: 'center' }, { title: '품목명', field: 'itemnm', width: 200 }, { title: '규격', field: 'itsize', width: 150 }, { title: '단위', field: 'unit', width: 80, hozAlign: 'center' }],
-      onConfirm: (d: any) => {
-        target.update({ itemcd: d.itemcd, itemnm: d.itemnm, itsize: d.itsize, unit: d.unit, imprice: d.incost || 0, reqqty: 1, reqamt: d.incost || 0, _status: '입력', _state: 'NEW' });
-        calcRow(target);
-        setTimeout(() => target.getCell("reqqty").edit(), 150);
-      }
-    });
-    modalVisible.value = true;
+  const d = row.getData()
+  if (!d.itemcd) return
+  const amt = Math.floor(Number(d.reqqty || 0) * Number(d.imprice || 0))
+  row.update({ reqamt: amt })
+  if (d._state === 'EXIST' && d._status !== '삭제') {
+    row.update({ _status: '수정' })
   }
 }
 
-const handleRowAction = (row: any) => { const d = row.getData(); if (d._state === 'NEW') row.delete(); else row.update({ _status: d._status === '삭제' ? '' : '삭제' }); }
-const deleteSelectedRows = () => { const sel = grid2?.getSelectedRows(); if (sel?.length) sel.forEach(row => handleRowAction(row)); }
-const addRow = () => grid2?.addRow({ reqqty: 0, imprice: 0, reqamt: 0, _status: '입력', _state: 'NEW' }, false);
-
-const initialize = () => {
-    resetForm(form_02);
-    form_02.reqno = '0000'; form_02.reqymd = today; form_02.sts = 'N';
-    form_02.deptcd = authStore.deptcd; form_02.deptnm = authStore.deptnm;
-    grid1?.clearData();
-    grid2?.clearData();
-    for(let i=0; i<5; i++) grid2?.addRow({ _status: '입력', _state: 'NEW', reqqty: 0, imprice: 0, reqamt: 0 }, false);
-    nextTick(() => firstFocusRef.value?.focus());
+// 9. 주요 액션 (조회, 저장, 삭제)
+async function search() {
+  const res = await api.post('/hsio/HSIO_010U_STR', {
+    actkind: 'L',
+    cmpycd: authStore.cmpycd,
+    fromdt: form_01.fromdt.replace(/-/g, ''),
+    todt: form_01.todt.replace(/-/g, ''),
+    deptnm: form_01.deptnm
+  })
+  grid1?.setData(res.data || [])
+  vAlert('조회되었습니다(Alt+F)')
 }
+
+async function fetchDetail(row: any) {
+  const fYmd = (d: string) => (d && d.length === 8)
+    ? `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`
+    : today
+
+  Object.assign(form_02, { ...row, reqymd: fYmd(row.reqymd) })
+
+  try {
+    const res = await api.post('/hsio/HSIO_011U_STR', [{
+      actkind: 'S',
+      cmpycd: authStore.cmpycd,
+      reqym: row.reqym,
+      reqno: row.reqno,
+      ioqty: 0, ioamt: 0 // 조회 시 숫자 필드 초기화
+    }])
+    const data = (res.data || []).map((item: any) => ({
+      ...item,
+      _state: 'EXIST',
+      _status: ''
+    }))
+    // 🚀 [표준] 조회 시에는 실데이터만 출력
+    grid2?.setData(data)
+  } catch (e) {
+    vAlertError('상세 로드 실패')
+  }
+}
+
+async function save() {
+  if (isSaving.value) return
+  if (isClosed.value) return vAlertError('마감된 월입니다.')
+  if (!form_02.deptcd) return vAlertError('요청부서를 선택하세요.')
+
+  // 🚀 [표준] 무결성 필터: 상태가 명확한 실데이터만 정밀 추출
+  const details = (grid2?.getData() || []).filter((r: any) =>
+    r.itemcd && String(r.itemcd).trim() !== '' && r._status
+  ).map((d: any) => ({
+    actkind: d._status === '입력' ? 'A1' : (d._status === '삭제' ? 'D1' : 'U1'),
+    cmpycd: authStore.cmpycd,
+    reqym: form_02.reqno === '0000' ? form_02.reqymd.replace(/-/g, '').substring(0, 6) : form_02.reqym,
+    reqno: form_02.reqno,
+    rrowno: d.rrowno || '',
+    itemcd: d.itemcd,
+    reqqty: Number(d.reqqty || 0),
+    imprice: Number(d.imprice || 0),
+    reqamt: Number(d.reqamt || 0),
+    updemp: authStore.userid
+  }))
+
+  if (!details.length && (!form_02.reqno || form_02.reqno === '0000')) {
+    return vAlertError('저장할 내역이 없습니다.')
+  }
+
+  isSaving.value = true
+  try {
+    const reqymd = form_02.reqymd.replace(/-/g, '')
+    const mst = {
+      ...form_02,
+      actkind: (!form_02.reqno || form_02.reqno === '0000') ? 'A0' : 'U0',
+      reqym: reqymd.substring(0, 6),
+      reqymd: reqymd,
+      asgbn: 'N',
+      updemp: authStore.userid
+    }
+    await api.post('/hsio/HSIO_010U_SAVE', { mst, dtl: details })
+    vAlert('저장되었습니다(Alt+S)'); initialize(); search()
+  } catch (e) { vAlertError('저장 실패') } finally { isSaving.value = false }
+}
+
+const handleOpenHelp = (type: string, target?: any) => {
+  if (isClosed.value || form_02.sts === 'Y') return
+  lastActiveElement.value = document.activeElement as HTMLElement
+  if (type === 'DEPT') popVisible.dept = true
+  else if (type === 'ITEM') { activeRow = target; popVisible.item = true }
+}
+
+const handleRowAction = (row: any) => {
+  const d = row.getData()
+  if (!d.itemcd) row.delete()
+  else if (d._state === 'NEW') row.delete()
+  else row.update({ _status: d._status === '삭제' ? '' : '삭제' })
+}
+
+const addRow = () => {
+  if (isClosed.value || form_02.sts === 'Y') return
+  grid2?.addRow({ reqqty: 0, imprice: 0, reqamt: 0 }, false)
+}
+
+const deleteSelectedRows = () => grid2?.getSelectedRows().forEach(row => handleRowAction(row))
 
 async function handleFullDelete() {
-  if (!confirm('정말 전체 삭제하시겠습니까?')) return;
-  try {
-    await api.post('/hsio/HSIO_010U_STR', { ...form_02, actkind: 'D0' });
-    vAlert('삭제되었습니다(Alt+D)'); initialize(); search();
-  } catch (e) { vAlertError('삭제 실패'); }
+  if (!form_02.reqno || form_02.reqno === '0000') return vAlertError('조회 후 처리하세요.')
+  if (isClosed.value || form_02.sts === 'Y') return vAlertError('처리할 수 없는 상태입니다.')
+  if (confirm('정말 삭제하시겠습니까?')) {
+    try {
+      await api.post('/hsio/HSIO_010U_STR', { ...form_02, actkind: 'D0' })
+      vAlert('삭제되었습니다.'); initialize(); search()
+    } catch (e) { vAlertError('삭제 실패') }
+  }
 }
 
-const formatNumber = (n: any) => Number(n || 0).toLocaleString();
+function handleRemarkTab(e: KeyboardEvent) {
+  if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault()
+    if (grid2) {
+      const rows = grid2.getRows()
+      if (rows.length > 0) setTimeout(() => rows[0].getCell("itemnm").edit(), 100)
+    }
+  }
+}
 
-onUnmounted(() => { if (grid1) grid1.destroy(); if (grid2) grid2.destroy(); });
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'f') { e.preventDefault(); search() }
+    else if (key === 's') { e.preventDefault(); if(form_02.sts !== 'Y' && !isClosed.value) save() }
+    else if (key === 'n') { e.preventDefault(); initialize() }
+    else if (key === 'd') { e.preventDefault(); if(form_02.sts !== 'Y' && !isClosed.value) handleFullDelete() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HSIO010U') }
+  }
+}
 
+// 10. 라이프사이클 훅
 onMounted(async () => {
-    nextTick(initGrids);
-    api.get('/hp00/hp00_000s_str', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } }).then(r => { if(r.data?.length) closingInfo.sclsym = r.data[0].sclsym; });
-    initialize();
+  grid1 = new Tabulator(tableRef1.value!, {
+    layout: "fitColumns", height: "100%",
+    columns: [
+      { title: "No", formatter: "rownum", width: 40 },
+      { title: "요청부서", field: "deptnm", hozAlign: "left" },
+      { title: "요청번호", field: "reqno_full", hozAlign: "center", width: 120, cssClass: "fw-bold text-primary",
+        formatter: (c) => { const d = c.getData(); return `${d.reqym}-${d.reqno}`; }
+      }
+    ]
+  })
+  grid1.on("rowClick", (e, row) => fetchDetail(row.getData()))
+
+  grid2 = new Tabulator(tableRef2.value!, {
+    layout: "fitColumns", height: "100%", selectable: true,
+    columnDefaults: { headerHozAlign: 'center', headerSort: false, vertAlign: "middle" },
+    columns: [
+      { title: "", width: 40, hozAlign: "center", headerHozAlign: "center", formatter: "rowSelection", titleFormatter: "rowSelection" },
+      { title: "상태", field: "_status", width: 60, hozAlign: "center", formatter: (c) => {
+          const v = c.getValue();
+          if (v === '입력') return '<span class="badge bg-primary">신규</span>'
+          if (v === '수정') return '<span class="badge bg-warning text-dark">수정</span>'
+          if (v === '삭제') return '<span class="badge bg-danger">삭제</span>'
+          return ''
+      }},
+      { title: "품목명", field: "itemnm", minWidth: 200, widthGrow: 1, cssClass: 'fw-bold text-primary', editor: lookupEditor, cellDblClick: (e, cell) => handleOpenHelp('ITEM', cell.getRow()), cellClick: (e, cell) => { if(form_02.sts !== 'Y') cell.edit() } },
+      { title: "규격", field: "itsize", width: 120 },
+      { title: "단위", field: "unit", width: 80, hozAlign: "center" },
+      { title: "수량", field: "reqqty", width: 100, hozAlign: "right", editor: "number", cellEdited: (cell) => calcRow(cell.getRow()) },
+      { title: "단가", field: "imprice", width: 100, hozAlign: "right", editor: "number", cellEdited: (cell) => calcRow(cell.getRow()) },
+      { title: "금액", field: "reqamt", width: 120, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
+      { title: "삭제", width: 40, formatter: () => "<i class='bi bi-trash text-danger'></i>", cellClick: (e, cell) => handleRowAction(cell.getRow()) }
+    ]
+  })
+
+  grid2.on("tableBuilt", () => initialize())
+
+  api.get('/hp00/HP00_000S_STR', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } }).then(r => { if(r.data?.length) closingInfo.sclsym = r.data[0].sclsym })
+  window.addEventListener('keydown', handleGlobalShortcuts)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
+  searchStore.removeTab(route.name as string)
 })
 </script>
 
 <style scoped>
 .tabulator-instance { width: 100% !important; background-color: #fff; font-size: 12px; }
-input:focus, select:focus, button:focus { border-color: #005a9f !important; box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important; outline: none; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
 </style>

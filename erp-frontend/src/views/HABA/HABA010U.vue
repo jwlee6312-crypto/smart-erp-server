@@ -125,8 +125,8 @@ const initgrid = () => {
 
 async function fetchoptions() {
   try {
-    const r1 = await api.get('/hs00/hs00_000s_str', { params: { gubun: 'e0', cmpycd: authstore.cmpycd, gbncd: '100' } })
-    const r2 = await api.get('/hs00/hs00_000s_str', { params: { gubun: 'U0', cmpycd: authstore.cmpycd, gbncd: '', code: '' } })
+    const r1 = await api.get('/hs00/HS00_000S_STR', { params: { gubun: 'e0', cmpycd: authstore.cmpycd, gbncd: '100' } })
+    const r2 = await api.get('/hs00/HS00_000S_STR', { params: { gubun: 'U0', cmpycd: authstore.cmpycd, gbncd: '', code: '' } })
     assetoptions.value = r1.data.map((n: any) => ({ codecd: n.code || n.codecd, codenm: n.cdnm || n.codenm }))
     unitoptions.value = r2.data.map((n: any) => ({ codecd: n.unit, codenm: n.unitnm }))
   } catch (e) {}
@@ -134,7 +134,7 @@ async function fetchoptions() {
 
 async function search() {
   try {
-    const res = await api.post('/hsba/hsba_010u_str', { actkind: 'S0', cmpycd: authstore.cmpycd, astkind: masterdata.astkind, itemnm: '', icqty: 0, ocqty: 0, imprice: 0, omprice: 0, stock: 0, qtypnt: 0 })
+    const res = await api.post('/hsba/HSBA_010U_STR', { actkind: 'S0', cmpycd: authstore.cmpycd, astkind: masterdata.astkind, itemnm: '', icqty: 0, ocqty: 0, imprice: 0, omprice: 0, stock: 0, qtypnt: 0 })
     grid?.setData(res.data || []);
   } catch (e) { valerterror('조회 실패') }
 }
@@ -143,7 +143,7 @@ async function save() {
   if (!masterdata.itemnm || !masterdata.itemcd) return valerterror('품목코드와 명칭은 필수입니다.')
   if (!confirm('저장하시겠습니까?')) return
   try {
-    await api.post('/hsba/hsba_010u_str', { ...masterdata, userid: authstore.userid })
+    await api.post('/hsba/HSBA_010U_STR', { ...masterdata, userid: authstore.userid })
     valert('저장되었습니다.'); search(); initialize()
   } catch (e) { valerterror('저장 오류') }
 }

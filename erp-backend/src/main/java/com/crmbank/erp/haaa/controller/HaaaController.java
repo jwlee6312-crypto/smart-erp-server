@@ -1,7 +1,7 @@
 package com.crmbank.erp.haaa.controller;
 
-import com.crmbank.erp.haaa.mapper.HaaaMapper;
 import com.crmbank.erp.comm.dto.UserSession;
+import com.crmbank.erp.haaa.mapper.HaaaMapper;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,13 +10,14 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.sql.*;
 import java.util.*;
 
+/**
+ * [HAAA] 공통코드/시스템관리 통합 컨트롤러 (사용자 정의 최종 표준형)
+ */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/haaa")
@@ -25,108 +26,102 @@ public class HaaaController {
 
     private final HaaaMapper haaaMapper;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
+    // ==========================================
+    // 1. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
 
-        String proc = procedure.toUpperCase();
-
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
-        }
-
+    @PostMapping("/HAAA_010U_STR")
+    public ResponseEntity<?> callHAAA_010U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
         injectSession(params, session);
-        String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
+        fillMissingParameters("HAAA_010U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAAA_010U_STR", params));
 
-        try {
-            fillMissingParameters(proc, params);
-            log.info("📋 [haaa] 실행 요청: {}", proc);
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S1")).toUpperCase();
+        List<Map<String, Object>> raw = haaaMapper.HAAA_010U_STR(params);
 
-            List<Map<String, Object>> rawResult;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                rawResult = executeJdbcQuery(proc, params);
-            } else {
-                rawResult = switch (proc) {
-                    case "HAAA_010U_STR" -> haaaMapper.HAAA_010U_STR(params);
-                    case "HAAA_800U_STR" -> haaaMapper.HAAA_800U_STR(params);
-                    case "HAAA_810U_STR" -> haaaMapper.HAAA_810U_STR(params);
-                    default -> null;
-                };
-            }
+        if ("S1".equals(actkind) || "S2".equals(actkind) || "S3".equals(actkind) || "SR".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
-            if (rawResult == null) return ResponseEntity.notFound().build();
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-            List<Map<String, Object>> finalResult = rawResult.isEmpty() ?
-                    List.of(Map.of("res", "OK")) : rawResult;
-
-            return ResponseEntity.ok(convertToLowerCaseKeys(finalResult));
-
-        } catch (Exception e) {
-            log.error("❌ [haaa] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    private List<Map<String, Object>> executeJdbcQuery(String proc, Map<String, Object> params) {
-        String positionalSql = buildPositionalSql(proc, params);
-        log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
+    @PostMapping("/HAAA_800U_STR")
+    public ResponseEntity<?> callHAAA_800U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAAA_800U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAAA_800U_STR", params));
 
-        return jdbcTemplate.execute((Connection conn) -> {
-            try (Statement stmt = conn.createStatement()) {
-                boolean isResultSet = stmt.execute(positionalSql);
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = haaaMapper.HAAA_800U_STR(params);
 
-                // ResultSet이 나올 때까지 혹은 더 이상 결과가 없을 때까지 Update Count 건너뜀
-                while (!isResultSet && stmt.getUpdateCount() != -1) {
-                    isResultSet = stmt.getMoreResults();
-                }
+        if ( "S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
-                if (isResultSet) {
-                    try (ResultSet rs = stmt.getResultSet()) {
-                        List<Map<String, Object>> resultList = new ArrayList<>();
-                        ResultSetMetaData metaData = rs.getMetaData();
-                        int colCount = metaData.getColumnCount();
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-                        while (rs.next()) {
-                            Map<String, Object> row = new LinkedHashMap<>();
-                            List<Object> values = new ArrayList<>();
-                            for (int i = 1; i <= colCount; i++) {
-                                Object val = rs.getObject(i);
-                                String colName = metaData.getColumnLabel(i);
-                                if (colName == null || colName.isEmpty()) colName = "col_" + (i - 1);
-                                row.put(colName.toLowerCase(), val == null ? "" : val);
-                                values.add(val == null ? "" : val);
-                            }
-                            row.put("returnkeyvalue", values);
-                            resultList.add(row);
-                        }
-                        return resultList;
-                    }
-                }
-                return Collections.emptyList();
-            }
-        });
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            map.forEach((k, v) -> newMap.put(k.toLowerCase(), v));
-            newList.add(newMap);
+    @PostMapping("/HAAA_810U_STR")
+    public ResponseEntity<?> callHAAA_810U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAAA_810U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAAA_810U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = haaaMapper.HAAA_810U_STR(params);
+
+        if ( "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
-        return newList;
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 2. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
         UserSession user = (UserSession) session.getAttribute("user_session");
         if (user != null) {
-            params.putIfAbsent("cmpycd", user.getCmpycd());
-            params.putIfAbsent("userid", user.getUserid());
+            if (params.get("cmpycd") == null || params.get("cmpycd").toString().trim().isEmpty()) {
+                params.put("cmpycd", user.getCmpycd());
+            }
+            if (params.get("userid") == null || params.get("userid").toString().trim().isEmpty()) {
+                params.put("userid", user.getUserid());
+            }
             params.put("updemp", user.getUserid());
         }
     }
@@ -137,29 +132,46 @@ public class HaaaController {
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
             MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
             BoundSql boundSql = ms.getBoundSql(params);
+
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
                 String prop = pm.getProperty();
                 if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
-                    params.putIfAbsent(prop.trim(), "");
+                    String cleanProp = prop.trim();
+                    if (!params.containsKey(cleanProp) || params.get(cleanProp) == null || params.get(cleanProp).toString().trim().isEmpty()) {
+                        params.put(cleanProp, "");
+                    }
+                    if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
             }
-        } catch (Exception e) { log.warn("🛠 누락 파라미터 보정 중 알림 ({}): {}", proc, e.getMessage()); }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
             String statementId = HaaaMapper.class.getName() + "." + proc;
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
-            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
-            BoundSql boundSql = ms.getBoundSql(params);
-
+            BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
+
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
                 Object val = params.get(pm.getProperty().trim());
-                String valStr = (val == null) ? "''" : "'" + val.toString().replace("'", "''").trim() + "'";
+                String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }
             return String.format("EXEC %s %s", proc, String.join(", ", values));
         } catch (Exception e) { return "EXEC " + proc; }
+    }
+
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
+            newList.add(newMap);
+        }
+        return newList;
     }
 }

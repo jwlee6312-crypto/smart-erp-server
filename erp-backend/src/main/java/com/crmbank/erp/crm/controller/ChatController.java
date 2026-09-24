@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/common/chat")
@@ -45,7 +44,7 @@ public class ChatController {
     }
 
     @GetMapping("/messages")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMessages(@RequestParam(name = "email") String email) {
+    public ResponseEntity<ApiResponse<List<Map>>> getMessages(@RequestParam(name = "email") String email) {
         try {
             // 💡 TRACE 레벨로 변경하여 폴링 로그 노이즈 제거
             log.trace("[Polling] Email: {}", email);
@@ -85,11 +84,8 @@ public class ChatController {
         private String email;
         private String name;
         private String content;
-        @SuppressWarnings("unused")
         public void setEMAIL(String email) { this.email = email; }
-        @SuppressWarnings("unused")
         public void setCONTENT(String content) { this.content = content; }
-        @SuppressWarnings("unused")
         public void setNAME(String name) { this.name = name; }
     }
 }

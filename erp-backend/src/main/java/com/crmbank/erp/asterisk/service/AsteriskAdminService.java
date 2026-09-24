@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,11 +64,10 @@ public class AsteriskAdminService {
         }
     }
 
-    @Value("${asterisk.tts.script.path:}")
+    @Value("${asterisk.tts.script.path}")
     private String ttsScriptPath;
 
     private void generateTtsFile(String scriptId, String text) {
-        if (ttsScriptPath == null || ttsScriptPath.isEmpty()) return;
         try {
             String[] command = {"python3", ttsScriptPath, scriptId, text};
             log.info("🎙️ TTS 생성 시도: {} {} (Script: {})", scriptId, text, ttsScriptPath);
@@ -77,5 +77,26 @@ public class AsteriskAdminService {
         } catch (Exception e) {
             log.error("❌ TTS 생성 실패: {}", e.getMessage());
         }
+    }
+
+    @Value("${backend.internal.url:http://erp-backend:8080}")
+    private String backendInternalUrl;
+
+    public List<Map<String, Object>> getStandardIvrTemplate() {
+        List<Map<String, Object>> template = new ArrayList<>();
+        addExten(template, "from-internal", "999", 1, "NoOp", "### IVR Entry ###");
+        addExten(template, "from-internal", "999", 2, "Answer", "");
+        addExten(template, "from-internal", "999", 3, "Goto", "ivr-main,s,1");
+        return template;
+    }
+
+    private void addExten(List<Map<String, Object>> list, String ctx, String ext, int pri, String app, String arg) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("context", ctx);
+        row.put("exten", ext);
+        row.put("priority", pri);
+        row.put("app", app);
+        row.put("appdata", arg);
+        list.add(row);
     }
 }

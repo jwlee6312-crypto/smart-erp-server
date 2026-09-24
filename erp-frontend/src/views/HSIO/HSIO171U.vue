@@ -133,11 +133,11 @@ const initGrid = () => {
 const fetchList = async () => {
   if (!searchData.jsanym) return vAlertError('정산연월을 선택하세요.')
   try {
-    const res = await api.post('/hsio/HSIO_171U_STR', {
+    const res = await api.post('/hsio/HSIO_171U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       jsanym: searchData.jsanym
-    })
+    }])
     grid?.setData(res.data)
     vAlert('조회되었습니다.')
   } catch (e) {
@@ -162,7 +162,7 @@ const saveData = async () => {
   try {
     for (const item of selectedData) {
       // 1. 전표 생성 (A0)
-      const resA0 = await api.post('/hsio/HSIO_171U_STR', {
+      const resA0 = await api.post('/hsio/HSIO_171U_STR', [{
         actkind: 'A0',
         cmpycd: authStore.cmpycd,
         userid: authStore.userid,
@@ -171,12 +171,12 @@ const saveData = async () => {
         halamt: item.halamt,
         deptcd: formData.deptcd,
         slipymd: formData.slipymd
-      })
+      }])
 
       const slipNo = resA0.data?.[0]?.slipno || ''
 
       // 2. 전표 정보 업데이트 (U0)
-      const resU0 = await api.post('/hsio/HSIO_171U_STR', {
+      const resU0 = await api.post('/hsio/HSIO_171U_STR', [{
         actkind: 'U0',
         cmpycd: authStore.cmpycd,
         userid: authStore.userid,

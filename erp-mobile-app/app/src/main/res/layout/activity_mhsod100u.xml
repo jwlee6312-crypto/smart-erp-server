@@ -153,63 +153,6 @@
                 android:paddingStart="12dp"
                 android:layout_marginBottom="12dp"/>
 
-            <!-- 배송처 & 주소 정보 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="배송처"
-                android:textSize="12sp"
-                android:textColor="#333333"
-                android:layout_marginBottom="4dp"/>
-            <EditText
-                android:id="@+id/etTranNm"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_input_field"
-                android:focusable="false"
-                android:hint="배송처 선택"
-                android:textColor="#333333"
-                android:textSize="13sp"
-                android:paddingStart="12dp"
-                android:layout_marginBottom="8dp"/>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
-                <EditText
-                    android:id="@+id/etPostNo"
-                    android:layout_width="80dp"
-                    android:layout_height="40dp"
-                    android:background="@drawable/bg_input_field"
-                    android:hint="우편번호"
-                    android:paddingStart="12dp"
-                    android:textSize="12sp"
-                    android:layout_marginEnd="4dp"
-                    android:focusable="false"/>
-                <EditText
-                    android:id="@+id/etAddress"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_input_field"
-                    android:hint="기본 주소"
-                    android:paddingStart="12dp"
-                    android:textSize="12sp"
-                    android:focusable="false"/>
-            </LinearLayout>
-
-            <EditText
-                android:id="@+id/etDAddress"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_input_field"
-                android:hint="상세 주소 입력"
-                android:paddingStart="12dp"
-                android:textSize="12sp"
-                android:layout_marginBottom="12dp"/>
-
             <!-- 특이사항 -->
             <TextView
                 android:layout_width="wrap_content"

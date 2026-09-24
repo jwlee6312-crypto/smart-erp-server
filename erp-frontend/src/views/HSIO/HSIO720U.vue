@@ -190,7 +190,7 @@ async function fetchDetail(row: any) {
     const res = await api.post('/hsio/HSIO_720U_STR', { ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd })
     if (res.data?.length) {
       Object.assign(formData, res.data[0])
-      const resItems = await api.post('/hsio/HSIO_721U_STR', { ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd })
+      const resItems = await api.post('/hsio/HSIO_721U_STR', [{ ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd }])
       itemGrid?.setData(resItems.data?.map((i: any) => ({ ...i, upkind: 'U' })) || [])
     }
   } catch (e) { vAlertError('상세 조회 실패') }

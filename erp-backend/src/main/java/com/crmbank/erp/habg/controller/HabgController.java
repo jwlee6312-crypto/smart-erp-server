@@ -10,12 +10,14 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * [HABG] 예산관리 통합 컨트롤러 (사용자 정의 최종 표준형)
+ */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/habg")
@@ -24,109 +26,209 @@ public class HabgController {
 
     private final HabgMapper habgMapper;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
+    // ==========================================
+    // 1. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
 
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
+    @PostMapping("/HABG_010U_STR")
+    public ResponseEntity<?> callHABG_010U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_010U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABG_010U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = habgMapper.HABG_010U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
-
-        String proc = procedure.toUpperCase();
-        try {
-            injectSession(params, session);
-            fillMissingParameters(proc, params);
-
-            String actkind = Objects.requireNonNullElse(params.get("actkind"), "").toString().toUpperCase();
-            if (proc.length() >= 9 && proc.charAt(8) == 'U' && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String validationMsg = validateParameters(proc, params);
-                if (validationMsg != null) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                            "status", "VALIDATION_ERROR",
-                            "message", "🛠 [PROGRAM VALID ALARM]\n" + validationMsg
-                    ));
-                }
-            }
-
-            log.info("📋 [habg] 실행 요청: {}", proc);
-
-            List<Map<String, Object>> result;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                result = executeJdbcQuery(proc, params);
-            } else {
-                result = switch (proc) {
-                    case "HABG_010U_STR" -> habgMapper.HABG_010U_STR(params);
-                    case "HABG_020S_STR" -> habgMapper.HABG_020S_STR(params);
-                    case "HABG_030U_STR" -> habgMapper.HABG_030U_STR(params);
-                    case "HABG_050U_STR" -> habgMapper.HABG_050U_STR(params);
-                    case "HABG_060U_STR" -> habgMapper.HABG_060U_STR(params);
-                    case "HABG_070S_STR" -> habgMapper.HABG_070S_STR(params);
-                    case "HABG_110U_STR" -> habgMapper.HABG_110U_STR(params);
-                    case "HABG_120U_STR" -> habgMapper.HABG_120U_STR(params);
-                    case "HABG_210S_STR" -> habgMapper.HABG_210S_STR(params);
-                    case "HABG_220S_STR" -> habgMapper.HABG_220S_STR(params);
-                    case "HABG_230S_STR" -> habgMapper.HABG_230S_STR(params);
-                    default -> null;
-                };
-                if (result == null) {
-                    log.warn("❌ [habg] Unregistered procedure: {}", proc);
-                    return ResponseEntity.notFound().build();
-                }
-            }
-
-            if (result.isEmpty()) {
-                result = List.of(Map.of("res", "OK"));
-            }
-
-            // 🚀 모든 결과를 소문자로 강제 변환하여 프론트엔드 표준 준수
-            return ResponseEntity.ok(convertToLowerCaseKeys(result));
-
-        } catch (Exception e) {
-            log.error("❌ [habg] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    private List<Map<String, Object>> executeJdbcQuery(String proc, Map<String, Object> params) {
-        String positionalSql = buildPositionalSql(proc, params);
-        log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
+    @PostMapping("/HABG_030U_STR")
+    public ResponseEntity<?> callHABG_030U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_030U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABG_030U_STR", params));
 
-        return jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            List<Object> values = new ArrayList<>();
-            int colCount = rs.getMetaData().getColumnCount();
-            for (int i = 1; i <= colCount; i++) {
-                Object val = rs.getObject(i);
-                String colName = rs.getMetaData().getColumnLabel(i);
-                if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
-                row.put(colName.toLowerCase(), val == null ? "" : val);
-                values.add(val == null ? "" : val);
-            }
-            row.put("returnkeyvalue", values);
-            return row;
-        });
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = habgMapper.HABG_030U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            map.forEach((k, v) -> newMap.put(k.toLowerCase(), v));
-            newList.add(newMap);
+    @PostMapping("/HABG_050U_STR")
+    public ResponseEntity<?> callHABG_050U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_050U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABG_050U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = habgMapper.HABG_050U_STR(params);
+
+        if ("S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
-        return newList;
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HABG_060U_STR")
+    public ResponseEntity<?> callHABG_060U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_060U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABG_060U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = habgMapper.HABG_060U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HABG_110U_STR")
+    public ResponseEntity<?> callHABG_110U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_110U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABG_110U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = habgMapper.HABG_110U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HABG_120U_STR")
+    public ResponseEntity<?> callHABG_120U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_120U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABG_120U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = habgMapper.HABG_120U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 2. S_STR 현황 및 조회 프로시저 (1:1 직결 매핑)
+    // ==========================================
+
+    @PostMapping("/HABG_020S_STR")
+    public ResponseEntity<?> callHABG_020S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_020S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HABG_020S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(habgMapper.HABG_020S_STR(params)));
+    }
+
+    @PostMapping("/HABG_070S_STR")
+    public ResponseEntity<?> callHABG_070S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_070S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HABG_070S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(habgMapper.HABG_070S_STR(params)));
+    }
+
+    @PostMapping("/HABG_210S_STR")
+    public ResponseEntity<?> callHABG_210S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_210S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HABG_210S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(habgMapper.HABG_210S_STR(params)));
+    }
+
+    @PostMapping("/HABG_220S_STR")
+    public ResponseEntity<?> callHABG_220S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_220S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HABG_220S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(habgMapper.HABG_220S_STR(params)));
+    }
+
+    @PostMapping("/HABG_230S_STR")
+    public ResponseEntity<?> callHABG_230S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HABG_230S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HABG_230S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(habgMapper.HABG_230S_STR(params)));
+    }
+
+    // ==========================================
+    // 3. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
         UserSession user = (UserSession) session.getAttribute("user_session");
         if (user != null) {
-            params.putIfAbsent("cmpycd", user.getCmpycd());
-            params.putIfAbsent("userid", user.getUserid());
+            if (params.get("cmpycd") == null || params.get("cmpycd").toString().trim().isEmpty()) {
+                params.put("cmpycd", user.getCmpycd());
+            }
+            if (params.get("userid") == null || params.get("userid").toString().trim().isEmpty()) {
+                params.put("userid", user.getUserid());
+            }
             params.put("updemp", user.getUserid());
         }
     }
@@ -141,18 +243,21 @@ public class HabgController {
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
                 String prop = pm.getProperty();
                 if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
-                    params.putIfAbsent(prop.trim(), "");
+                    String cleanProp = prop.trim();
+                    if (!params.containsKey(cleanProp) || params.get(cleanProp) == null || params.get(cleanProp).toString().trim().isEmpty()) {
+                        params.put(cleanProp, "");
+                    }
+                    if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
             }
-        } catch (Exception e) { log.warn("🛠 누락 파라미터 보정 중 알림 ({}): {}", proc, e.getMessage()); }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
             String statementId = HabgMapper.class.getName() + "." + proc;
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
-            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
-            BoundSql boundSql = ms.getBoundSql(params);
+            BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
 
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
@@ -164,22 +269,16 @@ public class HabgController {
         } catch (Exception e) { return "EXEC " + proc; }
     }
 
-    private String validateParameters(String proc, Map<String, Object> vueParams) {
-        try {
-            String statementId = HabgMapper.class.getName() + "." + proc;
-            if (!sqlSession.getConfiguration().hasStatement(statementId)) return null;
-            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
-            BoundSql boundSql = ms.getBoundSql(vueParams);
-            List<ParameterMapping> xmlMappings = boundSql.getParameterMappings();
-            Set<String> xmlKeys = new LinkedHashSet<>();
-            for (ParameterMapping pm : xmlMappings) {
-                String prop = pm.getProperty();
-                if (prop != null && !prop.startsWith("_") && !prop.contains(".")) xmlKeys.add(prop);
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
             }
-            if (vueParams.size() < xmlKeys.size()) {
-                return String.format("📍 [PARAM SHORTAGE] XML:%d > VUE:%d\n📋 [REQUIRED]: %s", xmlKeys.size(), vueParams.size(), xmlKeys);
-            }
-            return null;
-        } catch (Exception e) { return "VALIDATION ERROR: " + e.getMessage(); }
+            newList.add(newMap);
+        }
+        return newList;
     }
 }

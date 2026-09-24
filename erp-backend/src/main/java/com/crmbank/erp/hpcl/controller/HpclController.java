@@ -10,12 +10,14 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * [HPCL] 생산수불/마감 통합 컨트롤러 (사용자 정의 최종 표준형)
+ */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hpcl")
@@ -24,88 +26,111 @@ public class HpclController {
 
     private final HpclMapper hpclMapper;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
-        
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
-        }
+    // ==========================================
+    // 1. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
 
+    @PostMapping("/HPCL_100U_STR")
+    public ResponseEntity<?> callHPCL_100U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
         injectSession(params, session);
-        String proc = procedure.toUpperCase();
-        String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
+        fillMissingParameters("HPCL_100U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPCL_100U_STR", params));
 
-        try {
-            fillMissingParameters(proc, params);
-            log.info("🚀 [hpcl] 실행 요청: {}", proc);
-            
-            List<Map<String, Object>> result;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String positionalSql = buildPositionalSql(proc, params);
-                log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
+        List<Map<String, Object>> raw = hpclMapper.HPCL_100U_STR(params);
 
-                result = jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    List<Object> values = new ArrayList<>();
-                    int colCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= colCount; i++) {
-                        Object val = rs.getObject(i);
-                        String colName = rs.getMetaData().getColumnLabel(i); 
-                        if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
-                        row.put(colName.toLowerCase(), val == null ? "" : val);
-                        values.add(val == null ? "" : val);
-                    }
-                    row.put("returnkeyvalue", values); // 💡 시스템 표준에 맞춰 소문자로 지정
-                    return row;
-                });
-                log.info("🎯 [무결성 직접 수신 성공] 데이터: {}", result);
-            } else {
-                switch (proc) {
-                    case "HPCL_100U_STR": result = hpclMapper.HPCL_100U_STR(params); break;
-                    case "HPCL_110U_STR": result = hpclMapper.HPCL_110U_STR(params); break;
-                    case "HPCL_200S_STR": result = hpclMapper.HPCL_200S_STR(params); break;
-                    case "HPCL_210S_STR": result = hpclMapper.HPCL_210S_STR(params); break;
-                    case "HPCL_220S_STR": result = hpclMapper.HPCL_220S_STR(params); break;
-                    case "HPCL_230S_STR": result = hpclMapper.HPCL_230S_STR(params); break;
-                    case "HPCL_240S_STR": result = hpclMapper.HPCL_240S_STR(params); break;
-                    default:
-                        return ResponseEntity.notFound().build();
-                }
-            }
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-            if (result == null || result.isEmpty()) {
-                result = List.of(Map.of("res", "OK"));
-            }
-            
-            // 🚀 모든 결과를 소문자로 강제 변환하여 프론트엔드 표준 준수
-            return ResponseEntity.ok(convertToLowerCaseKeys(result));
-
-        } catch (Exception e) {
-            log.error("❌ [hpcl] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    /**
-     * Map의 모든 Key를 소문자로 변환하여 일관성 보장
-     */
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        if (list == null) return new ArrayList<>();
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
-            }
-            newList.add(newMap);
+    @PostMapping("/HPCL_110U_STR")
+    public ResponseEntity<?> callHPCL_110U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPCL_110U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPCL_110U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpclMapper.HPCL_110U_STR(params);
+
+        if ("S".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
-        return newList;
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 2. S_STR 현황 및 조회 프로시저 (1:1 직결 매핑)
+    // ==========================================
+
+    @PostMapping("/HPCL_200S_STR")
+    public ResponseEntity<?> callHPCL_200S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPCL_200S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPCL_200S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpclMapper.HPCL_200S_STR(params)));
+    }
+
+    @PostMapping("/HPCL_210S_STR")
+    public ResponseEntity<?> callHPCL_210S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPCL_210S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPCL_210S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpclMapper.HPCL_210S_STR(params)));
+    }
+
+    @PostMapping("/HPCL_220S_STR")
+    public ResponseEntity<?> callHPCL_220S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPCL_220S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPCL_220S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpclMapper.HPCL_220S_STR(params)));
+    }
+
+    @PostMapping("/HPCL_230S_STR")
+    public ResponseEntity<?> callHPCL_230S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPCL_230S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPCL_230S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpclMapper.HPCL_230S_STR(params)));
+    }
+
+    @PostMapping("/HPCL_240S_STR")
+    public ResponseEntity<?> callHPCL_240S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPCL_240S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPCL_240S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpclMapper.HPCL_240S_STR(params)));
+    }
+
+    // ==========================================
+    // 3. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
@@ -123,7 +148,7 @@ public class HpclController {
 
     private void fillMissingParameters(String proc, Map<String, Object> params) {
         try {
-            String statementId = "com.crmbank.erp.hpcl.mapper.HpclMapper." + proc;
+            String statementId = HpclMapper.class.getName() + "." + proc;
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
             MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
             BoundSql boundSql = ms.getBoundSql(params);
@@ -138,23 +163,18 @@ public class HpclController {
                     if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
             }
-        } catch (Exception e) { log.warn("🛠 누락 파라미터 보정 중 알림 ({}): {}", proc, e.getMessage()); }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
-            // 💡 [주의] 이 부분만 해당 컨트롤러의 매퍼 클래스명으로 수정하세요 (예: HsodMapper.class)
             String statementId = HpclMapper.class.getName() + "." + proc;
-
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
 
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
-                // XML에 정의된 #{이름}과 100% 일치하는 값만 추출 (VUE 순서 상관없음)
                 Object val = params.get(pm.getProperty().trim());
-
-                // NULL/공백 치환 및 유니코드(N) 처리하여 왜곡 차단
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }
@@ -162,4 +182,16 @@ public class HpclController {
         } catch (Exception e) { return "EXEC " + proc; }
     }
 
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
+            newList.add(newMap);
+        }
+        return newList;
+    }
 }

@@ -377,7 +377,7 @@ onMounted(async () => {
 	api.post('/ha00/HA00_00P_STR', { gubun: 'E2', cmpycd: authStore.cmpycd }).then(r => {
 		if (r.data) posOptions.value = r.data
 	})
-	api.post('/hs00/hs00_000s_str', { gubun: 'GB', cmpycd: authStore.cmpycd, gbncd: '600' }).then(r => {
+	api.post('/hs00/HS00_000S_STR', { gubun: 'GB', cmpycd: authStore.cmpycd, gbncd: '600' }).then(r => {
 		if (r.data) grpOptions.value = r.data
 	})
 	fetchList()

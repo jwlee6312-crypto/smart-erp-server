@@ -2,25 +2,20 @@ package com.crmbank.erp.hsip.controller;
 
 import com.crmbank.erp.comm.dto.ApiResponse;
 import com.crmbank.erp.comm.dto.UserSession;
-import com.crmbank.erp.hsip.dto.Hsip100uRequest;
-import com.crmbank.erp.hsip.dto.Hsip120uSaveRequest;
-import com.crmbank.erp.hsip.dto.Hsip140uSaveRequest;
-import com.crmbank.erp.hsip.dto.Hsip145uSaveRequest;
-import com.crmbank.erp.hsip.dto.Hsip150uCancelRequest;
+import com.crmbank.erp.hsip.dto.*;
 import com.crmbank.erp.hsip.mapper.HsipMapper;
 import com.crmbank.erp.hsip.service.HsipService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
@@ -36,7 +31,10 @@ public class HsipController {
     private final HsipMapper hsipMapper;
     private final HsipService hsipService;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
+
+    // ==========================================
+    // 1. _SAVE / _CANCEL 트랜잭션 서비스
+    // ==========================================
 
     @PostMapping("/HSIP_120U_SAVE")
     public ResponseEntity<?> saveCustomsStock(@RequestBody Hsip120uSaveRequest request, HttpSession session) {
@@ -118,118 +116,446 @@ public class HsipController {
         }
     }
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(@PathVariable String procedure, @RequestBody Map<String, Object> params, HttpSession session) {
-        String proc = procedure.toUpperCase();
-        UserSession user = (UserSession) session.getAttribute("user_session");
-        if (user == null) return ResponseEntity.status(401).build();
+    // ==========================================
+    // 2. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
 
-        try {
-            // 💡 표준 파라미터 강제 세팅 (updemp 포함)
-            params.put("cmpycd", user.getCmpycd());
-            params.put("userid", user.getUserid());
-            params.put("updemp", user.getUserid());
+    @PostMapping("/HSIP_100U_STR")
+    public ResponseEntity<?> callHSIP_100U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_100U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_100U_STR", params));
 
-            List<Map<String, Object>> resultList;
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_100U_STR(params);
 
-            if (params.get("items") instanceof List<?> items) {
-                resultList = new ArrayList<>();
-                for (Object itemObj : items) {
-                    if (itemObj instanceof Map<?, ?> item) {
-                        Map<String, Object> p = new HashMap<>(params);
-                        item.forEach((k, v) -> p.put(String.valueOf(k), v));
-                        p.remove("items");
-                        resultList.addAll(executeInternal(proc, p));
-                    }
-                }
-            } else {
-                resultList = executeInternal(proc, params);
-            }
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
-            return ResponseEntity.ok(convertToLowerCaseKeys(resultList));
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        } catch (Exception e) {
-            log.error("❌ [HSIP] {} Error: {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "issymd");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("issymd")));
         }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    private List<Map<String, Object>> executeInternal(String proc, Map<String, Object> params) {
-        String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase().trim();
-
-        // 💡 표준: 쓰기 액션(A, U, D, DR) 및 집계(C)인 경우 무결성 수신을 위해 직접 실행 및 로깅
-        if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U") || actkind.startsWith("D") || actkind.equals("DR") || actkind.equals("C"))) {
-            return executeDirectSql(proc, params);
-        }
-
-        // 💡 사용자 정의 표준: 명시적인 Switch-Case 호출
-        List<Map<String, Object>> result = switch (proc) {
-            case "HSIP_100U_STR" -> hsipMapper.HSIP_100U_STR(params);
-            case "HSIP_101U_STR" -> hsipMapper.HSIP_101U_STR(params);
-            case "HSIP_110U_STR" -> hsipMapper.HSIP_110U_STR(params);
-            case "HSIP_111U_STR" -> hsipMapper.HSIP_111U_STR(params);
-            case "HSIP_112U_STR" -> hsipMapper.HSIP_112U_STR(params);
-            case "HSIP_120U_STR" -> hsipMapper.HSIP_120U_STR(params);
-            case "HSIP_121U_STR" -> hsipMapper.HSIP_121U_STR(params);
-            case "HSIP_122U_STR" -> hsipMapper.HSIP_122U_STR(params);
-            case "HSIP_130U_STR" -> hsipMapper.HSIP_130U_STR(params);
-            case "HSIP_131U_STR" -> hsipMapper.HSIP_131U_STR(params);
-            case "HSIP_140U_STR" -> hsipMapper.HSIP_140U_STR(params);
-            case "HSIP_145U_STR" -> hsipMapper.HSIP_145U_STR(params);
-            case "HSIP_150U_STR" -> hsipMapper.HSIP_150U_STR(params);
-            case "HSIP_155U_STR" -> hsipMapper.HSIP_155U_STR(params);
-            case "HSIP_160U_STR" -> hsipMapper.HSIP_160U_STR(params);
-            case "HSIP_180U_STR" -> hsipMapper.HSIP_180U_STR(params);
-            case "HSIP_200S_STR" -> hsipMapper.HSIP_200S_STR(params);
-            case "HSIP_210S_STR" -> hsipMapper.HSIP_210S_STR(params);
-            default -> {
-                List<Map<String, Object>> mappedResult = invokeMapper(proc, params);
-                yield (mappedResult != null) ? mappedResult : executeDirectSql(proc, params);
-            }
-        };
-        return result != null ? result : new ArrayList<>();
-    }
-
+    @PostMapping("/HSIP_101U_STR")
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> invokeMapper(String proc, Map<String, Object> params) {
-        try {
-            Method method = HsipMapper.class.getMethod(proc, Map.class);
-            return (List<Map<String, Object>>) method.invoke(hsipMapper, params);
-        } catch (NoSuchMethodException e) {
-            return null;
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+    public ResponseEntity<?> callHSIP_101U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIP_101U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_101U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIP_101U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIP_101U_STR", detail));
+
+            List<Map<String, Object>> raw = hsipMapper.HSIP_101U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("fileno", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("prowno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIP_110U_STR")
+    public ResponseEntity<?> callHSIP_110U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_110U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_110U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_110U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "shipseq");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("shipseq")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_111U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIP_111U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIP_111U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_111U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIP_111U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIP_111U_STR", detail));
+
+            List<Map<String, Object>> raw = hsipMapper.HSIP_111U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("fileno", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("shipseq", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIP_112U_STR")
+    public ResponseEntity<?> callHSIP_112U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_112U_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIP_112U_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_112U_STR(params)));
+    }
+
+    @PostMapping("/HSIP_120U_STR")
+    public ResponseEntity<?> callHSIP_120U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_120U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_120U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_120U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "passseq");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("passseq")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_121U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIP_121U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIP_121U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_121U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIP_121U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIP_121U_STR", detail));
+
+            List<Map<String, Object>> raw = hsipMapper.HSIP_121U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("fileno", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("passseq", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIP_122U_STR")
+    public ResponseEntity<?> callHSIP_122U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_122U_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIP_122U_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_122U_STR(params)));
+    }
+
+    @PostMapping("/HSIP_130U_STR")
+    public ResponseEntity<?> callHSIP_130U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_130U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_130U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_130U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "docno");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("docno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_131U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIP_131U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIP_131U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_131U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIP_131U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIP_131U_STR", detail));
+
+            List<Map<String, Object>> raw = hsipMapper.HSIP_131U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("fileno", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("docno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIP_140U_STR")
+    public ResponseEntity<?> callHSIP_140U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_140U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_140U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_140U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "docno");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("docno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_145U_STR")
+    public ResponseEntity<?> callHSIP_145U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_145U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_145U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_145U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "docno");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("docno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_150U_STR")
+    public ResponseEntity<?> callHSIP_150U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_150U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_150U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_150U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_155U_STR")
+    public ResponseEntity<?> callHSIP_155U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_155U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_155U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_155U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_160U_STR")
+    public ResponseEntity<?> callHSIP_160U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_160U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_160U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_160U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "shipseq");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("shipseq")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIP_180U_STR")
+    public ResponseEntity<?> callHSIP_180U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_180U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIP_180U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsipMapper.HSIP_180U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "fileno", "shipseq");
+        String code = String.valueOf(resultRow.get("fileno")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("shipseq")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 3. S_STR 현황 및 조회 프로시저 (1:1 매핑)
+    // ==========================================
+
+    @PostMapping("/HSIP_161S_STR")
+    public ResponseEntity<?> callHSIP_161S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_161S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIP_161S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_161S_STR(params)));
+    }
+
+    @PostMapping("/HSIP_200S_STR")
+    public ResponseEntity<?> callHSIP_200S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_200S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIP_200S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_200S_STR(params)));
+    }
+
+    @PostMapping("/HSIP_210S_STR")
+    public ResponseEntity<?> callHSIP_210S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIP_210S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIP_210S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsipMapper.HSIP_210S_STR(params)));
+    }
+
+    // ==========================================
+    // 4. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
+    }
+
+    private void injectSession(Map<String, Object> params, HttpSession session) {
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        if (user != null) {
+            if (params.get("cmpycd") == null || params.get("cmpycd").toString().trim().isEmpty()) {
+                params.put("cmpycd", user.getCmpycd());
+            }
+            if (params.get("userid") == null || params.get("userid").toString().trim().isEmpty()) {
+                params.put("userid", user.getUserid());
+            }
+            params.put("updemp", user.getUserid());
         }
     }
 
-    private List<Map<String, Object>> executeDirectSql(String proc, Map<String, Object> params) {
-        String sql = buildPositionalSql(proc, params);
-        log.info("==>  Direct Executing: {}", sql);
+    private void fillMissingParameters(String proc, Map<String, Object> params) {
         try {
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> row = new LinkedHashMap<>();
-                int colCount = rs.getMetaData().getColumnCount();
-                for (int k = 1; k <= colCount; k++) {
-                    String label = rs.getMetaData().getColumnLabel(k).toLowerCase();
-                    row.put(label, rs.getObject(k) == null ? "" : rs.getObject(k));
+            String statementId = HsipMapper.class.getName() + "." + proc;
+            if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
+            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
+            BoundSql boundSql = ms.getBoundSql(params);
+
+            for (ParameterMapping pm : boundSql.getParameterMappings()) {
+                String prop = pm.getProperty();
+                if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
+                    String cleanProp = prop.trim();
+                    if (!params.containsKey(cleanProp) || params.get(cleanProp) == null || params.get(cleanProp).toString().trim().isEmpty()) {
+                        params.put(cleanProp, "");
+                    }
+                    if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
-                row.put("returnkeyvalue", new ArrayList<>());
-                return row;
-            });
-        }
-        // 👇 이 부분이 수정할 catch 블록입니다!
-        catch (Exception e) {
-            String msg = e.getMessage();
-            // 💡 한글/영문 "결과 집합 없음" 메시지를 모두 체크하여 정상 처리로 간주
-            if (msg != null && (msg.contains("No ResultSet") ||
-                    msg.contains("did not return a result set") ||
-                    msg.contains("결과 집합을 반환하지 않았습니다"))) {
-                log.info("ℹ️ [HSIP] {} 실행 완료 (결과셋 없음 - 정상)", proc);
-                return new ArrayList<>();
             }
-            throw e;
-        }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
@@ -238,11 +564,9 @@ public class HsipController {
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
+
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
-                // XML에 정의된 #{이름}과 100% 일치하는 값만 추출 (VUE 순서 상관없음)
                 Object val = params.get(pm.getProperty().trim());
-                
-                // NULL/공백 치환 및 유니코드(N) 처리하여 왜곡 차단
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }

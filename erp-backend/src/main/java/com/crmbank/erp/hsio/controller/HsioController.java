@@ -14,7 +14,7 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
+
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +30,7 @@ public class HsioController {
     private final HsioMapper hsioMapper;
     private final HsioService hsioService;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
+
     private final ObjectMapper objectMapper;
 
     @PostMapping("/HSIO_010U_SAVE")
@@ -472,197 +472,1467 @@ public class HsioController {
         }
     }
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
+    @PostMapping("/HSIO_010U_STR")
+    public ResponseEntity<?> callHSIO_010U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_010U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_010U_STR", params));
 
-        // 1. 보안 체크 (세션 유무 확인)
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_010U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "reqym", "reqno");
+        String code = String.valueOf(resultRow.get("reqym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("reqno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_011U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_011U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_011U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_011U_STR(params)));
+            }
         }
 
-        String proc = procedure.toUpperCase();
-        UserSession user = (UserSession) session.getAttribute("user_session");
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_011U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_011U_STR", detail));
 
-        try {
-            // 2. 파라미터 보정 및 세션 정보 주입
-            injectSession(params, session);
-            fillMissingParameters(proc, params);
-
-            String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
-
-            // 3. 업무 유효성 검사 (등록/수정 시에만 작동)
-            if (proc.length() >= 9 && proc.charAt(8) == 'U' && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String validationMsg = validateParameters(proc, params);
-                if (validationMsg != null) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                            "status", "VALIDATION_ERROR",
-                            "message", "🛠 [PROGRAM VALID ALARM]\n" + validationMsg
-                    ));
+            List<Map<String, Object>> raw = hsioMapper.HSIO_011U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("reqym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("reqno", "저장 실패"));
                 }
+                totalResults.add(resRow);
             }
-
-            log.info("📋 [hsio] 공통 실행기 호출: {}", proc);
-
-            // 🚀 [중복 제거 핵심]
-            // 상단에 @PostMapping으로 선언된 _SAVE 메소드들과 중복되는 모든 case를 삭제했습니다.
-            // 이제 등록/수정은 전용 URL로, 조회/삭제는 이곳 공통 URL로 명확히 분리됩니다.
-            switch (proc) {
-                case "HSIO_990U_STR": // 외부전표전송: 특수 루프 처리가 필요하여 유지
-                    if ("U0".equals(actkind)) {
-                        hsioService.transferExternalSlip(params, user.getUserid());
-                        return ResponseEntity.ok(List.of(Map.of("res", "OK")));
-                    }
-                    break;
-                case "HSIO_600U_SAVE": // 별도 DTO 없이 Map으로만 저장되는 특수 케이스 유지
-                    return saveHSIO600U(params, session);
-            }
-
-            List<Map<String, Object>> result;
-
-            // 4. 프로시저 직접 실행 경로 (조회 및 삭제 전담)
-            // actkind가 D(Delete)인 경우도 로그를 남기고 이 경로를 통해 프로시저의 DelProc을 호출함
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U") || actkind.startsWith("D"))) {
-                String positionalSql = buildPositionalSql(proc, params);
-
-                // 데이터 변경 작업(삭제 포함)에 대한 상세 SQL 로그 출력
-                if (actkind.startsWith("D") || actkind.startsWith("A") || actkind.startsWith("U")) {
-                    log.info("⚠️ [DML 실행 로그] SQL: {}", positionalSql);
-                }
-
-                result = jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    int colCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= colCount; i++) {
-                        Object val = rs.getObject(i);
-                        String colName = rs.getMetaData().getColumnLabel(i);
-
-                        // 프로시저별 리턴 필드명(Alias) 강제 지정 보정 로직
-                        if (colName == null || colName.isEmpty() || colName.toLowerCase().startsWith("col")) {
-                            if (proc.equals("HSIO_010U_STR")) {
-                                if (i == 1) colName = "reqym"; else if (i == 2) colName = "reqno";
-                            } else if (proc.equals("HSIO_050U_STR") || proc.equals("HSIO_052U_STR")) {
-                                if (i == 1) colName = "balym"; else if (i == 2) colName = "balno";
-                            } else if (proc.equals("HSIO_300U_STR") || proc.equals("HSIO_320U_STR")) {
-                                if (i == 1) colName = "imym"; else if (i == 2) colName = "imno";
-                            } else if (proc.equals("HSIO_325U_STR") || proc.equals("HSIO_140U_STR")) {
-                                if (i == 1) colName = "slipymd"; else if (i == 2) colName = "slipno";
-                            } else if (proc.equals("HSIO_510U_STR") || proc.equals("HSIO_110U_STR") || proc.equals("HSIO_120U_STR")) {
-                                if (i == 1) colName = "jsanym"; else if (i == 2) colName = "jsanno";
-                            } else if (proc.equals("HSIO_530U_STR") || proc.equals("HSIO_531U_STR")) {
-                                if (i == 1) colName = "slipymd"; else if (i == 2) colName = "slipno";
-                            } else if (proc.equals("HSIO_570U_STR") || proc.equals("HSIO_490U_STR") || proc.equals("HSIO_580U_STR")) {
-                                if (i == 1) colName = "ioym"; else if (i == 2) colName = "iono"; else if (i == 3) colName = "ino";
-                            } else if (proc.equals("HSIO_730U_STR") || proc.equals("HSIO_720U_STR")) {
-                                if (i == 1) colName = "ioym"; else if (i == 2) colName = "ino"; else if (i == 3) colName = "ono";
-                            } else if (proc.equals("HSIO_540U_STR") || proc.equals("HSIO_541U_STR") || proc.equals("HSIO_590U_STR")) {
-                                if (i == 1) colName = "result"; else if (i == 2) colName = "msg";
-                            } else if (proc.equals("HSIO_500U_STR") || proc.equals("HSIO_560U_STR") || proc.equals("HSIO_550U_STR") || proc.equals("HSIO_190U_STR") || proc.equals("HSIO_250U_STR") || proc.equals("HSIO_100U_STR")) {
-                                if (i == 1) colName = "ioym"; else if (i == 2) colName = "iono";
-                            }
-                        }
-                        if (colName == null || colName.isEmpty()) colName = "col_" + (i - 1);
-                        row.put(colName.toLowerCase(), val == null ? "" : val);
-                    }
-                    return row;
-                });
-            } else {
-                // 5. 일반 Mapper 기반 조회 분기 (누락 없이 전수 기재)
-                switch (proc) {
-                    case "HSIO_010U_STR": result = hsioMapper.HSIO_010U_STR(params); break;
-                    case "HSIO_011U_STR": result = hsioMapper.HSIO_011U_STR(params); break;
-                    case "HSIO_020U_STR": result = hsioMapper.HSIO_020U_STR(params); break;
-                    case "HSIO_021U_STR": result = hsioMapper.HSIO_021U_STR(params); break;
-                    case "HSIO_050U_STR": result = hsioMapper.HSIO_050U_STR(params); break;
-                    case "HSIO_051U_STR": result = hsioMapper.HSIO_051U_STR(params); break;
-                    case "HSIO_052U_STR": result = hsioMapper.HSIO_052U_STR(params); break;
-                    case "HSIO_060U_STR": result = hsioMapper.HSIO_060U_STR(params); break;
-                    case "HSIO_061U_STR": result = hsioMapper.HSIO_061U_STR(params); break;
-                    case "HSIO_070U_STR": result = hsioMapper.HSIO_070U_STR(params); break;
-                    case "HSIO_080S_STR": result = hsioMapper.HSIO_080S_STR(params); break;
-                    case "HSIO_082S_STR": result = hsioMapper.HSIO_082S_STR(params); break;
-                    case "HSIO_085S_STR": result = hsioMapper.HSIO_085S_STR(params); break;
-                    case "HSIO_100U_STR": result = hsioMapper.HSIO_100U_STR(params); break;
-                    case "HSIO_101U_STR": result = hsioMapper.HSIO_101U_STR(params); break;
-                    case "HSIO_110U_STR": result = hsioMapper.HSIO_110U_STR(params); break;
-                    case "HSIO_120U_STR": result = hsioMapper.HSIO_120U_STR(params); break;
-                    case "HSIO_130U_STR": result = hsioMapper.HSIO_130U_STR(params); break;
-                    case "HSIO_131U_STR": result = hsioMapper.HSIO_131U_STR(params); break;
-                    case "HSIO_140U_STR": result = hsioMapper.HSIO_140U_STR(params); break;
-                    case "HSIO_141U_STR": result = hsioMapper.HSIO_141U_STR(params); break;
-                    case "HSIO_160U_STR": result = hsioMapper.HSIO_160U_STR(params); break;
-                    case "HSIO_170U_STR": result = hsioMapper.HSIO_170U_STR(params); break;
-                    case "HSIO_171U_STR": result = hsioMapper.HSIO_171U_STR(params); break;
-                    case "HSIO_180U_STR": result = hsioMapper.HSIO_180U_STR(params); break;
-                    case "HSIO_181U_STR": result = hsioMapper.HSIO_181U_STR(params); break;
-                    case "HSIO_190U_STR": result = hsioMapper.HSIO_190U_STR(params); break;
-                    case "HSIO_191U_STR": result = hsioMapper.HSIO_191U_STR(params); break;
-                    case "HSIO_200S_STR": result = hsioMapper.HSIO_200S_STR(params); break;
-                    case "HSIO_210S_STR": result = hsioMapper.HSIO_210S_STR(params); break;
-                    case "HSIO_215S_STR": result = hsioMapper.HSIO_215S_STR(params); break;
-                    case "HSIO_220S_STR": result = hsioMapper.HSIO_220S_STR(params); break;
-                    case "HSIO_250U_STR": result = hsioMapper.HSIO_250U_STR(params); break;
-                    case "HSIO_251U_STR": result = hsioMapper.HSIO_251U_STR(params); break;
-                    case "HSIO_300U_STR": result = hsioMapper.HSIO_300U_STR(params); break;
-                    case "HSIO_301U_STR": result = hsioMapper.HSIO_301U_STR(params); break;
-                    case "HSIO_320U_STR": result = hsioMapper.HSIO_320U_STR(params); break;
-                    case "HSIO_325U_STR": result = hsioMapper.HSIO_325U_STR(params); break;
-                    case "HSIO_400S_STR": result = hsioMapper.HSIO_400S_STR(params); break;
-                    case "HSIO_410S_STR": result = hsioMapper.HSIO_410S_STR(params); break;
-                    case "HSIO_470S_STR": result = hsioMapper.HSIO_470S_STR(params); break;
-                    case "HSIO_490U_STR": result = hsioMapper.HSIO_490U_STR(params); break;
-                    case "HSIO_491U_STR": result = hsioMapper.HSIO_491U_STR(params); break;
-                    case "HSIO_500U_STR": result = hsioMapper.HSIO_500U_STR(params); break;
-                    case "HSIO_501U_STR": result = hsioMapper.HSIO_501U_STR(params); break;
-                    case "HSIO_510U_STR": result = hsioMapper.HSIO_510U_STR(params); break;
-                    case "HSIO_520U_STR": result = hsioMapper.HSIO_520U_STR(params); break;
-                    case "HSIO_521U_STR": result = hsioMapper.HSIO_521U_STR(params); break;
-                    case "HSIO_530U_STR": result = hsioMapper.HSIO_530U_STR(params); break;
-                    case "HSIO_531U_STR": result = hsioMapper.HSIO_531U_STR(params); break;
-                    case "HSIO_540U_STR": result = hsioMapper.HSIO_540U_STR(params); break;
-                    case "HSIO_541U_STR": result = hsioMapper.HSIO_541U_STR(params); break;
-                    case "HSIO_550U_STR": result = hsioMapper.HSIO_550U_STR(params); break;
-                    case "HSIO_551U_STR": result = hsioMapper.HSIO_551U_STR(params); break;
-                    case "HSIO_560U_STR": result = hsioMapper.HSIO_560U_STR(params); break;
-                    case "HSIO_570U_STR": result = hsioMapper.HSIO_570U_STR(params); break;
-                    case "HSIO_571U_STR": result = hsioMapper.HSIO_571U_STR(params); break;
-                    case "HSIO_580U_STR": result = hsioMapper.HSIO_580U_STR(params); break;
-                    case "HSIO_581U_STR": result = hsioMapper.HSIO_581U_STR(params); break;
-                    case "HSIO_590U_STR": result = hsioMapper.HSIO_590U_STR(params); break;
-                    case "HSIO_600U_STR": result = hsioMapper.HSIO_600U_STR(params); break;
-                    case "HSIO_600S_STR": result = hsioMapper.HSIO_600S_STR(params); break;
-                    case "HSIO_610S_STR": result = hsioMapper.HSIO_610S_STR(params); break;
-                    case "HSIO_620S_STR": result = hsioMapper.HSIO_620S_STR(params); break;
-                    case "HSIO_640S_STR": result = hsioMapper.HSIO_640S_STR(params); break;
-                    case "HSIO_650S_STR": result = hsioMapper.HSIO_650S_STR(params); break;
-                    case "HSIO_660S_STR": result = hsioMapper.HSIO_660S_STR(params); break;
-                    case "HSIO_680S_STR": result = hsioMapper.HSIO_680S_STR(params); break;
-                    case "HSIO_690S_STR": result = hsioMapper.HSIO_690S_STR(params); break;
-                    case "HSIO_720U_STR": result = hsioMapper.HSIO_720U_STR(params); break;
-                    case "HSIO_721U_STR": result = hsioMapper.HSIO_721U_STR(params); break;
-                    case "HSIO_730U_STR": result = hsioMapper.HSIO_730U_STR(params); break;
-                    case "HSIO_731U_STR": result = hsioMapper.HSIO_731U_STR(params); break;
-                    case "HSIO_990U_STR": result = hsioMapper.HSIO_990U_STR(params); break;
-                    case "HSIO_TRANS_STR": result = hsioMapper.HSIO_TRANS_STR(params); break;
-                    case "HSIO_REQOUT_STR": result = hsioMapper.HSIO_REQOUT_STR(params); break;
-                    case "HSIO_REQIN_STR": result = hsioMapper.HSIO_REQIN_STR(params); break;
-                    default: return ResponseEntity.notFound().build();
-                }
-            }
-
-            // 6. 결과 반환 처리
-            if (result == null || result.isEmpty()) {
-                result = (actkind.startsWith("S") || actkind.startsWith("L") || actkind.startsWith("P")) ? new ArrayList<>() : List.of(Map.of("res", "OK"));
-            }
-            return ResponseEntity.ok(convertToLowerCaseKeys(result));
-
-        } catch (Exception e) {
-            log.error("❌ [hsio] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_020U_STR")
+    public ResponseEntity<?> callHSIO_020U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_020U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_020U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_020U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "reqym", "reqno");
+        String code = String.valueOf(resultRow.get("reqym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("reqno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_021U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_021U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_021U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_021U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_021U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_021U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_021U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("reqym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("reqno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_050U_STR")
+    public ResponseEntity<?> callHSIO_050U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_050U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_050U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_050U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "balym", "balno");
+        String code = String.valueOf(resultRow.get("balym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("balno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_051U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_051U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_051U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_051U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_051U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_051U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_051U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("balym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("balno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_052U_STR")
+    public ResponseEntity<?> callHSIO_052U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_052U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_052U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_052U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "balym", "balno");
+        String code = String.valueOf(resultRow.get("balym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("balno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+    @PostMapping("/HSIO_060U_STR")
+    public ResponseEntity<?> callHSIO_060U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_060U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_060U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_060U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_061U_STR")
+    public ResponseEntity<?> callHSIO_061U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_061U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_061U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_061U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_070U_STR")
+    public ResponseEntity<?> callHSIO_070U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_070U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_070U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_070U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_100U_STR")
+    public ResponseEntity<?> callHSIO_100U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_100U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_100U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_100U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_101U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_101U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_101U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_101U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_101U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_101U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_101U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_130U_STR")
+    public ResponseEntity<?> callHSIO_130U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_130U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_130U_STR", params));
+
+        //A0,S0
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_130U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_131U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_131U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S0".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_131U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_131U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_101U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_131U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_131U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("00000000".equals(String.valueOf(resRow.getOrDefault("slipymd", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("slipno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_140U_STR")
+    public ResponseEntity<?> callHSIO_140U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_140U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_140U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_140U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    /** 📑 상세 내역 등록 (그리드 멀티 행 반복 처리) */
+    @PostMapping("/HSIO_141U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_141U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S0".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_141U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_141U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_141U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_141U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_141U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("00000000".equals(String.valueOf(resRow.getOrDefault("slipymd", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("slipno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_170U_STR")
+    public ResponseEntity<?> callHSIO_170U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_170U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_170U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_170U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if ("OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_171U_STR")
+    public ResponseEntity<?> callHSIO_171U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_171U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_171U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_171U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_180U_STR")
+    public ResponseEntity<?> callHSIO_180U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_180U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_180U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_180U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+    @PostMapping("/HSIO_181U_STR")
+    public ResponseEntity<?> callHSIO_181U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_181U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_181U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_181U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("0000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_190U_STR")
+    public ResponseEntity<?> callHSIO_190U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_190U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_190U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_190U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+
+    @PostMapping("/HSIO_191U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_191U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_191U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_191U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_191U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_191U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_101U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_250U_STR")
+    public ResponseEntity<?> callHSIO_250U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_250U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_250U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_250U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+
+    @PostMapping("/HSIO_251U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_251U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_251U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_251U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_251U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_251U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_251U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+
+    @PostMapping("/HSIO_300U_STR")
+    public ResponseEntity<?> callHSIO_300U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_300U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_300U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_300U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind) || "S2".equals(actkind)|| "L0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "imym", "imno");
+        String code = String.valueOf(resultRow.get("imym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("imno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_490U_STR")
+    public ResponseEntity<?> callHSIO_490U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_490U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_490U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_490U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_491U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_491U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_491U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_491U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_491U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_491U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_491U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+
+    @PostMapping("/HSIO_500U_STR")
+    public ResponseEntity<?> callHSIO_500U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_500U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_500U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_500U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_501U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_501U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_501U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_501U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_501U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_501U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_501U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_301U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_301U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S0".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_301U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_301U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_301U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_301U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_301U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("imym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("imno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_320U_STR")
+    public ResponseEntity<?> callHSIO_320U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_320U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_320U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_320U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "imym", "imno");
+        String code = String.valueOf(resultRow.get("imym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("imno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_325U_STR")
+    public ResponseEntity<?> callHSIO_325U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_325U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_325U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_325U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_510U_STR")
+    public ResponseEntity<?> callHSIO_510U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_510U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_510U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_510U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "imym", "imno");
+        String code = String.valueOf(resultRow.get("imym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("imno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+     @PostMapping("/HSIO_520U_STR")
+    public ResponseEntity<?> callHSIO_520U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_520U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_520U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_520U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "jsanym", "jsanno");
+        String code = String.valueOf(resultRow.get("jsanym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("jsanno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_530U_STR")
+    public ResponseEntity<?> callHSIO_530U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_530U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_530U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_530U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "jsanym", "jsanno");
+        String code = String.valueOf(resultRow.get("jsanym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("jsanno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_540U_STR")
+    public ResponseEntity<?> callHSIO_540U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_540U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_540U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_540U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if ("Y".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_541U_STR")
+    public ResponseEntity<?> callHSIO_541U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_541U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_541U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_541U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("resu")).trim();
+        if ("Y".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_550U_STR")
+    public ResponseEntity<?> callHSIO_550U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_550U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_550U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_550U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_551U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_551U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_551U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_551U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_551U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_551U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_551U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_560U_STR")
+    public ResponseEntity<?> callHSIO_560U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_560U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_560U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_560U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if ("Y".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_570U_STR")
+    public ResponseEntity<?> callHSIO_570U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_570U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_570U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_570U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+
+    @PostMapping("/HSIO_571U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_571U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_571U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_571U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_571U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_571U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_571U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_580U_STR")
+    public ResponseEntity<?> callHSIO_580U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_580U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_580U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_580U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+    @PostMapping("/HSIO_581U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_581U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_581U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_581U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_581U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_581U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_581U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+
+
+    @PostMapping("/HSIO_590U_STR")
+    public ResponseEntity<?> callHSIO_590U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_590U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_590U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_590U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if ("Y".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_600U_STR")
+    public ResponseEntity<?> callHSIO_600U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_600U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_600U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_590U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "outym", "outno");
+        String code = String.valueOf(resultRow.get("outym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("outno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+
+    @PostMapping("/HSIO_720U_STR")
+    public ResponseEntity<?> callHSIO_720U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_720U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_720U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_720U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_721U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_721U_STR(@RequestBody List<Map<String, Object>> details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_721U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_721U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        // 🚀 [해결] 디테일은 상식적으로 리스트(반복) 처리가 정석
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_721U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_721U_STR", detail));
+
+            List<Map<String, Object>> raw = hsioMapper.HSIO_721U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_990U_STR")
+    public ResponseEntity<?> callHSIO_990U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_990U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_990U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_990U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_080S_STR")
+    public ResponseEntity<?> callHSIO_080S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_080S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_080S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_080S_STR(params)));
+    }
+
+    @PostMapping("/HSIO_082S_STR")
+    public ResponseEntity<?> callHSIO_082S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_082S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_082S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_082S_STR(params)));
+    }
+
+    @PostMapping("/HSIO_085S_STR")
+    public ResponseEntity<?> callHSIO_085S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_085S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_085S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_085S_STR(params)));
+    }
+    @PostMapping("/HSIO_200S_STR")
+    public ResponseEntity<?> callHSIO_200S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_200S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_200S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_200S_STR(params)));
+    }
+    @PostMapping("/HSIO_210S_STR")
+    public ResponseEntity<?> callHSIO_210S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_210S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_210S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_210S_STR(params)));
+    }
+    @PostMapping("/HSIO_215S_STR")
+    public ResponseEntity<?> callHSIO_215S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_215S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_215S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_215S_STR(params)));
+    }
+    @PostMapping("/HSIO_220S_STR")
+    public ResponseEntity<?> callHSIO_220S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_220S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_220S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_220S_STR(params)));
+    }
+
+    @PostMapping("/HSIO_400S_STR")
+    public ResponseEntity<?> callHSIO_400S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_400S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_400S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_400S_STR(params)));
+    }
+    @PostMapping("/HSIO_410S_STR")
+    public ResponseEntity<?> callHSIO_410S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_410S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_410S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_410S_STR(params)));
+    }
+    @PostMapping("/HSIO_470S_STR")
+    public ResponseEntity<?> callHSIO_470S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_470S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_470S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_470S_STR(params)));
+    }
+
+    @PostMapping("/HSIO_600S_STR")
+    public ResponseEntity<?> callHSIO_600S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_600S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_600S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_600S_STR(params)));
+    }
+    @PostMapping("/HSIO_610S_STR")
+    public ResponseEntity<?> callHSIO_610S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_610S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_610S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_610S_STR(params)));
+    }
+    @PostMapping("/HSIO_620S_STR")
+    public ResponseEntity<?> callHSIO_620S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_620S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_620S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_620S_STR(params)));
+    }
+    @PostMapping("/HSIO_640S_STR")
+    public ResponseEntity<?> callHSIO_640S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_640S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_640S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_640S_STR(params)));
+    }
+    @PostMapping("/HSIO_650S_STR")
+    public ResponseEntity<?> callHSIO_650S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_650S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_650S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_650S_STR(params)));
+    }
+    @PostMapping("/HSIO_660S_STR")
+    public ResponseEntity<?> callHSIO_660S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_660S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_660S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_660S_STR(params)));
+    }
+
+    @PostMapping("/HSIO_680S_STR")
+    public ResponseEntity<?> callHSIO_680S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_680S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_680S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_680S_STR(params)));
+    }
+    @PostMapping("/HSIO_690S_STR")
+    public ResponseEntity<?> callHSIO_690S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_690S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_690S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_690S_STR(params)));
+    }
+
+    @PostMapping("/HSIO_TRANS_STR")
+    public ResponseEntity<?> callHSIO_TRANS_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_TRANS_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_TRANS_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_TRANS_STR(params)));
+    }
+    @PostMapping("/HSIO_REQOUT_STR")
+    public ResponseEntity<?> callHSIO_REQOUT_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_REQOUT_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_REQOUT_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_REQOUT_STR(params)));
+    }
+    @PostMapping("/HSIO_REQIN_STR")
+    public ResponseEntity<?> callHSIO_REQIN_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_REQIN_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSIO_REQIN_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsioMapper.HSIO_REQIN_STR(params)));
+    }
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) { if (i == 1) key = col1Alias; else if (i == 2) key = col2Alias; }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {

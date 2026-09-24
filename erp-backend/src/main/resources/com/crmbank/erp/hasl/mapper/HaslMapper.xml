@@ -80,10 +80,16 @@
     </select>
 
     <!-- 🛠️ 기초 및 관리 프로시저 전체 복구 (누락분 포함) -->
-    <select id="HASL_010U_STR" resultType="java.util.LinkedHashMap">exec hasl_010u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{keyword}, #{slipymd}, #{slipno}, #{acctymd}, #{deptcd}, #{empnm}, #{slipgu}, #{business}, #{updemp}</select>
+    <select id="HASL_010U_STR" resultType="java.util.LinkedHashMap">
+        exec hasl_010u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{keyword}, #{slipymd}, #{slipno},
+        #{acctymd}, #{deptcd}, #{empnm}, #{slipgu}, #{business}, #{updemp}
+    </select>
+
     <select id="HASL_110U_STR" resultType="java.util.LinkedHashMap">
         exec hasl_110u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{keyword},#{slipymd}, #{slipno},
-        #{acctymd}, #{deptcd}, #{empnm}, #{slipgu}, #{updemp}</select>
+        #{acctymd}, #{deptcd}, #{empnm}, #{slipgu}, #{business}, #{updemp}
+    </select>
+
     <select id="HASL_011U_STR" resultType="java.util.LinkedHashMap">
         exec hasl_011u_str #{actkind}, #{cmpycd}, #{slipymd}, #{slipno}, #{srowno}, #{acctymd}, #{acctcd},
         #{deptcd}, #{custcd}, #{bugtcd}, #{prjcd}, #{mgtno}, #{sslipno}, #{dbamt}, #{cramt}, #{remark},

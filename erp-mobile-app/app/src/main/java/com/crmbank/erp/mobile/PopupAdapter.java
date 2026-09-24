@@ -17,7 +17,7 @@ import java.util.Map;
 public class PopupAdapter extends RecyclerView.Adapter<PopupAdapter.ViewHolder> {
 
     private final List<Map<String, Object>> items;
-    private final String type; // "CUST", "ITEM", "ADDR"
+    private final String type; // "CUST" or "ITEM"
     private final OnItemClickListener listener;
 
     public interface OnItemClickListener {
@@ -48,23 +48,12 @@ public class PopupAdapter extends RecyclerView.Adapter<PopupAdapter.ViewHolder> 
         if ("CUST".equals(type)) {
             title = getStringVal(item, "custnm");
             code = getStringVal(item, "custcd");
-            holder.tvText.setText(String.format("%s (%s)", title, code));
-            holder.tvText.setTextSize(14f);
-        } else if ("ADDR".equals(type)) {
-            // 🚀 배송처 조회 시 주소코드와 전체 주소를 한 줄에 표현 (폰트 축소)
-            String trancd = getStringVal(item, "trancd");
-            String address = getStringVal(item, "address");
-            String d_address = getStringVal(item, "d_address");
-            holder.tvText.setText(String.format("[%s] %s %s", trancd, address, d_address));
-            holder.tvText.setTextSize(11f); // 폰트 크기 줄임
-            holder.tvText.setSingleLine(true);
         } else {
             title = getStringVal(item, "itemnm");
             code = getStringVal(item, "itemcd");
-            holder.tvText.setText(String.format("%s (%s)", title, code));
-            holder.tvText.setTextSize(14f);
         }
         
+        holder.tvText.setText(String.format("%s (%s)", title, code));
         holder.itemView.setOnClickListener(v -> listener.onItemClick(item));
     }
 

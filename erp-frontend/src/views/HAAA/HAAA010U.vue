@@ -128,7 +128,7 @@ let groupgrid: Tabulator | null = null; let listgrid: Tabulator | null = null
 
 async function search() {
 	try {
-		const res = await api.post('/haaa/haaa_010u_str', { actkind: 'S2', cdtype: '000', cmpycd: authstore.cmpycd })
+		const res = await api.post('/haaa/HAAA_010U_STR', { actkind: 'S2', cdtype: '000', cmpycd: authstore.cmpycd })
 		const processed = res.data || [];
 		groupoptions.value = processed; groupgrid?.setData(processed)
 		if (processed.length > 0 && !formdata.cdtype) {
@@ -141,7 +141,7 @@ async function search() {
 
 async function searchdetails(cdtype: string) {
 	try {
-		const res = await api.post('/haaa/haaa_010u_str', { actkind: 's3', cdtype: cdtype, cmpycd: authstore.cmpycd })
+		const res = await api.post('/haaa/HAAA_010U_STR', { actkind: 'S3', cdtype: cdtype, cmpycd: authstore.cmpycd })
 		const processed = res.data || [];
 		listgrid?.setData(processed)
 	} catch (e) { console.error('상세 목록 로드 실패') }
@@ -150,7 +150,7 @@ async function searchdetails(cdtype: string) {
 async function save() {
 	if (!formdata.codecd || !formdata.codenm) return valerterror('필수항목을 입력하세요.')
 	try {
-		await api.post('/haaa/haaa_010u_str', { ...formdata, userid: authstore.userid, cmpycd: authstore.cmpycd })
+		await api.post('/haaa/HAAA_010U_STR', { ...formdata, userid: authstore.userid, cmpycd: authstore.cmpycd })
 		valert('저장되었습니다.')
 		searchdetails(formdata.cdtype)
 		resetinputform()
@@ -161,7 +161,7 @@ async function deletedata() {
 	if (!formdata.codecd) return valerterror('삭제할 코드를 선택하세요.')
 	if (!confirm('선택한 코드 정보를 삭제하시겠습니까?')) return
 	try {
-		await api.post('/haaa/haaa_010u_str', { ...formdata, actkind: 'd1', userid: authstore.userid, cmpycd: authstore.cmpycd })
+		await api.post('/haaa/HAAA_010U_STR', { ...formdata, actkind: 'd1', userid: authstore.userid, cmpycd: authstore.cmpycd })
 		valert('삭제되었습니다.')
 		searchdetails(formdata.cdtype)
 		resetinputform()
@@ -185,7 +185,7 @@ function excel() {
 }
 
 function print() {
-	window.open(`/haaa/haaa_010p?cdtype=${formdata.cdtype}&cmpycd=${authstore.cmpycd}`)
+	// window.open(`/haaa/HAAA_010P?cdtype=${formdata.cdtype}&cmpycd=${authstore.cmpycd}`)
 }
 
 onMounted(async () => {

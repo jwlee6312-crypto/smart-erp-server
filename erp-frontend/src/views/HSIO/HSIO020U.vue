@@ -227,7 +227,7 @@ async function fetchMaster() {
 
 async function fetchDetail() {
   try {
-    const res = await api.post('/hsio/HSIO_021U_STR', { ...masterData, actkind: 'S0' });
+    const res = await api.post('/hsio/HSIO_021U_STR', [{ ...masterData, actkind: 'S0' }]);
     grid?.setData(res.data || []);
   } catch (e) { vAlertError('상세 로드 실패') }
 }
@@ -237,9 +237,9 @@ async function handleImportAnalysis() {
   vAlert('소요량 데이터를 분석하여 가져옵니다...');
   try {
     // 💡 분석 로직이 구현된 HSIO_021U_STR 프로시저를 호출해야 합니다.
-    const res = await api.post('/hsio/HSIO_021U_STR', {
+    const res = await api.post('/hsio/HSIO_021U_STR', [{
       ...masterData, actkind: 'B'
-    });
+    }]);
     if (grid && res.data) {
       grid.setData(res.data.map((i: any) => ({ ...i, upkind: 'A', reqqty: i.soqty })));
       vAlert(`${res.data.length}건의 소요량이 분석되었습니다.`);

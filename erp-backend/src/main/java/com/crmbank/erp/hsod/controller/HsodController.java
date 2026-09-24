@@ -13,13 +13,15 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
+/**
+ * [HSOD] 수주관리 통합 컨트롤러 (사용자 정의 최종 표준형)
+ */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hsod")
@@ -29,7 +31,10 @@ public class HsodController {
     private final HsodMapper hsodMapper;
     private final HsodService hsodService;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
+
+    // ==========================================
+    // 1. _SAVE 트랜잭션 서비스 보존
+    // ==========================================
 
     @Transactional(rollbackFor = Exception.class)
     @PostMapping("/HSOD_100U_SAVE")
@@ -46,107 +51,184 @@ public class HsodController {
                 request.getMst().setUpdemp(userId);
             }
             Map<String, Object> result = hsodService.saveOrder(request, userId);
-            return ResponseEntity.ok(ApiResponse.success(result, "Successfully saved."));
+            return ResponseEntity.ok(ApiResponse.success(result, "성공적으로 저장되었습니다."));
         } catch (Exception e) {
             log.error("❌ [hsod] Save Error: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.serverError(e.getMessage()));
         }
     }
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
-        
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
+    // ==========================================
+    // 2. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
+
+    @PostMapping("/HSOD_100U_STR")
+    public ResponseEntity<?> callHSOD_100U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSOD_100U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSOD_100U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsodMapper.HSOD_100U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ordym", "ordno");
+        String code = String.valueOf(resultRow.get("ordym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("ordno")));
         }
-
-        String proc = procedure.toUpperCase();
-        try {
-            injectSession(params, session);
-            fillMissingParameters(proc, params);
-
-            String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
-            if (proc.length() >= 9 && proc.charAt(8) == 'U' && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String validationMsg = validateParameters(HsodMapper.class, proc, params);
-                if (validationMsg != null) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                        "status", "VALIDATION_ERROR",
-                        "message", "🛠 [PROGRAM VALID ALARM]\n" + validationMsg
-                    ));
-                }
-            }
-
-            log.info("📋 [hsod] 실행 요청: {}", proc);
-            
-            List<Map<String, Object>> resultList;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String positionalSql = buildPositionalSql(proc, params);
-                log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
-
-                resultList = jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    List<Object> values = new ArrayList<>();
-                    int colCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= colCount; i++) {
-                        Object val = rs.getObject(i);
-                        String colName = rs.getMetaData().getColumnLabel(i); 
-                        if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
-                        row.put(colName.toLowerCase(), val == null ? "" : val);
-                        values.add(val == null ? "" : val);
-                    }
-                    row.put("returnkeyvalue", values); // 💡 시스템 표준에 맞춰 소문자로 지정
-                    return row;
-                });
-                log.info("🎯 [무결성 직접 수신 성공] 데이터: {}", resultList);
-            } else {
-                switch (proc) {
-                    case "HSOD_100U_STR": resultList = hsodMapper.HSOD_100U_STR(params); break;
-                    case "HSOD_101U_STR": resultList = hsodMapper.HSOD_101U_STR(params); break;
-                    case "HSOD_110S_STR": resultList = hsodMapper.HSOD_110S_STR(params); break;
-                    case "HSOD_120U_STR": resultList = hsodMapper.HSOD_120U_STR(params); break;
-                    case "HSOD_200U_STR": resultList = hsodMapper.HSOD_200U_STR(params); break;
-                    case "HSOD_210U_STR": resultList = hsodMapper.HSOD_210U_STR(params); break;
-                    case "HSOD_300U_STR": resultList = hsodMapper.HSOD_300U_STR(params); break;
-                    default:
-                        return ResponseEntity.notFound().build();
-                }
-            }
-
-            if (resultList == null || resultList.isEmpty()) {
-                if (actkind.startsWith("S")) {
-                    resultList = new ArrayList<>();
-                } else {
-                    resultList = List.of(Map.of("res", "OK"));
-                }
-            }
-
-            // 🚀 [Pilot 적용] 모든 결과를 소문자로 강제 변환하여 프론트엔드 표준 준수
-            return ResponseEntity.ok(convertToLowerCaseKeys(resultList));
-
-        } catch (Exception e) {
-            log.error("❌ [hsod] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    /**
-     * Map의 모든 Key를 소문자로 변환하여 일관성 보장
-     */
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        if (list == null) return new ArrayList<>();
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+    @PostMapping("/HSOD_101U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSOD_101U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSOD_101U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsodMapper.HSOD_101U_STR(params)));
             }
-            newList.add(newMap);
         }
-        return newList;
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSOD_101U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSOD_101U_STR", detail));
+
+            List<Map<String, Object>> raw = hsodMapper.HSOD_101U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ordym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("ordno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSOD_120U_STR")
+    public ResponseEntity<?> callHSOD_120U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSOD_120U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSOD_120U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsodMapper.HSOD_120U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ordym", "ordno");
+        String code = String.valueOf(resultRow.get("ordym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("ordno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSOD_200U_STR")
+    public ResponseEntity<?> callHSOD_200U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSOD_200U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSOD_200U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsodMapper.HSOD_200U_STR(params);
+
+        if ( "S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSOD_210U_STR")
+    public ResponseEntity<?> callHSOD_210U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSOD_210U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSOD_210U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsodMapper.HSOD_210U_STR(params);
+
+        if ("S".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSOD_300U_STR")
+    public ResponseEntity<?> callHSOD_300U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSOD_300U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSOD_300U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsodMapper.HSOD_300U_STR(params);
+
+        if ( "S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 3. S_STR 현황 및 조회 프로시저 (1:1 직결 매핑)
+    // ==========================================
+
+    @PostMapping("/HSOD_110S_STR")
+    public ResponseEntity<?> callHSOD_110S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSOD_110S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSOD_110S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsodMapper.HSOD_110S_STR(params)));
+    }
+
+    // ==========================================
+    // 4. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
@@ -179,23 +261,18 @@ public class HsodController {
                     if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
             }
-        } catch (Exception e) { log.warn("🛠 누락 파라미터 보정 중 알림 ({}): {}", proc, e.getMessage()); }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
-            // 💡 [주의] 이 부분만 해당 컨트롤러의 매퍼 클래스명으로 수정하세요 (예: HsodMapper.class)
             String statementId = HsodMapper.class.getName() + "." + proc;
-
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
 
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
-                // XML에 정의된 #{이름}과 100% 일치하는 값만 추출 (VUE 순서 상관없음)
                 Object val = params.get(pm.getProperty().trim());
-
-                // NULL/공백 치환 및 유니코드(N) 처리하여 왜곡 차단
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }
@@ -203,24 +280,16 @@ public class HsodController {
         } catch (Exception e) { return "EXEC " + proc; }
     }
 
-    private String validateParameters(Class<?> mapperClass, String proc, Map<String, Object> vueParams) {
-        try {
-            String statementId = mapperClass.getName() + "." + proc;
-            if (!sqlSession.getConfiguration().hasStatement(statementId)) return null;
-            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
-            BoundSql boundSql = ms.getBoundSql(vueParams);
-            List<ParameterMapping> xmlMappings = boundSql.getParameterMappings();
-            Set<String> xmlKeys = new LinkedHashSet<>();
-            for (ParameterMapping pm : xmlMappings) {
-                String prop = pm.getProperty();
-                if (prop != null && !prop.startsWith("_") && !prop.contains(".")) xmlKeys.add(prop);
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
             }
-            Set<String> vueKeys = vueParams.keySet();
-            if (vueKeys.size() < xmlKeys.size()) {
-                return String.format("📍 [PARAM SHORTAGE] XML:%d > VUE:%d\n📋 [REQUIRED]: %s",
-                    xmlKeys.size(), vueKeys.size(), xmlKeys);
-            }
-            return null;
-        } catch (Exception e) { return "VALIDATION ERROR: " + e.getMessage(); }
+            newList.add(newMap);
+        }
+        return newList;
     }
 }

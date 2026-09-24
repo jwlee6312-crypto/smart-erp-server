@@ -265,7 +265,7 @@ public class HsioService {
         List<Map<String, Object>> res = hsioMapper.HSIO_510U_STR(mst);
         if (res == null || res.isEmpty()) throw new Exception("마스터 저장 실패 (응답 없음)");
 
-        Map<String, Object> mstRow = convertMapToLowerCase(res.get(0));
+        Map<String, Object> mstRow = convertMapToLowerCase(res.getFirst());
         String jsanym = nvl(mstRow.get("jsanym"));
         String jsanno = nvl(mstRow.get("jsanno"));
 
@@ -305,7 +305,7 @@ public class HsioService {
 
                 List<Map<String, Object>> dtlRes = hsioMapper.HSIO_510U_STR(dtl);
                 if (dtlRes != null && !dtlRes.isEmpty()) {
-                    Map<String, Object> dtlRow = convertMapToLowerCase(dtlRes.get(0));
+                    Map<String, Object> dtlRow = convertMapToLowerCase(dtlRes.getFirst());
                     // 🚀 [해결] 일관된 jsanym 키 기반 무결성 체크
                     String dtlStatus = nvl(dtlRow.get("jsanym"));
                     String dtlMsg = nvl(dtlRow.get("jsanno"));
@@ -351,19 +351,53 @@ public class HsioService {
     @Transactional(value = "erpTransactionManager", rollbackFor = Exception.class)
     public Map<String, Object> savePurchase(Hsio500uRequest request, String userId) throws Exception {
         Hsio500u mst = request.getMst();
+        List<Hsio501u> dtlList = request.getDtl();
+        
+        if (mst == null) throw new Exception("Master data is null.");
+
+        // 1. 마스터 저장 (actkind는 프론트엔드에서 넘어옴: A or U)
+        mst.setUpdemp(userId);
         List<Map<String, Object>> res = hsioMapper.HSIO_500U_STR(mst);
-        if (res == null || res.isEmpty()) throw new Exception("No response from Master procedure.");
+        if (res == null || res.isEmpty()) throw new Exception("마스터 저장 실패: 데이터베이스 응답 없음");
+        
         Map<String, Object> mstRow = convertMapToLowerCase(res.getFirst());
         String ioym = nvl(mstRow.get("ioym"));
         String iono = nvl(mstRow.get("iono"));
 
-        if (request.getDtl() != null) {
-            for (Hsio501u dtl : request.getDtl()) {
-                dtl.setIoym(ioym); dtl.setIono(iono);
+        // 🚀 [무결성 가드] 마스터 저장 결과가 '000000'(에러)이면 즉시 중단 (롤백)
+        if ("000000".equals(ioym)) throw new Exception(nvl(iono, "마스터 저장 업무 오류"));
+
+        // 2. 상세 내역 저장 (루프)
+        if (dtlList != null) {
+            log.info("📝 [HSIO500U] 상세 저장 시작 - {}건", dtlList.size());
+            for (Hsio501u dtl : dtlList) {
+                // 마스터 정보 강제 상속 (무결성 보장)
                 dtl.setCmpycd(mst.getCmpycd());
-                dtl.setIogbn(mst.getIogbn());
+                dtl.setIoym(ioym);
+                dtl.setIono(iono);
+                dtl.setIoymd(nvl(mst.getIoymd()).replace("-", ""));
+                dtl.setIogbn(nvl(mst.getIogbn(), "200"));
+                dtl.setIotype(nvl(mst.getIotype(), "100"));
+                dtl.setDeptcd(mst.getDeptcd());
+                dtl.setCustcd(mst.getCustcd());
+                dtl.setWhcd(mst.getWhcd());
+                dtl.setSaleuserid(nvl(mst.getSaleuserid()));
                 dtl.setUpdemp(userId);
-                hsioMapper.HSIO_501U_STR(dtl);
+                
+                dtl.setIoqty(nvl(dtl.getIoqty(), "0"));
+                dtl.setIoamt(nvl(dtl.getIoamt(), "0"));
+                dtl.setIovat(nvl(dtl.getIovat(), "0"));
+
+                List<Map<String, Object>> dtlRes = hsioMapper.HSIO_501U_STR(dtl);
+                if (dtlRes != null && !dtlRes.isEmpty()) {
+                    Map<String, Object> dtlRow = convertMapToLowerCase(dtlRes.getFirst());
+                    // 🚀 [핵심 해결] 재고 부족 등 상세 저장 에러 발생 시 Exception을 던져 '전체 롤백' 강제 수행
+                    if ("000000".equals(nvl(dtlRow.get("ioym")))) {
+                        String errMsg = nvl(dtlRow.get("iono"), "상세 저장 업무 오류");
+                        log.error("🔥 [HSIO500U] 상세 저장 실패로 인한 전체 롤백 실행: {}", errMsg);
+                        throw new Exception(errMsg); // 이 예외가 마스터 저장까지 물리적으로 취소시킵니다.
+                    }
+                }
             }
         }
         return mstRow;
@@ -542,25 +576,21 @@ public class HsioService {
         String ioymd = nvl(mst.getIoymd()).replace("-", "");
         if (ioymd.length() > 8) ioymd = ioymd.substring(0, 8);
         mst.setIoymd(ioymd);
-        mst.setIoym(ioymd.substring(0, 6));
-        String ioym = mst.getIoym();
-
+        
         mst.setFromdt(nvl(mst.getFromdt()).replace("-", ""));
         mst.setTodt(nvl(mst.getTodt()).replace("-", ""));
-
-        log.info("🔍 [saveOutbound550] send value : {}", mst);
+        
         List<Map<String, Object>> resM = hsioMapper.HSIO_550U_STR(mst);
         if (resM == null || resM.isEmpty()) throw new Exception("출고 마스터 저장 실패 (응답 없음)");
         
         Map<String, Object> mstRow = convertMapToLowerCase(resM.get(0));
-        ioym = nvl(mstRow.get("ioym"));
+        String ioym = nvl(mstRow.get("ioym"));
         String iono = nvl(mstRow.get("iono"));
 
         if ("000000".equals(ioym)) {
             throw new Exception(nvl(iono, "출고 마스터 업무 오류"));
         }
-
-        log.info("🔍 [saveOutbound550] return value ({}) : {}", ioym, iono);
+        
         if (ioym.isEmpty() || iono.isEmpty()) {
             throw new Exception("출고 번호 채번 실패");
         }

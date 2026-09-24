@@ -207,11 +207,11 @@ const checkCanCancel = (row: any) => {
 async function search() {
   if (!searchdata.deptcd) return vAlertError('판매부서를 선택하세요.')
   try {
-    const res = await api.post('/hsio/HSIO_541U_STR', {
+    const res = await api.post('/hsio/HSIO_541U_STR', [{
       actkind: 'S0', cmpycd: authStore.cmpycd, iogbn: '200',
       fromdt: searchdata.fromdt, todt: searchdata.todt,
       deptcd: searchdata.deptcd
-    })
+    }])
     if (grid.value) {
       // 🚀 백엔드 공통 처리에서 데이터가 없을 때 반환하는 [{res: 'OK'}] 필터링
       const rawData = (res.data || []).filter((row: any) => !(row.res === 'OK' || row.RES === 'OK'))

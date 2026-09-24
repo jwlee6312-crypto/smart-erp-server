@@ -138,83 +138,55 @@ public class MHSIO560U extends BaseActivity {
 
     private void fetchCustList() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_purch_order_search, null); // 주문/출고 목록용 레이아웃 재사용
-        builder.setTitle("출고 완료 내역 조회").setView(dialogView);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_customer_search, null);
+        builder.setTitle("출고 완료 거래처 조회").setView(dialogView);
 
-        TextView tvPopStart = dialogView.findViewById(R.id.tvPopStartDate);
-        TextView tvPopEnd = dialogView.findViewById(R.id.tvPopEndDate);
-        EditText etPopCust = dialogView.findViewById(R.id.etPopCustNm);
-        ListView lv = dialogView.findViewById(R.id.lvPopOrderList);
-
-        Calendar cal = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        tvPopEnd.setText(sdf.format(cal.getTime()));
-        cal.add(Calendar.MONTH, -1);
-        tvPopStart.setText(sdf.format(cal.getTime()));
-
-        tvPopStart.setOnClickListener(v -> showDatePicker(tvPopStart));
-        tvPopEnd.setOnClickListener(v -> showDatePicker(tvPopEnd));
+        EditText etSearch = dialogView.findViewById(R.id.etSearchQuery);
+        RecyclerView rv = dialogView.findViewById(R.id.rvPopupList);
+        rv.setLayoutManager(new LinearLayoutManager(this));
 
         List<Map<String, Object>> popList = new ArrayList<>();
-        BaseAdapter popAdapter = new BaseAdapter() {
-            @Override public int getCount() { return popList.size(); }
-            @Override public Object getItem(int p) { return popList.get(p); }
-            @Override public long getItemId(int p) { return p; }
-            @Override public View getView(int p, View v, ViewGroup pr) {
-                if (v == null) v = LayoutInflater.from(pr.getContext()).inflate(R.layout.item_mhsio190u_pop, pr, false);
-                Map<String, Object> item = popList.get(p);
-                ((TextView) v.findViewById(R.id.tvPopCustNm)).setText(getStringVal(item, "custnm"));
-                ((TextView) v.findViewById(R.id.tvPopBalYmd)).setText(getStringVal(item, "ioymd"));
-                String bNo = getStringVal(item, "ioym") + "-" + getStringVal(item, "iono");
-                ((TextView) v.findViewById(R.id.tvPopBalno)).setText(bNo);
-                return v;
-            }
-        };
-        lv.setAdapter(popAdapter);
-
         AlertDialog dialog = builder.create();
-        dialogView.findViewById(R.id.btnPopSearch).setOnClickListener(v -> {
+
+        PopupAdapter popupAdapter = new PopupAdapter(popList, "CUST", item -> {
+            selectedCustCd = getStringVal(item, "custcd");
+            etCustNm.setText(getStringVal(item, "custnm"));
+            dialog.dismiss();
+            fetchDetails();
+        });
+        rv.setAdapter(popupAdapter);
+
+        dialogView.findViewById(R.id.btnSearch).setOnClickListener(v -> {
             Map<String, Object> p = new HashMap<>();
             p.put("actkind", "S1");
             p.put("cmpycd", cmpycd);
             p.put("iogbn", "200");
-            p.put("fromdt", tvPopStart.getText().toString().replace("-", ""));
-            p.put("todt", tvPopEnd.getText().toString().replace("-", ""));
+            p.put("fromdt", tvDateFrom.getText().toString().replace("-", ""));
+            p.put("todt", tvDateTo.getText().toString().replace("-", ""));
             p.put("whcd", getSelectedWhcd());
-            p.put("custnm", etPopCust.getText().toString().trim());
+            p.put("custnm", etSearch.getText().toString().trim());
 
             apiService.executeHsioProcedure("HSIO_560U_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
-                @Override public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        popList.clear(); popList.addAll(response.body()); popAdapter.notifyDataSetChanged();
+                @Override public void onResponse(@NonNull Call<List<Map<String, Object>>> c, @NonNull Response<List<Map<String, Object>>> r) {
+                    if (r.isSuccessful() && r.body() != null) {
+                        popList.clear(); popList.addAll(r.body()); popupAdapter.notifyDataSetChanged();
                     }
                 }
-                @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {}
+                @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> c, @NonNull Throwable t) {}
             });
         });
 
-        lv.setOnItemClickListener((parent, view, position, id) -> {
-            Map<String, Object> selected = popList.get(position);
-            masterData.putAll(selected);
-            selectedCustCd = getStringVal(selected, "custcd");
-            etCustNm.setText(getStringVal(selected, "custnm"));
-            dialog.dismiss();
-            fetchDetails(selected);
-        });
-
-        dialogView.findViewById(R.id.btnPopClose).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btnClose).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
-        dialogView.findViewById(R.id.btnPopSearch).performClick();
+        dialogView.findViewById(R.id.btnSearch).performClick();
     }
 
-    private void fetchDetails(Map<String, Object> header) {
+    private void fetchDetails() {
         Map<String, Object> p = new HashMap<>();
         p.put("actkind", "S0");
         p.put("cmpycd", cmpycd);
         p.put("iogbn", "200");
-        p.put("custcd", getStringVal(header, "custcd"));
-        p.put("ioym", getStringVal(header, "ioym"));
-        p.put("iono", getStringVal(header, "iono"));
+        p.put("custcd", selectedCustCd);
         p.put("whcd", getSelectedWhcd());
         p.put("fromdt", tvDateFrom.getText().toString().replace("-", ""));
         p.put("todt", tvDateTo.getText().toString().replace("-", ""));
@@ -256,17 +228,12 @@ public class MHSIO560U extends BaseActivity {
 
         new AlertDialog.Builder(this).setTitle("출고 취소").setMessage("선택한 품목을 모두 취소하시겠습니까?")
             .setPositiveButton("예", (dialog, which) -> {
-                String fromdt = tvDateFrom.getText().toString().replace("-", "");
-                String todt = tvDateTo.getText().toString().replace("-", "");
-                
                 for (int i = 0; i < selected.size(); i++) {
                     Map<String, Object> item = selected.get(i);
                     Map<String, Object> p = new HashMap<>();
                     p.put("actkind", "D0");
                     p.put("cmpycd", cmpycd);
                     p.put("iogbn", "200");
-                    p.put("fromdt", fromdt);
-                    p.put("todt", todt);
                     p.put("ioym", getStringVal(item, "ioym"));
                     p.put("iono", getStringVal(item, "iono"));
                     p.put("iorowno", getStringVal(item, "iorowno"));
@@ -278,7 +245,7 @@ public class MHSIO560U extends BaseActivity {
                         @Override public void onResponse(@NonNull Call<List<Map<String, Object>>> c, @NonNull Response<List<Map<String, Object>>> r) {
                             if (isLast) {
                                 Toast.makeText(MHSIO560U.this, "취소 처리가 완료되었습니다.", Toast.LENGTH_SHORT).show();
-                                fetchDetails(masterData);
+                                fetchDetails();
                             }
                         }
                         @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> c, @NonNull Throwable t) {}

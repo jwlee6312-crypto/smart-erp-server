@@ -265,7 +265,7 @@ onMounted(() => {
     salsempOptions.value = r.data || [];
   });
   // 마감 정보 로드
-  api.get('/hp00/hp00_000s_str', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } }).then(r => {
+  api.get('/hp00/HP00_000S_STR', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } }).then(r => {
     if (r.data?.length) {
         closingInfo.clsymd = r.data[0].clsymd || ''; // 회계마감일
         closingInfo.sclsym = r.data[0].sclsym || ''; // 영업마감월

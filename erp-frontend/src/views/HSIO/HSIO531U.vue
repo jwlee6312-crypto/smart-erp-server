@@ -228,7 +228,7 @@ const toggleAllRows = () => {
 async function search() {
   if (!searchData.deptcd) return vAlertError('판매부서를 선택하세요.')
   try {
-    const res = await api.post('/hsio/HSIO_531U_STR', {
+    const res = await api.post('/hsio/HSIO_531U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       iogbn: '200',
@@ -236,7 +236,7 @@ async function search() {
       todt: searchData.todt,
       deptcd: searchData.deptcd,
       salsemp: searchData.salsemp === '000' ? '' : searchData.salsemp
-    })
+    }])
     if (grid.value) {
       const data = (res.data || []).map((item: any) => {
           item.jsansum = (Number(item.spyamt) || 0) + (Number(item.vatamt) || 0)

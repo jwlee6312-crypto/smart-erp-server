@@ -1,7 +1,9 @@
 package com.crmbank.erp.hpio.controller;
 
+import com.crmbank.erp.comm.dto.ApiResponse;
 import com.crmbank.erp.comm.dto.UserSession;
 import com.crmbank.erp.hpio.mapper.HpioMapper;
+import com.crmbank.erp.hpio.service.HpioService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,12 +12,11 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hpio")
@@ -23,170 +24,813 @@ import java.util.*;
 public class HpioController {
 
     private final HpioMapper hpioMapper;
+    private final HpioService hpioService;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
-        
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
-        }
+    // ==========================================
+    // 1. _SAVE 트랜잭션 서비스
+    // ==========================================
 
-        String proc = procedure.toUpperCase();
+    @PostMapping("/HPIO_250U_SAVE")
+    public ResponseEntity<ApiResponse<?>> saveHpio250U(@RequestBody Map<String, Object> payload, HttpSession session) {
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        if (user == null) return ResponseEntity.status(401).build();
         try {
-            injectSession(params, session);
-            fillMissingParameters(proc, params);
-
-            String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
-            if (proc.length() >= 9 && proc.charAt(8) == 'U' && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String validationMsg = validateParameters(proc, params);
-                if (validationMsg != null) {
-                    return ResponseEntity.badRequest().body(Map.of(
-                        "status", "VALIDATION_ERROR",
-                        "message", "🛠 [PROGRAM VALID ALARM]\n" + validationMsg
-                    ));
-                }
-            }
-
-            log.info("📋 [hpio] 실행 요청: {}", proc);
-            
-            List<Map<String, Object>> result;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String positionalSql = buildPositionalSql(proc, params);
-                log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
-
-                result = jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    List<Object> values = new ArrayList<>();
-                    int colCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= colCount; i++) {
-                        Object val = rs.getObject(i);
-                        String colName = rs.getMetaData().getColumnLabel(i); 
-                        
-                        // 🚀 [지시사항] HSIO 패턴: 프로시저별 리턴 필드명(Alias) 강제 지정
-                        if (colName == null || colName.isEmpty() || colName.toLowerCase().startsWith("col")) {
-                            if (proc.equals("HPIO_290U_STR")) {
-                                if (i == 1) colName = "pumym";
-                                else if (i == 2) colName = "pumno";
-                                else if (i == 3) colName = "rtn_msg";
-                            }
-
-                            if (proc.equals("HPIO_340U_STR")) {
-                                if (i == 1) colName = "outym";
-                                else if (i == 2) colName = "outno";
-                                else if (i == 3) colName = "inno";
-                            }
-                            if (proc.equals("HPIO_110U_STR")) {
-                                if (i == 1) colName = "jsanym";
-                                else if (i == 2) colName = "jsanno";
-                            }
-                            if (proc.equals("HPIO_500U_STR")) {
-                                if (i == 1) colName = "ioym";
-                                else if (i == 2) colName = "iono";
-                                else if (i == 3) colName = "inno";
-                            }
-                            if (proc.equals("HPIO_510U_STR")) {
-                                if (i == 1) colName = "ioym";
-                                else if (i == 2) colName = "iono";
-                                else if (i == 3) colName = "ino";
-                            }
-                            if (proc.equals("HPIO_520U_STR")) {
-                                if (i == 1) colName = "ioym";
-                                else if (i == 2) colName = "iono";
-                            }
-                        }
-                        if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
-                        row.put(colName.toLowerCase(), val == null ? "" : val);
-                        values.add(val == null ? "" : val);
-                    }
-                    row.put("returnkeyvalue", values); // 💡 시스템 표준에 맞춰 소문자로 지정
-                    return row;
-                });
-                log.info("🎯 [succ] data: {}", result);
-            } else {
-                switch (proc) {
-                    case "HPIO_110U_STR": result = hpioMapper.HPIO_110U_STR(params); break;
-                    case "HPIO_200U_STR": result = hpioMapper.HPIO_200U_STR(params); break;
-                    case "HPIO_210U_STR": result = hpioMapper.HPIO_210U_STR(params); break;
-                    case "HPIO_230S_STR": result = hpioMapper.HPIO_230S_STR(params); break;
-                    case "HPIO_250U_STR": result = hpioMapper.HPIO_250U_STR(params); break;
-                    case "HPIO_251U_STR": result = hpioMapper.HPIO_251U_STR(params); break;
-                    case "HPIO_290U_STR": result = hpioMapper.HPIO_290U_STR(params); break;
-                    case "HPIO_291U_STR": result = hpioMapper.HPIO_291U_STR(params); break;
-                    case "HPIO_292U_STR": result = hpioMapper.HPIO_292U_STR(params); break;
-                    case "HPIO_300U_STR": result = hpioMapper.HPIO_300U_STR(params); break;
-                    case "HPIO_301U_STR": result = hpioMapper.HPIO_301U_STR(params); break;
-                    case "HPIO_340U_STR": result = hpioMapper.HPIO_340U_STR(params); break;
-                    case "HPIO_340U_POPUP": result = hpioMapper.HPIO_340U_POPUP(params); break;
-                    case "HPIO_341U_STR": result = hpioMapper.HPIO_341U_STR(params); break;
-                    case "HPIO_350U_STR": result = hpioMapper.HPIO_350U_STR(params); break;
-                    case "HPIO_351U_STR": result = hpioMapper.HPIO_351U_STR(params); break;
-                    case "HPIO_360S_STR": result = hpioMapper.HPIO_360S_STR(params); break;
-                    case "HPIO_370S_STR": result = hpioMapper.HPIO_370S_STR(params); break;
-                    case "HPIO_380S_STR": result = hpioMapper.HPIO_380S_STR(params); break;
-                    case "HPIO_390S_STR": result = hpioMapper.HPIO_390S_STR(params); break;
-                    case "HPIO_400U_STR": result = hpioMapper.HPIO_400U_STR(params); break;
-                    case "HPIO_410U_STR": result = hpioMapper.HPIO_410U_STR(params); break;
-                    case "HPIO_420S_STR": result = hpioMapper.HPIO_420S_STR(params); break;
-                    case "HPIO_430S_STR": result = hpioMapper.HPIO_430S_STR(params); break;
-                    case "HPIO_500U_STR": result = hpioMapper.HPIO_500U_STR(params); break;
-                    case "HPIO_501U_STR": result = hpioMapper.HPIO_501U_STR(params); break;
-                    case "HPIO_510U_STR": result = hpioMapper.HPIO_510U_STR(params); break;
-                    case "HPIO_511U_STR": result = hpioMapper.HPIO_511U_STR(params); break;
-                    case "HPIO_520U_STR": result = hpioMapper.HPIO_520U_STR(params); break;
-                    case "HPIO_521U_STR": result = hpioMapper.HPIO_521U_STR(params); break;
-                    case "HPIO_640S_STR": result = hpioMapper.HPIO_640S_STR(params); break;
-                    case "HPIO_650S_STR": result = hpioMapper.HPIO_650S_STR(params); break;
-                    case "HPIO_660S_STR": result = hpioMapper.HPIO_660S_STR(params); break;
-                    case "HPIO_710S_STR": result = hpioMapper.HPIO_710S_STR(params); break;
-                    case "HPIO_720S_STR": result = hpioMapper.HPIO_720S_STR(params); break;
-                    case "HPIO_850S_STR": result = hpioMapper.HPIO_850S_STR(params); break;
-                    case "HPIO_870U_STR": result = hpioMapper.HPIO_870U_STR(params); break;
-                    case "HPIO_250U_POP": result = hpioMapper.HPIO_250U_POP(params); break;
-                    case "HPIO_251S_STR": result = hpioMapper.HPIO_251S_STR(params); break;
-                    case "HPIO_252S_STR": result = hpioMapper.HPIO_252S_STR(params); break;
-                    case "HPIO_253U_STR": result = hpioMapper.HPIO_253U_STR(params); break;
-                    default:
-                        return ResponseEntity.notFound().build();
-                }
-            }
-
-            if (result == null || result.isEmpty()) {
-                if (actkind.startsWith("S") || actkind.startsWith("L") || actkind.startsWith("P") || actkind.isEmpty()) {
-                    result = new ArrayList<>();
-                } else {
-                    result = List.of(Map.of("res", "OK"));
-                }
-            }
-            
-            // 🚀 모든 결과를 소문자로 강제 변환하여 프론트엔드 표준 준수
-            return ResponseEntity.ok(convertToLowerCaseKeys(result));
-
+            payload.put("cmpycd", user.getCmpycd());
+            payload.put("updemp", user.getUserid());
+            Map<String, Object> result = hpioService.saveHpio250U(payload);
+            return ResponseEntity.ok(ApiResponse.success(result, "성공적으로 저장되었습니다."));
         } catch (Exception e) {
-            log.error("❌ [hpio] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+            log.error("❌ [hpio] saveHpio250U Error: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(ApiResponse.serverError(e.getMessage()));
         }
     }
 
-    /**
-     * Map의 모든 Key를 소문자로 변환하여 일관성 보장
-     */
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        if (list == null) return new ArrayList<>();
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
-            }
-            newList.add(newMap);
+    // ==========================================
+    // 2. U_STR 프로시저 (마스터/디테일)
+    // ==========================================
+
+    @PostMapping("/HPIO_110U_STR")
+    public ResponseEntity<?> callHPIO_110U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_110U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_110U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_110U_STR(params);
+
+        if ( "S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "jsanym", "jsanno");
+        String code = String.valueOf(resultRow.get("jsanym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("jsanno")));
         }
-        return newList;
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_200U_STR")
+    public ResponseEntity<?> callHPIO_200U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_200U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_200U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_200U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_210U_STR")
+    public ResponseEntity<?> callHPIO_210U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_210U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_210U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_210U_STR(params);
+
+        if ( "S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_250U_STR")
+    public ResponseEntity<?> callHPIO_250U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_250U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_250U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_250U_STR(params);
+
+        if ("S0".equals(actkind) || "S1".equals(actkind) || "S2".equals(actkind) || "L0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "outym", "outno");
+        String code = String.valueOf(resultRow.get("outym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("outno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_251U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_251U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S0".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_251U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_251U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_251U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_251U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_251U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("outym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("outno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_253U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_253U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ( "S0".equals(actkind) ) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_253U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_253U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_253U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_253U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_253U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("outym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("outno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_290U_STR")
+    public ResponseEntity<?> callHPIO_290U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_290U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_290U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_290U_STR(params);
+
+        if ( "S0".equals(actkind) ||  "L0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "pumym", "pumno");
+        String code = String.valueOf(resultRow.get("pumym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("pumno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_291U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_291U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ( "S0".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_291U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_291U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_291U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_291U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_291U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("pumym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("pumno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_292U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_292U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "B".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_292U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_292U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_292U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_292U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_292U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("msg", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_300U_STR")
+    public ResponseEntity<?> callHPIO_300U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_300U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_300U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_300U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_301U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_301U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ( "S0".equals(actkind) ) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_301U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_301U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_301U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_301U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_301U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("msg", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_340U_STR")
+    public ResponseEntity<?> callHPIO_340U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_340U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_340U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_340U_STR(params);
+
+        if ("S".equals(actkind) ||  "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "outym", "outno");
+        String code = String.valueOf(resultRow.get("outym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("outno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_341U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_341U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind) || "B".equals(actkind) ) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_341U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_341U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_341U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_341U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_341U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("outym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("outno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_350U_STR")
+    public ResponseEntity<?> callHPIO_350U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_350U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_350U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_350U_STR(params);
+
+        if ( "S0".equals(actkind) ||  "L0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_351U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_351U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ( "S0".equals(actkind) ) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_351U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_351U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_351U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_351U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_351U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "msg")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("msg", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_400U_STR")
+    public ResponseEntity<?> callHPIO_400U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_400U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_400U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_400U_STR(params);
+
+        if ("S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_410U_STR")
+    public ResponseEntity<?> callHPIO_410U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_410U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_410U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_410U_STR(params);
+
+        if ( "S0".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_500U_STR")
+    public ResponseEntity<?> callHPIO_500U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_500U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_500U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_500U_STR(params);
+
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_501U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_501U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_501U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_501U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_501U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_501U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_501U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("ono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_510U_STR")
+    public ResponseEntity<?> callHPIO_510U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_510U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_510U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_510U_STR(params);
+
+        if ("S".equals(actkind) || "Q".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_511U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_511U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if ("S".equals(actkind) ) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_511U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_511U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_511U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_511U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_511U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_520U_STR")
+    public ResponseEntity<?> callHPIO_520U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_520U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_520U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_520U_STR(params);
+
+        if ("S".equals(actkind)  || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HPIO_521U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHPIO_521U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) ) {
+                injectSession(params, session);
+                fillMissingParameters("HPIO_521U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_521U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HPIO_521U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HPIO_521U_STR", detail));
+
+            List<Map<String, Object>> raw = hpioMapper.HPIO_521U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("outym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("outno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HPIO_870U_STR")
+    public ResponseEntity<?> callHPIO_870U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_870U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HPIO_870U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hpioMapper.HPIO_870U_STR(params);
+
+        if ("S2".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 3. S_STR 및 조회/팝업 프로시저 (직결 호출)
+    // ==========================================
+
+    @PostMapping("/HPIO_230S_STR")
+    public ResponseEntity<?> callHPIO_230S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_230S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_230S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_230S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_251S_STR")
+    public ResponseEntity<?> callHPIO_251S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_251S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_251S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_251S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_252S_STR")
+    public ResponseEntity<?> callHPIO_252S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_252S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_252S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_252S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_250U_POP")
+    public ResponseEntity<?> callHPIO_250U_POP(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_250U_POP", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_250U_POP", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_250U_POP(params)));
+    }
+
+    @PostMapping("/HPIO_340U_POPUP")
+    public ResponseEntity<?> callHPIO_340U_POPUP(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_340U_POPUP", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_340U_POPUP", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_340U_POPUP(params)));
+    }
+
+    @PostMapping("/HPIO_360S_STR")
+    public ResponseEntity<?> callHPIO_360S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_360S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_360S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_360S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_370S_STR")
+    public ResponseEntity<?> callHPIO_370S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_370S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_370S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_370S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_380S_STR")
+    public ResponseEntity<?> callHPIO_380S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_380S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_380S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_380S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_390S_STR")
+    public ResponseEntity<?> callHPIO_390S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_390S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_390S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_390S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_420S_STR")
+    public ResponseEntity<?> callHPIO_420S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_420S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_420S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_420S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_430S_STR")
+    public ResponseEntity<?> callHPIO_430S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_430S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_430S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_430S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_640S_STR")
+    public ResponseEntity<?> callHPIO_640S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_640S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_640S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_640S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_650S_STR")
+    public ResponseEntity<?> callHPIO_650S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_650S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_650S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_650S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_660S_STR")
+    public ResponseEntity<?> callHPIO_660S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_660S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_660S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_660S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_710S_STR")
+    public ResponseEntity<?> callHPIO_710S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_710S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_710S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_710S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_720S_STR")
+    public ResponseEntity<?> callHPIO_720S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_720S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_720S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_720S_STR(params)));
+    }
+
+    @PostMapping("/HPIO_850S_STR")
+    public ResponseEntity<?> callHPIO_850S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HPIO_850S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HPIO_850S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hpioMapper.HPIO_850S_STR(params)));
+    }
+
+    // ==========================================
+    // 4. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
@@ -208,7 +852,7 @@ public class HpioController {
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
             MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
             BoundSql boundSql = ms.getBoundSql(params);
-            
+
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
                 String prop = pm.getProperty();
                 if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
@@ -222,43 +866,32 @@ public class HpioController {
         } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
-    private String validateParameters(String proc, Map<String, Object> vueParams) {
-        try {
-            String statementId = HpioMapper.class.getName() + "." + proc;
-            if (!sqlSession.getConfiguration().hasStatement(statementId)) return null;
-            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
-            BoundSql boundSql = ms.getBoundSql(vueParams);
-            List<ParameterMapping> xmlMappings = boundSql.getParameterMappings();
-            Set<String> xmlKeys = new LinkedHashSet<>();
-            for (ParameterMapping pm : xmlMappings) {
-                String prop = pm.getProperty();
-                if (prop != null && !prop.startsWith("_") && !prop.contains(".")) xmlKeys.add(prop);
-            }
-            if (vueParams.size() < xmlKeys.size()) {
-                return String.format("📍 [PARAM SHORTAGE] XML:%d > VUE:%d\n📋 [REQUIRED]: %s", xmlKeys.size(), vueParams.size(), xmlKeys);
-            }
-            return null;
-        } catch (Exception e) { return "VALIDATION ERROR: " + e.getMessage(); }
-    }
-
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
-            // 💡 [주의] 이 부분만 해당 컨트롤러의 매퍼 클래스명으로 수정하세요 (예: HsodMapper.class)
             String statementId = HpioMapper.class.getName() + "." + proc;
-
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
 
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
-                // XML에 정의된 #{이름}과 100% 일치하는 값만 추출 (VUE 순서 상관없음)
                 Object val = params.get(pm.getProperty().trim());
-
-                // NULL/공백 치환 및 유니코드(N) 처리하여 왜곡 차단
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }
             return String.format("EXEC %s %s", proc, String.join(", ", values));
         } catch (Exception e) { return "EXEC " + proc; }
+    }
+
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
+            newList.add(newMap);
+        }
+        return newList;
     }
 }

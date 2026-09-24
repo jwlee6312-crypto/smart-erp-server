@@ -1,7 +1,6 @@
 package com.crmbank.erp.mobile.hsst;
 
 import android.app.AlertDialog;
-import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -12,7 +11,7 @@ import com.crmbank.erp.mobile.hsio.MHSIO650S;
 import com.crmbank.erp.mobile.ApiService;
 import com.crmbank.erp.mobile.RetrofitClient;
 import com.crmbank.erp.mobile.CodeDto;
-import com.crmbank.erp.mobile.PopupAdapter;
+import com.crmbank.erp.mobile.ItemDto;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -29,8 +28,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.gson.Gson;
 
@@ -50,14 +47,13 @@ import retrofit2.Response;
 public class MHSST200S extends BaseActivity {
 
     private static final String TAG = "InventoryStatus";
-    private TextView tvBaseDate;
     private Spinner spWarehouse;
     private EditText etItemNm;
     private ListView lvInventoryStatus;
     private ArrayAdapter<CodeDto> warehouseAdapter;
     private InventoryAdapter adapter;
     private List<InventoryItem> inventoryItems;
-    private String cmpycd = "";
+    private String selectedItemCd = "";
     private ApiService apiService;
 
     @Override
@@ -71,16 +67,11 @@ public class MHSST200S extends BaseActivity {
 
         apiService = RetrofitClient.getApiService();
 
-        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        cmpycd = prefs.getString("cmpycd", "coit").trim();
-
-        tvBaseDate = findViewById(R.id.tvBaseDate);
         spWarehouse = findViewById(R.id.spWarehouse);
         etItemNm = findViewById(R.id.etItemNm);
         lvInventoryStatus = findViewById(R.id.lvInventoryStatus);
         Button btnSearch = findViewById(R.id.btnSearch);
 
-        setupDatePicker();
         etItemNm.setFocusable(false);
         etItemNm.setOnClickListener(v -> showItemSearchDialog());
 
@@ -119,19 +110,6 @@ public class MHSST200S extends BaseActivity {
         });
     }
 
-    private void setupDatePicker() {
-        Calendar cal = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        tvBaseDate.setText(sdf.format(cal.getTime()));
-
-        tvBaseDate.setOnClickListener(v -> {
-            new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-                String selectedDate = String.format(Locale.getDefault(), "%d-%02d-%02d", year, month + 1, dayOfMonth);
-                tvBaseDate.setText(selectedDate);
-            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
-        });
-    }
-
     private boolean validateInputs() {
         if (spWarehouse.getSelectedItem() == null) {
             Toast.makeText(this, "창고를 선택해 주세요.", Toast.LENGTH_SHORT).show();
@@ -162,107 +140,94 @@ public class MHSST200S extends BaseActivity {
         };
         spWarehouse.setAdapter(warehouseAdapter);
 
-        Map<String, Object> p = new HashMap<>();
-        p.put("gubun", "W0");
-        p.put("cmpycd", cmpycd);
+        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String cmpycd = prefs.getString("cmpycd", "HAIONNET");
 
-        apiService.executeHs00Procedure("HS00_000S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
+        apiService.getCommonCode(cmpycd, "KOR", "030").enqueue(new Callback<List<CodeDto>>() {
             @Override
-            public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
+            public void onResponse(@NonNull Call<List<CodeDto>> call, @NonNull Response<List<CodeDto>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    List<CodeDto> codes = new ArrayList<>();
-
-                    // 🚀 '전체' 옵션 추가
-                    CodeDto all = new CodeDto();
-                    all.codecd = "000";
-                    all.codenm = "전체";
-                    codes.add(all);
-
-                    for (Map<String, Object> m : response.body()) {
-                        CodeDto dto = new CodeDto();
-                        dto.codecd = getStringValue(m, "whcd");
-                        dto.codenm = getStringValue(m, "whnm");
-                        codes.add(dto);
-                    }
-                    warehouseAdapter.addAll(codes);
+                    warehouseAdapter.addAll(response.body());
                     warehouseAdapter.notifyDataSetChanged();
                 }
             }
-            @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {
-                Log.e(TAG, "창고 로드 실패: " + t.getMessage());
-            }
+            @Override public void onFailure(@NonNull Call<List<CodeDto>> call, @NonNull Throwable t) {}
         });
     }
 
     private void showItemSearchDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_customer_search, null);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_item_search, null);
         builder.setView(dialogView);
-        
-        String titleText = "품목 검색";
-        builder.setTitle(titleText);
 
-        TextView tvTitle = dialogView.findViewById(R.id.tvTitle);
-        if (tvTitle != null) tvTitle.setText(titleText);
-
-        EditText etSearch = dialogView.findViewById(R.id.etSearchQuery);
-        RecyclerView rv = dialogView.findViewById(R.id.rvPopupList);
-        rv.setLayoutManager(new LinearLayoutManager(this));
-        
-        List<Map<String, Object>> list = new ArrayList<>();
         AlertDialog dialog = builder.create();
 
-        PopupAdapter popupAdapter = new PopupAdapter(list, "ITEM", item -> {
-            etItemNm.setText(getStringValue(item, "itemnm"));
-            dialog.dismiss();
-            searchInventory(); // 🚀 선택 즉시 조회
-        });
-        rv.setAdapter(popupAdapter);
+        EditText etSearchQuery = dialogView.findViewById(R.id.etSearchQuery);
+        ListView lvList = dialogView.findViewById(R.id.lvItemList);
+        Button btnClose = dialogView.findViewById(R.id.btnClose);
 
-        dialogView.findViewById(R.id.btnSearch).setOnClickListener(v -> {
-            Map<String, Object> p = new HashMap<>();
-            p.put("cmpycd", cmpycd); 
-            String keyword = etSearch != null ? etSearch.getText().toString().trim() : "";
-            
-            p.put("gubun", "I1"); 
-            p.put("gbncd", "2"); 
-            p.put("code", ""); 
-            p.put("codenm", keyword); 
-            p.put("etcval", "");
-            
-            apiService.executeHs00Procedure("HS00_000S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
-                @Override public void onResponse(@NonNull Call<List<Map<String, Object>>> c, @NonNull Response<List<Map<String, Object>>> r) {
-                    if (r.isSuccessful() && r.body() != null) {
-                        list.clear(); list.addAll(r.body()); popupAdapter.notifyDataSetChanged();
+        final ArrayAdapter<ItemDto> itemAdapter = new ArrayAdapter<>(this, R.layout.item_popup_list, new ArrayList<>());
+        lvList.setAdapter(itemAdapter);
+
+        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String cmpycd = prefs.getString("cmpycd", "HAIONNET");
+
+        Runnable doSearch = () -> {
+            String keyword = etSearchQuery.getText().toString().trim();
+            apiService.searchItems(cmpycd, "KOR", keyword, "120").enqueue(new Callback<List<ItemDto>>() {
+                @Override
+                public void onResponse(@NonNull Call<List<ItemDto>> call, @NonNull Response<List<ItemDto>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<ItemDto> list = response.body();
+                        itemAdapter.clear();
+                        if (list != null) {
+                            itemAdapter.addAll(list);
+                        }
+                        itemAdapter.notifyDataSetChanged();
                     }
                 }
-                @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> c, @NonNull Throwable t) {}
+                @Override public void onFailure(@NonNull Call<List<ItemDto>> call, @NonNull Throwable t) {
+                    Log.e(TAG, "품목 검색 실패: " + t.getMessage());
+                }
             });
+        };
+
+        dialog.setOnShowListener(d -> doSearch.run());
+
+        etSearchQuery.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                doSearch.run();
+            }
         });
 
-        dialogView.findViewById(R.id.btnClose).setOnClickListener(v -> dialog.dismiss());
+        lvList.setOnItemClickListener((parent, view1, position, id) -> {
+            ItemDto selectedItem = itemAdapter.getItem(position);
+            if (selectedItem != null) {
+                etItemNm.setText(selectedItem.itemnm);
+                selectedItemCd = selectedItem.itemcd;
+                dialog.dismiss();
+            }
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
-        dialogView.findViewById(R.id.btnSearch).performClick();
     }
 
     private void searchInventory() {
-        String baseDate = tvBaseDate.getText().toString().replace("-", "");
+        String today = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
         CodeDto selectedWh = (CodeDto) spWarehouse.getSelectedItem();
-        if (selectedWh == null) {
-            Toast.makeText(this, "창고를 선택해 주세요.", Toast.LENGTH_SHORT).show();
-            return;
-        }
         
-        Map<String, Object> params = new HashMap<>();
-        params.put("cmpycd", cmpycd);
-        params.put("ymd", baseDate);
+        Map<String, String> params = new HashMap<>();
+        params.put("ymd", today);
         params.put("whcd", selectedWh.getCodecd());
+        String itemCdParam = (selectedItemCd == null || selectedItemCd.isEmpty()) ? "0000000" : selectedItemCd;
+        params.put("itemcd", itemCdParam);
         params.put("astkind", "120");
-        params.put("itemnm", etItemNm.getText().toString().trim());
 
-        Log.d(TAG, "🔍 조회 파라미터: " + params);
-
-        apiService.executeHsstProcedure("HSST_200S_STR", params).enqueue(new Callback<List<Map<String, Object>>>() {
+        apiService.getInventoryProductStatus(params).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -282,23 +247,12 @@ public class MHSST200S extends BaseActivity {
                         }
                     }
                     adapter.notifyDataSetChanged();
-                } else {
-                    String errorMsg = "조회 실패 (" + response.code() + ")";
-                    try {
-                        if (response.errorBody() != null) {
-                            errorMsg += "\n" + response.errorBody().string();
-                        }
-                    } catch (Exception ignored) {}
-                    Toast.makeText(MHSST200S.this, errorMsg, Toast.LENGTH_LONG).show();
-                    Log.e(TAG, errorMsg);
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {
-                String errorMsg = "네트워크 오류: " + t.getMessage();
-                Toast.makeText(MHSST200S.this, errorMsg, Toast.LENGTH_SHORT).show();
-                Log.e(TAG, errorMsg, t);
+                Toast.makeText(MHSST200S.this, "네트워크 오류", Toast.LENGTH_SHORT).show();
             }
         });
     }

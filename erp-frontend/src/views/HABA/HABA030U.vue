@@ -112,7 +112,7 @@ const activeitemcount = ref(0)
 
 async function search() {
 	try {
-		const res = await api.post('/haba/haba_030u_str', { actkind: 'sr', cmpycd: authstore.cmpycd })
+		const res = await api.post('/haba/HABA_030U_STR', { actkind: 'sr', cmpycd: authstore.cmpycd })
 		const processed = res.data || [];
 		maingrid?.setData(processed)
 		activeitemcount.value = processed.length
@@ -130,7 +130,7 @@ async function save() {
       actkind: act,
       address_det: formdata.d_address // 서버 필드명에 맞춤 (추측)
     }
-		const res = await api.post('/haba/haba_030u_str', payload)
+		const res = await api.post('/haba/HABA_030U_STR', payload)
 		const resdata = res.data?.[0] || {};
 		if (resdata.result === 'N') valerterror(resdata.msg || '저장 실패')
 		else { valert('저장되었습니다.'); search(); initialize() }

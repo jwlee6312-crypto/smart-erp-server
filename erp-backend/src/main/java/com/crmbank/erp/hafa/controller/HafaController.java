@@ -12,12 +12,14 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * [HAFA] 고정자산관리 통합 컨트롤러 (사용자 정의 최종 표준형)
+ */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hafa")
@@ -27,117 +29,206 @@ public class HafaController {
     private final HafaMapper hafaMapper;
     private final HafaService hafaService;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
-
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        String proc = procedure.toUpperCase();
-
-        // 🚀 특수 엔드포인트 수동 매핑 (Java 호출 인지 및 통제 강화)
-        if ("HAFA_150U_SAVE".equals(proc)) {
-            return saveHafa150U(params, session);
-        }
-
-        injectSession(params, session);
-        String actkind = Objects.requireNonNullElse(params.get("actkind"), "").toString().toUpperCase();
-
-        try {
-            fillMissingParameters(proc, params);
-            log.info("📋 [hafa] 실행 요청: {}", proc);
-
-            List<Map<String, Object>> result;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                result = executeJdbcQuery(proc, params);
-            } else {
-                result = switch (proc) {
-                    case "HAFA_010U_STR" -> hafaMapper.HAFA_010U_STR(params);
-                    case "HAFA_020S_STR" -> hafaMapper.HAFA_020S_STR(params);
-                    case "HAFA_040S_STR" -> hafaMapper.HAFA_040S_STR(params);
-                    case "HAFA_050U_STR" -> hafaMapper.HAFA_050U_STR(params);
-                    case "HAFA_090U_STR" -> hafaMapper.HAFA_090U_STR(params);
-                    case "HAFA_120S_STR" -> hafaMapper.HAFA_120S_STR(params);
-                    case "HAFA_130S_STR" -> hafaMapper.HAFA_130S_STR(params);
-                    case "HA00_150S_STR" -> hafaMapper.HA00_150S_STR(params);
-                    case "HAFA_140S_STR" -> hafaMapper.HAFA_140S_STR(params);
-                    case "HAFA_150U_STR" -> hafaMapper.HAFA_150U_STR(params);
-                    case "HAFA_900U_STR" -> hafaMapper.HAFA_900U_STR(params);
-                    default -> null;
-                };
-                if (result == null) return ResponseEntity.notFound().build();
-            }
-
-            if (result.isEmpty()) {
-                result = List.of(Map.of("res", "OK"));
-            }
-
-            return ResponseEntity.ok(convertToLowerCaseKeys(result));
-
-        } catch (Exception e) {
-            log.error("❌ [hafa] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    private List<Map<String, Object>> executeJdbcQuery(String proc, Map<String, Object> params) {
-        String positionalSql = buildPositionalSql(proc, params);
-        log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
-
-        return jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            List<Object> values = new ArrayList<>();
-            int colCount = rs.getMetaData().getColumnCount();
-            for (int i = 1; i <= colCount; i++) {
-                Object val = rs.getObject(i);
-                String colName = rs.getMetaData().getColumnLabel(i);
-                if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
-                row.put(colName.toLowerCase(), Objects.requireNonNullElse(val, ""));
-                values.add(Objects.requireNonNullElse(val, ""));
-            }
-            row.put("returnkeyvalue", values);
-            return row;
-        });
-    }
-
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            map.forEach((k, v) -> newMap.put(k.toLowerCase(), v));
-            newList.add(newMap);
-        }
-        return newList;
-    }
+    // ==========================================
+    // 1. _SAVE 트랜잭션 서비스
+    // ==========================================
 
     @PostMapping("/HAFA_150U_SAVE")
     public ResponseEntity<ApiResponse<?>> saveHafa150U(@RequestBody Map<String, Object> params, HttpSession session) {
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        if (user == null) return ResponseEntity.status(401).build();
         injectSession(params, session);
         try {
             Map<String, Object> result = hafaService.saveDepreciationSlip(params);
-            return ResponseEntity.ok(ApiResponse.success(result, "성공"));
+            return ResponseEntity.ok(ApiResponse.success(result, "성공적으로 저장되었습니다."));
         } catch (Exception e) {
+            log.error("❌ [hafa] HAFA_150U_SAVE Error: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.serverError(e.getMessage()));
         }
+    }
+
+    // ==========================================
+    // 2. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
+
+    @PostMapping("/HAFA_010U_STR")
+    public ResponseEntity<?> callHAFA_010U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_010U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAFA_010U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hafaMapper.HAFA_010U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ym", "msg");
+        String code = String.valueOf(resultRow.get("ym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HAFA_050U_STR")
+    public ResponseEntity<?> callHAFA_050U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_050U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAFA_050U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hafaMapper.HAFA_050U_STR(params);
+
+        if ("S".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "asetcd", "msg");
+        String code = String.valueOf(resultRow.get("asetcd")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HAFA_090U_STR")
+    public ResponseEntity<?> callHAFA_090U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_090U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAFA_090U_STR", params));
+        List<Map<String, Object>> raw = hafaMapper.HAFA_090U_STR(params);
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HAFA_150U_STR")
+    public ResponseEntity<?> callHAFA_150U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_150U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAFA_150U_STR", params));
+        List<Map<String, Object>> raw = hafaMapper.HAFA_150U_STR(params);
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HAFA_900U_STR")
+    public ResponseEntity<?> callHAFA_900U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_900U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAFA_900U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hafaMapper.HAFA_900U_STR(params);
+
+        if ( "S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 3. S_STR 현황 및 조회 프로시저 (1:1 직결 매핑)
+    // ==========================================
+
+    @PostMapping("/HAFA_020S_STR")
+    public ResponseEntity<?> callHAFA_020S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_020S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HAFA_020S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hafaMapper.HAFA_020S_STR(params)));
+    }
+
+    @PostMapping("/HAFA_040S_STR")
+    public ResponseEntity<?> callHAFA_040S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_040S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HAFA_040S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hafaMapper.HAFA_040S_STR(params)));
+    }
+
+    @PostMapping("/HAFA_120S_STR")
+    public ResponseEntity<?> callHAFA_120S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_120S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HAFA_120S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hafaMapper.HAFA_120S_STR(params)));
+    }
+
+    @PostMapping("/HAFA_130S_STR")
+    public ResponseEntity<?> callHAFA_130S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_130S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HAFA_130S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hafaMapper.HAFA_130S_STR(params)));
+    }
+
+    @PostMapping("/HA00_150S_STR")
+    public ResponseEntity<?> callHA00_150S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HA00_150S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HA00_150S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hafaMapper.HA00_150S_STR(params)));
+    }
+
+    @PostMapping("/HAFA_140S_STR")
+    public ResponseEntity<?> callHAFA_140S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HAFA_140S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HAFA_140S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hafaMapper.HAFA_140S_STR(params)));
+    }
+
+    // ==========================================
+    // 4. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
         UserSession user = (UserSession) session.getAttribute("user_session");
         if (user != null) {
-            params.putIfAbsent("cmpycd", user.getCmpycd());
-            params.putIfAbsent("userid", user.getUserid());
+            if (params.get("cmpycd") == null || params.get("cmpycd").toString().trim().isEmpty()) {
+                params.put("cmpycd", user.getCmpycd());
+            }
+            if (params.get("userid") == null || params.get("userid").toString().trim().isEmpty()) {
+                params.put("userid", user.getUserid());
+            }
             params.put("updemp", user.getUserid());
-            params.putIfAbsent("usernm", user.getUsernm());
+            if (params.get("usernm") == null || params.get("usernm").toString().trim().isEmpty()) {
+                params.put("usernm", user.getUsernm());
+            }
         }
     }
 
@@ -151,10 +242,14 @@ public class HafaController {
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
                 String prop = pm.getProperty();
                 if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
-                    params.putIfAbsent(prop.trim(), "");
+                    String cleanProp = prop.trim();
+                    if (!params.containsKey(cleanProp) || params.get(cleanProp) == null || params.get(cleanProp).toString().trim().isEmpty()) {
+                        params.put(cleanProp, "");
+                    }
+                    if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
             }
-        } catch (Exception e) { log.warn("🛠 누락 파라미터 보정 중 알림 ({}): {}", proc, e.getMessage()); }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
@@ -171,5 +266,18 @@ public class HafaController {
             }
             return String.format("EXEC %s %s", proc, String.join(", ", values));
         } catch (Exception e) { return "EXEC " + proc; }
+    }
+
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
+            newList.add(newMap);
+        }
+        return newList;
     }
 }

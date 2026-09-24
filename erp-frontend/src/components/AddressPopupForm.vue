@@ -10,6 +10,7 @@
 				style="width: 45px;"
 				placeholder="코드"
 				readonly
+				tabindex="-1"
 			/>
 			<!-- 우편번호 (postno) -->
 			<input
@@ -20,6 +21,7 @@
 				placeholder="우편번호"
 				maxlength="6"
 				readonly
+				tabindex="-1"
 			/>
 			<!-- 1️⃣ 신규 주소 검색 (돋보기) -->
 			<button
@@ -27,6 +29,7 @@
 				class="btn btn-sm btn-dark px-2"
 				title="다음 주소 검색"
 				@click="openPostcode"
+				:tabindex="tabindex"
 			>
 				<i class="bi bi-search"></i>
 			</button>
@@ -36,6 +39,7 @@
 				class="btn btn-sm btn-outline-secondary px-2"
 				title="기존 배송지 선택"
 				@click="emit('open-address')"
+				:tabindex="tabindex ? Number(tabindex) + 1 : -1"
 			>
 				<i class="bi bi-list-stars"></i>
 			</button>
@@ -49,6 +53,7 @@
 			style="min-width: 150px;"
 			placeholder="기본주소"
 			readonly
+			tabindex="-1"
 		/>
 
 		<!-- ✏️ 상세주소 (고정 비율 확보) -->
@@ -58,6 +63,7 @@
 			class="form-control form-control-sm"
 			style="width: 25%; min-width: 120px;"
 			placeholder="상세주소 입력"
+			:tabindex="tabindex ? Number(tabindex) + 2 : -1"
 		/>
 	</div>
 </template>
@@ -70,6 +76,7 @@ const props = defineProps({
 	postno: String,
 	address: String,
 	d_address: String,
+	tabindex: [String, Number] // 🚀 부모로부터 전달받은 시작 탭 순서
 })
 
 const emit = defineEmits(['update:trancd', 'update:postno', 'update:address', 'update:d_address', 'open-address'])

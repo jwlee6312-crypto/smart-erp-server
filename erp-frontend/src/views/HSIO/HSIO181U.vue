@@ -155,13 +155,13 @@ const checkCanCancel = (row: any) => {
 const fetchList = async () => {
   if (!searchData.deptcd) return vAlertError('발행부서를 선택하세요.')
   try {
-    const res = await api.post('/hsio/HSIO_181U_STR', {
+    const res = await api.post('/hsio/HSIO_181U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       fromdt: searchData.fromdt,
       todt: searchData.todt,
       deptcd: searchData.deptcd
-    })
+    }])
     grid?.setData(res.data)
     vAlert('조회되었습니다.')
   } catch (e) {

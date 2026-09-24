@@ -94,7 +94,7 @@ public class MHSIO550U extends BaseActivity {
     private void initialize() {
         detailList.clear();
         masterData.clear();
-
+        
         Calendar cal = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         String today = sdf.format(cal.getTime());
@@ -102,7 +102,7 @@ public class MHSIO550U extends BaseActivity {
         tvOutboundDate.setText(today);
         cal.set(Calendar.DAY_OF_MONTH, 1);
         tvDateFrom.setText(sdf.format(cal.getTime()));
-
+        
         etCustNm.setText("");
         etRemarks.setText("");
 
@@ -133,9 +133,9 @@ public class MHSIO550U extends BaseActivity {
 
     private void showDatePicker(TextView tv) {
         Calendar cal = Calendar.getInstance();
-        new DatePickerDialog(this, (view, y, m, d) ->
-                tv.setText(String.format(Locale.getDefault(), "%d-%02d-%02d", y, m + 1, d)),
-                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+        new DatePickerDialog(this, (view, y, m, d) -> 
+            tv.setText(String.format(Locale.getDefault(), "%d-%02d-%02d", y, m + 1, d)), 
+            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void fetchCustList() {
@@ -289,10 +289,10 @@ public class MHSIO550U extends BaseActivity {
         @Override public View getView(int p, View v, ViewGroup pr) {
             if (v == null) v = LayoutInflater.from(MHSIO550U.this).inflate(R.layout.item_outbound_register, pr, false);
             Map<String, Object> item = detailList.get(p);
-
+            
             ((TextView) v.findViewById(R.id.tvItemName)).setText(getStringVal(item, "itemnm"));
             ((TextView) v.findViewById(R.id.tvOrderQty)).setText(getStringVal(item, "janqty"));
-
+            
             EditText etIo = v.findViewById(R.id.etOutboundQty);
             etIo.setText(getStringVal(item, "ioqty"));
             etIo.addTextChangedListener(new android.text.TextWatcher() {
@@ -300,7 +300,7 @@ public class MHSIO550U extends BaseActivity {
                 @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
                 @Override public void afterTextChanged(android.text.Editable s) { item.put("ioqty", s.toString()); }
             });
-
+            
             return v;
         }
     }

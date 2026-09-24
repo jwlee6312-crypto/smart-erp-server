@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.crmbank.erp.crm.dto.*;
 import com.crmbank.erp.comm.dto.*;
 import com.crmbank.erp.crm.service.*;
+import com.crmbank.erp.crm.mapper.inbound.*;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.*;
@@ -19,7 +20,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/crm/inbound")
@@ -28,11 +28,12 @@ public class InboundController {
 
     private final InboundService inboundService;
     private final GeminiAiService geminiAiService;
+    private final InboundMapper inboundMapper;
 
-    @Value("${asterisk.sounds.path:}")
+    @Value("${asterisk.sounds.path}")
     private String soundsPath;
 
-    @Value("${asterisk.recording.path:}")
+    @Value("${asterisk.recording.path}")
     private String recordingPath;
 
     @GetMapping("/play-recording")
@@ -55,7 +56,7 @@ public class InboundController {
         long contentLength = resource.contentLength();
         List<HttpRange> ranges = headers.getRange();
         if (!ranges.isEmpty()) {
-            HttpRange range = ranges.getFirst();
+            HttpRange range = ranges.get(0);
             long start = range.getRangeStart(contentLength);
             long end = range.getRangeEnd(contentLength);
             return ResponseEntity.status(206).contentType(MediaType.parseMediaType("audio/wav")).body(new ResourceRegion(resource, start, Math.min(1024*1024L, end - start + 1)));

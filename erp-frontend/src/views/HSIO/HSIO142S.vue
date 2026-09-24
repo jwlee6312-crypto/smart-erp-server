@@ -104,14 +104,14 @@ let grid: Tabulator | null = null;
 
 async function fetchList() {
   try {
-    const res = await api.post('/hsio/HSIO_141U_STR', {
+    const res = await api.post('/hsio/HSIO_141U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       iogbn: '100',
       fromdt: searchForm.fromdt.replace(/-/g, ''),
       todt: searchForm.todt.replace(/-/g, ''),
       deptcd: searchForm.deptcd
-    });
+    }]);
     grid?.setData(res.data || []);
     vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }

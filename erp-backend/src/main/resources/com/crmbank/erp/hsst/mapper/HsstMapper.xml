@@ -9,25 +9,25 @@
         exec hsst_120s_str #{cmpycd}, #{deptcd}, #{ymd}
     </select>
     <select id="HSST_130S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_130s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{todt}
+        exec hsst_130s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{tymd}
     </select>
     <select id="HSST_150S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_150s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{todt}
+        exec hsst_150s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{tymd}
     </select>
     <select id="HSST_180S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_180s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{todt}
+        exec hsst_180s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{tymd}
     </select>
     <select id="HSST_200S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_200s_str #{cmpycd}, #{ymd}, #{whcd}, #{astkind}, #{itemnm}
+        exec hsst_200s_str #{cmpycd}, #{ymd}, #{whcd}, #{astkind}, #{itemnm}, #{pageno}, #{maxcnt}
     </select>
     <select id="HSST_210S_STR" resultType="java.util.LinkedHashMap">
         exec hsst_210s_str #{cmpycd}, #{ymd}, #{deptcd}, #{custcdfr}, #{custcdto}
     </select>
     <select id="HSST_300S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_300s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{todt}
+        exec hsst_300s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{tymd}
     </select>
     <select id="HSST_320S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_320s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{todt}
+        exec hsst_320s_str #{cmpycd}, #{deptcd}, #{fromdt}, #{tymd}
     </select>
     <select id="HSST_340S_STR" resultType="java.util.LinkedHashMap">
         exec hsst_340s_str #{cmpycd}, #{deptcd}, #{ym}
@@ -36,7 +36,7 @@
         exec hsst_360s_str #{cmpycd}, #{deptcd}, #{custcd}, #{ym}
     </select>
     <select id="HSST_510S_STR" resultType="java.util.LinkedHashMap">
-        exec hsst_510s_str #{cmpycd}, #{deptcd}, #{itemcd}, #{fromdt}, #{todt}
+        exec hsst_510s_str #{cmpycd}, #{deptcd}, #{itemcd}, #{fromdt}, #{tymd}
     </select>
     <select id="HSST_520S_STR" resultType="java.util.LinkedHashMap">
         exec hsst_520s_str #{cmpycd}, #{deptcd}, #{yymm}

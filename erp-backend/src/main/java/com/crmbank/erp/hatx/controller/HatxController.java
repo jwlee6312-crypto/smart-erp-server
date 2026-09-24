@@ -10,12 +10,15 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * [HATX] 부가세/세금계산서 통합 컨트롤러 (사용자 정의 최종 표준형)
+ */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hatx")
@@ -24,11 +27,11 @@ public class HatxController {
 
     private final HatxMapper hatxMapper;
     private final SqlSession sqlSession;
-    private final JdbcTemplate jdbcTemplate;
 
-    // -----------------------------------------------------------------------
-    // [1] 매입부가세 통합 저장 (010U)
-    // -----------------------------------------------------------------------
+    // ==========================================
+    // 1. _SAVE 통합 저장 트랜잭션 서비스
+    // ==========================================
+
     @Transactional(rollbackFor = Exception.class)
     @PostMapping("/save-purchase")
     public ResponseEntity<?> savePurchaseVat(@RequestBody Map<String, Object> payload, HttpSession session) {
@@ -122,9 +125,6 @@ public class HatxController {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // [2] 매출부가세 통합 저장 (020U)
-    // -----------------------------------------------------------------------
     @Transactional(rollbackFor = Exception.class)
     @PostMapping("/save-sales")
     public ResponseEntity<?> saveSalesVat(@RequestBody Map<String, Object> payload, HttpSession session) {
@@ -221,9 +221,6 @@ public class HatxController {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // [3] 수정세금계산서 통합 저장 (210U)
-    // -----------------------------------------------------------------------
     @Transactional(rollbackFor = Exception.class)
     @PostMapping("/save-corrected-sales")
     public ResponseEntity<?> saveCorrectedSalesVat(@RequestBody Map<String, Object> payload, HttpSession session) {
@@ -240,11 +237,6 @@ public class HatxController {
             String slipymd = String.valueOf(master.getOrDefault("slipymd", "00000000")).replace("-", "");
             String slipno = String.valueOf(master.getOrDefault("slipno", ""));
             String srowno = "";
-
-            if ("Y".equals(slipYn)) {
-                // 수정세금계산서 전표 생성 로직 (일반 매출과 유사하되 마이너스 전표 가능)
-                // ... 필요 시 보강 ...
-            }
 
             Map<String, Object> v = new HashMap<>(master);
             v.put("cmpycd", cmpycd); v.put("taxkind", "200"); v.put("userid", userid);
@@ -270,90 +262,303 @@ public class HatxController {
         }
     }
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(
-            @PathVariable String procedure,
-            @RequestBody Map<String, Object> params,
-            HttpSession session) {
-        
-        if (session.getAttribute("user_session") == null) {
-            return ResponseEntity.status(401).build();
-        }
+    // ==========================================
+    // 2. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
 
+    @PostMapping("/HATX_010U_STR")
+    public ResponseEntity<?> callHATX_010U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
         injectSession(params, session);
-        String proc = procedure.toUpperCase();
-        String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase();
+        fillMissingParameters("HATX_010U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HATX_010U_STR", params));
 
-        try {
-            fillMissingParameters(proc, params);
-            log.info("🚀 [hatx] 실행 요청: {}", proc);
-            
-            List<Map<String, Object>> result;
-            if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U"))) {
-                String positionalSql = buildPositionalSql(proc, params);
-                log.info("📋 [ASP 스타일 실행] SQL: {}", positionalSql);
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hatxMapper.HATX_010U_STR(params);
 
-                result = jdbcTemplate.query(positionalSql, (rs, rowNum) -> {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    List<Object> values = new ArrayList<>();
-                    int colCount = rs.getMetaData().getColumnCount();
-                    for (int i = 1; i <= colCount; i++) {
-                        Object val = rs.getObject(i);
-                        String colName = rs.getMetaData().getColumnLabel(i); 
-                        if (colName == null || colName.isEmpty()) colName = "col_" + (i-1);
-                        row.put(colName.toLowerCase(), val == null ? "" : val);
-                        values.add(val == null ? "" : val);
-                    }
-                    row.put("returnkeyvalue", values); 
-                    return row;
-                });
-            } else {
-                switch (proc) {
-                    case "HATX_010U_STR": result = hatxMapper.HATX_010U_STR(params); break;
-                    case "HATX_011U_STR": result = hatxMapper.HATX_011U_STR(params); break;
-                    case "HATX_030S_STR": result = hatxMapper.HATX_030S_STR(params); break;
-                    case "HATX_040S_STR": result = hatxMapper.HATX_040S_STR(params); break;
-                    case "HATX_110S_STR": result = hatxMapper.HATX_110S_STR(params); break;
-                    case "HATX_130S_STR": result = hatxMapper.HATX_130S_STR(params); break;
-                    case "HATX_140S_STR": result = hatxMapper.HATX_140S_STR(params); break;
-                    case "HATX_150S_STR": result = hatxMapper.HATX_150S_STR(params); break;
-                    case "HATX_160S_STR": result = hatxMapper.HATX_160S_STR(params); break;
-                    case "HATX_170S_STR": result = hatxMapper.HATX_170S_STR(params); break;
-                    case "HATX_210U_STR": result = hatxMapper.HATX_210U_STR(params); break;
-                    case "HATX_600S_STR": result = hatxMapper.HATX_600S_STR(params); break;
-                    case "HATX_01AU_STR": result = hatxMapper.HATX_01AU_STR(params); break;
-                    case "HATX_01BU_STR": result = hatxMapper.HATX_01BU_STR(params); break;
-                    case "HATX_060U_STR": result = hatxMapper.HATX_060U_STR(params); break;
-                    case "HATX_080U_STR": result = hatxMapper.HATX_080U_STR(params); break;
-                    case "HATX_050U_STR": result = hatxMapper.HATX_050U_STR(params); break;
-                    case "HATX_500S_STR": result = hatxMapper.HATX_500S_STR(params); break;
-                    default:
-                        return ResponseEntity.notFound().build();
-                }
-            }
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
-            if (result == null || result.isEmpty()) {
-                result = List.of(Map.of("res", "OK"));
-            }
-            return ResponseEntity.ok(convertToLowerCaseKeys(result));
-        } catch (Exception e) {
-            log.error("❌ [hatx] executeProcedure Error ({}): {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "taxym", "taxno");
+        String code = String.valueOf(resultRow.get("taxym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("taxno")));
         }
+        return ResponseEntity.ok(List.of(resultRow));
     }
 
-    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
-        if (list == null) return new ArrayList<>();
-        List<Map<String, Object>> newList = new ArrayList<>();
-        for (Map<String, Object> map : list) {
-            Map<String, Object> newMap = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+    @PostMapping("/HATX_011U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHATX_011U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HATX_011U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_011U_STR(params)));
             }
-            newList.add(newMap);
         }
-        return newList;
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HATX_011U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HATX_011U_STR", detail));
+
+            List<Map<String, Object>> raw = hatxMapper.HATX_011U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("taxym", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("taxno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HATX_01AU_STR")
+    public ResponseEntity<?> callHATX_01AU_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_01AU_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HATX_01AU_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hatxMapper.HATX_01AU_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "slipymd", "slipno");
+        String code = String.valueOf(resultRow.get("slipymd")).trim();
+        if ("00000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("slipno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HATX_01BU_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHATX_01BU_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HATX_01BU_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_01BU_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HATX_01BU_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HATX_01BU_STR", detail));
+
+            List<Map<String, Object>> raw = hatxMapper.HATX_01BU_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("00000000".equals(String.valueOf(resRow.getOrDefault("slipymd", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("slipno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HATX_050U_STR")
+    public ResponseEntity<?> callHATX_050U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_050U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HATX_050U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hatxMapper.HATX_050U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "cmpycd", "taxunit");
+        String code = String.valueOf(resultRow.get("cmpycd")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("taxunit")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HATX_060U_STR")
+    public ResponseEntity<?> callHATX_060U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_060U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HATX_060U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hatxMapper.HATX_060U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "taxunit", "taxkind");
+        String code = String.valueOf(resultRow.get("taxunit")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("taxkind")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HATX_080U_STR")
+    public ResponseEntity<?> callHATX_080U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_080U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HATX_080U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hatxMapper.HATX_080U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "taxunit", "deptcd");
+        String code = String.valueOf(resultRow.get("taxunit")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("deptcd")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HATX_210U_STR")
+    public ResponseEntity<?> callHATX_210U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_210U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HATX_210U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hatxMapper.HATX_210U_STR(params);
+
+        if ("S".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "taxym", "taxno");
+        String code = String.valueOf(resultRow.get("taxym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("taxno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    // ==========================================
+    // 3. S_STR 현황 및 조회 프로시저 (1:1 직결 매핑)
+    // ==========================================
+
+    @PostMapping("/HATX_030S_STR")
+    public ResponseEntity<?> callHATX_030S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_030S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_030S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_030S_STR(params)));
+    }
+
+    @PostMapping("/HATX_040S_STR")
+    public ResponseEntity<?> callHATX_040S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_040S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_040S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_040S_STR(params)));
+    }
+
+    @PostMapping("/HATX_110S_STR")
+    public ResponseEntity<?> callHATX_110S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_110S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_110S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_110S_STR(params)));
+    }
+
+    @PostMapping("/HATX_130S_STR")
+    public ResponseEntity<?> callHATX_130S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_130S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_130S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_130S_STR(params)));
+    }
+
+    @PostMapping("/HATX_140S_STR")
+    public ResponseEntity<?> callHATX_140S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_140S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_140S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_140S_STR(params)));
+    }
+
+    @PostMapping("/HATX_150S_STR")
+    public ResponseEntity<?> callHATX_150S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_150S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_150S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_150S_STR(params)));
+    }
+
+    @PostMapping("/HATX_160S_STR")
+    public ResponseEntity<?> callHATX_160S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_160S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_160S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_160S_STR(params)));
+    }
+
+    @PostMapping("/HATX_170S_STR")
+    public ResponseEntity<?> callHATX_170S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_170S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_170S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_170S_STR(params)));
+    }
+
+    @PostMapping("/HATX_500S_STR")
+    public ResponseEntity<?> callHATX_500S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_500S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_500S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_500S_STR(params)));
+    }
+
+    @PostMapping("/HATX_600S_STR")
+    public ResponseEntity<?> callHATX_600S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HATX_600S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HATX_600S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hatxMapper.HATX_600S_STR(params)));
+    }
+
+    // ==========================================
+    // 4. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
     }
 
     private void injectSession(Map<String, Object> params, HttpSession session) {
@@ -371,7 +576,7 @@ public class HatxController {
 
     private void fillMissingParameters(String proc, Map<String, Object> params) {
         try {
-            String statementId = "com.crmbank.erp.hatx.mapper.HatxMapper." + proc;
+            String statementId = HatxMapper.class.getName() + "." + proc;
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
             MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
             BoundSql boundSql = ms.getBoundSql(params);
@@ -386,7 +591,7 @@ public class HatxController {
                     if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
                 }
             }
-        } catch (Exception e) { log.warn("🛠 누락 파라미터 보정 중 알림 ({}): {}", proc, e.getMessage()); }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
@@ -395,6 +600,7 @@ public class HatxController {
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
+
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
                 Object val = params.get(pm.getProperty().trim());
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
@@ -402,5 +608,18 @@ public class HatxController {
             }
             return String.format("EXEC %s %s", proc, String.join(", ", values));
         } catch (Exception e) { return "EXEC " + proc; }
+    }
+
+    private List<Map<String, Object>> convertToLowerCaseKeys(List<Map<String, Object>> list) {
+        if (list == null) return new ArrayList<>();
+        List<Map<String, Object>> newList = new ArrayList<>();
+        for (Map<String, Object> map : list) {
+            Map<String, Object> newMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                newMap.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
+            newList.add(newMap);
+        }
+        return newList;
     }
 }

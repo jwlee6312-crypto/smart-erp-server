@@ -6,19 +6,19 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.session.SqlSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
- * [HSCL] 결산관리 통합 컨트롤러 (사용자 정의 최종 표준형)
+ * [HSCL] 영업/수불 결산관리 통합 컨트롤러 (사용자 정의 최종 표준형)
  */
+@SuppressWarnings("unused")
 @Slf4j
 @RestController
 @RequestMapping("/hscl")
@@ -29,119 +29,246 @@ public class HsclController {
     private final SqlSession sqlSession;
     private final JdbcTemplate jdbcTemplate;
 
-    @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/{procedure}")
-    public ResponseEntity<?> executeProcedure(@PathVariable String procedure, @RequestBody Map<String, Object> params, HttpSession session) {
-        String proc = procedure.toUpperCase();
-        UserSession user = (UserSession) session.getAttribute("user_session");
-        if (user == null) return ResponseEntity.status(401).build();
+    // ==========================================
+    // 1. _SAVE 특별 전표 처리 엔드포인트
+    // ==========================================
 
-        // 🚀 특별 처리: 복합 저장 로직 (기존 약속 유지)
-        if (proc.equals("HSCL_110U_SAVE")) return saveHscl110(params, session);
-        if (proc.equals("HSCL_115U_SAVE")) return saveHscl115(params, session);
-
+    @PostMapping("/HSCL_110U_SAVE")
+    public ResponseEntity<?> saveHscl110(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
         try {
-            params.put("cmpycd", user.getCmpycd());
-            params.put("userid", user.getUserid());
-
-            List<Map<String, Object>> resultList = new ArrayList<>();
-
-            if (params.get("items") instanceof List<?> items) {
-                for (Object itemObj : items) {
-                    if (itemObj instanceof Map<?, ?> item) {
-                        Map<String, Object> p = new HashMap<>(params);
-                        p.putAll((Map<String, Object>) item);
-                        p.remove("items");
-                        resultList.addAll(executeInternal(proc, p));
-                    }
-                }
-            } else {
-                resultList = executeInternal(proc, params);
-            }
-
-            return ResponseEntity.ok(convertToLowerCaseKeys(resultList));
-
-        } catch (Exception e) {
-            log.error("❌ [HSCL] {} Error: {}", proc, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    private List<Map<String, Object>> executeInternal(String proc, Map<String, Object> params) {
-        String actkind = String.valueOf(params.getOrDefault("actkind", "")).toUpperCase().trim();
-
-        // 💡 표준: 쓰기 액션(A, U, D, DR) 및 집계(C)인 경우 무결성 수신을 위해 직접 실행 및 로깅
-        if (proc.endsWith("U_STR") && (actkind.startsWith("A") || actkind.startsWith("U") || actkind.startsWith("D") || actkind.equals("DR") || actkind.equals("C"))) {
-            return executeDirectSql(proc, params);
-        }
-
-        // 💡 사용자 정의 표준: 명시적인 Switch-Case 호출
-        List<Map<String, Object>> result;
-        switch (proc) {
-            case "HSCL_100U_STR": result = hsclMapper.HSCL_100U_STR(params); break;
-            case "HSCL_110U_STR": result = hsclMapper.HSCL_110U_STR(params); break;
-            case "HSCL_115U_STR": result = hsclMapper.HSCL_115U_STR(params); break;
-            case "HSCL_200S_STR": result = hsclMapper.HSCL_200S_STR(params); break;
-            case "HSCL_210S_STR": result = hsclMapper.HSCL_210S_STR(params); break;
-            case "HSCL_220S_STR": result = hsclMapper.HSCL_220S_STR(params); break;
-            case "HSCL_270S_STR": result = hsclMapper.HSCL_270S_STR(params); break;
-            case "HSCL_290S_STR": result = hsclMapper.HSCL_290S_STR(params); break;
-            case "HSCL_310S_STR": result = hsclMapper.HSCL_310S_STR(params); break;
-            case "HSCL_520S_STR": result = hsclMapper.HSCL_520S_STR(params); break;
-            default:
-                result = invokeMapper(proc, params);
-                if (result == null) result = executeDirectSql(proc, params);
-                break;
-        }
-        return result != null ? result : new ArrayList<>();
-    }
-
-    private List<Map<String, Object>> invokeMapper(String proc, Map<String, Object> params) {
-        try {
-            Method method = HsclMapper.class.getMethod(proc, Map.class);
-            return (List<Map<String, Object>>) method.invoke(hsclMapper, params);
-        } catch (NoSuchMethodException e) {
-            return null;
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
-    }
-
-    private List<Map<String, Object>> executeDirectSql(String proc, Map<String, Object> params) {
-        String sql = buildPositionalSql(proc, params);
-        log.info("==>  Direct Executing: {}", sql);
-        try {
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> row = new LinkedHashMap<>();
-                int colCount = rs.getMetaData().getColumnCount();
-                for (int k = 1; k <= colCount; k++) {
-                    String label = rs.getMetaData().getColumnLabel(k).toLowerCase();
-                    row.put(label, rs.getObject(k) == null ? "" : rs.getObject(k));
-                }
+            String sql = buildPositionalSql("HSCL_110U_STR", params);
+            List<Map<String, Object>> res = jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Map<String, Object> row = new HashMap<>();
+                row.put("res", rs.getString(1));
+                row.put("msg", rs.getString(2));
                 return row;
             });
+            return ResponseEntity.ok(convertToLowerCaseKeys(res));
         } catch (Exception e) {
-            if (e.getMessage() != null && (e.getMessage().contains("No ResultSet") || e.getMessage().contains("did not return a result set"))) {
-                return new ArrayList<>();
-            }
-            throw e;
+            log.error("❌ [hscl] HSCL_110U_SAVE Error: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
         }
+    }
+
+    @PostMapping("/HSCL_115U_SAVE")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> saveHscl115(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        try {
+            List<Map<String, Object>> list = (List<Map<String, Object>>) params.get("list");
+            String actkind = (String) params.get("actkind");
+            if (list != null) {
+                for (Map<String, Object> item : list) {
+                    injectSession(item, session);
+                    item.put("actkind", actkind);
+                    String sql = buildPositionalSql("HSCL_115U_STR", item);
+                    jdbcTemplate.execute(sql);
+                }
+            }
+            return ResponseEntity.ok(List.of(Map.of("res", "OK", "result", "ok")));
+        } catch (Exception e) {
+            log.error("❌ [hscl] HSCL_115U_SAVE Error: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // ==========================================
+    // 2. U_STR 프로시저 (마스터/디테일 표준화)
+    // ==========================================
+
+    @PostMapping("/HSCL_100U_STR")
+    public ResponseEntity<?> callHSCL_100U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_100U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSCL_100U_STR", params));
+
+        List<Map<String, Object>> raw = hsclMapper.HSCL_100U_STR(params);
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSCL_110U_STR")
+    public ResponseEntity<?> callHSCL_110U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_110U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSCL_110U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsclMapper.HSCL_110U_STR(params);
+
+        if ("S".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSCL_115U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSCL_115U_STR(@RequestBody Object details, HttpSession session) {
+        if (details instanceof Map) {
+            Map<String, Object> params = (Map<String, Object>) details;
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+            if ("S".equals(actkind)) {
+                injectSession(params, session);
+                fillMissingParameters("HSCL_115U_STR", params);
+                return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_115U_STR(params)));
+            }
+        }
+
+        List<Map<String, Object>> list = (List<Map<String, Object>>) details;
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            Map<String, Object> detail = list.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSCL_115U_STR", detail);
+            log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSCL_115U_STR", detail));
+
+            List<Map<String, Object>> raw = hsclMapper.HSCL_115U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("00000000".equals(String.valueOf(resRow.getOrDefault("slipymd", "")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("slipno", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    // ==========================================
+    // 3. S_STR 현황 및 조회 프로시저 (1:1 직결 매핑)
+    // ==========================================
+
+    @PostMapping("/HSCL_200S_STR")
+    public ResponseEntity<?> callHSCL_200S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_200S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_200S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_200S_STR(params)));
+    }
+
+    @PostMapping("/HSCL_210S_STR")
+    public ResponseEntity<?> callHSCL_210S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_210S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_210S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_210S_STR(params)));
+    }
+
+    @PostMapping("/HSCL_220S_STR")
+    public ResponseEntity<?> callHSCL_220S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_220S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_220S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_220S_STR(params)));
+    }
+
+    @PostMapping("/HSCL_270S_STR")
+    public ResponseEntity<?> callHSCL_270S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_270S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_270S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_270S_STR(params)));
+    }
+
+    @PostMapping("/HSCL_290S_STR")
+    public ResponseEntity<?> callHSCL_290S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_290S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_290S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_290S_STR(params)));
+    }
+
+    @PostMapping("/HSCL_310S_STR")
+    public ResponseEntity<?> callHSCL_310S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_310S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_310S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_310S_STR(params)));
+    }
+
+    @PostMapping("/HSCL_520S_STR")
+    public ResponseEntity<?> callHSCL_520S_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSCL_520S_STR", params);
+        log.info("🏢 [Exec SQL]: {}", buildPositionalSql("HSCL_520S_STR", params));
+        return ResponseEntity.ok(convertToLowerCaseKeys(hsclMapper.HSCL_520S_STR(params)));
+    }
+
+    // ==========================================
+    // 4. 공통 유틸리티 헬퍼 메서드
+    // ==========================================
+
+    private Map<String, Object> mapToAlias(Map<String, Object> rawRow, String col1Alias, String col2Alias) {
+        Map<String, Object> newMap = new LinkedHashMap<>();
+        int i = 1;
+        for (Map.Entry<String, Object> entry : rawRow.entrySet()) {
+            String key = entry.getKey().toLowerCase();
+            if (key.startsWith("col") || key.isEmpty()) {
+                if (i == 1) key = col1Alias;
+                else if (i == 2) key = col2Alias;
+            }
+            newMap.put(key, entry.getValue() == null ? "" : entry.getValue());
+            i++;
+        }
+        return newMap;
+    }
+
+    private void injectSession(Map<String, Object> params, HttpSession session) {
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        if (user != null) {
+            if (params.get("cmpycd") == null || params.get("cmpycd").toString().trim().isEmpty()) {
+                params.put("cmpycd", user.getCmpycd());
+            }
+            if (params.get("userid") == null || params.get("userid").toString().trim().isEmpty()) {
+                params.put("userid", user.getUserid());
+            }
+            params.put("updemp", user.getUserid());
+        }
+    }
+
+    private void fillMissingParameters(String proc, Map<String, Object> params) {
+        try {
+            String statementId = HsclMapper.class.getName() + "." + proc;
+            if (!sqlSession.getConfiguration().hasStatement(statementId)) return;
+            MappedStatement ms = sqlSession.getConfiguration().getMappedStatement(statementId);
+            BoundSql boundSql = ms.getBoundSql(params);
+
+            for (ParameterMapping pm : boundSql.getParameterMappings()) {
+                String prop = pm.getProperty();
+                if (prop != null && !prop.startsWith("_") && !prop.contains(".")) {
+                    String cleanProp = prop.trim();
+                    if (!params.containsKey(cleanProp) || params.get(cleanProp) == null || params.get(cleanProp).toString().trim().isEmpty()) {
+                        params.put(cleanProp, "");
+                    }
+                    if (!cleanProp.equals(prop)) params.put(prop, params.get(cleanProp));
+                }
+            }
+        } catch (Exception e) { log.warn("🛠 missing parameter alarm ({}): {}", proc, e.getMessage()); }
     }
 
     private String buildPositionalSql(String proc, Map<String, Object> params) {
         try {
-            // 💡 [주의] 이 부분만 해당 컨트롤러의 매퍼 클래스명으로 수정하세요 (예: HsodMapper.class)
             String statementId = HsclMapper.class.getName() + "." + proc;
-
             if (!sqlSession.getConfiguration().hasStatement(statementId)) return "EXEC " + proc;
             BoundSql boundSql = sqlSession.getConfiguration().getMappedStatement(statementId).getBoundSql(params);
             List<String> values = new ArrayList<>();
 
             for (ParameterMapping pm : boundSql.getParameterMappings()) {
-                // XML에 정의된 #{이름}과 100% 일치하는 값만 추출 (VUE 순서 상관없음)
                 Object val = params.get(pm.getProperty().trim());
-
-                // NULL/공백 치환 및 유니코드(N) 처리하여 왜곡 차단
                 String valStr = (val == null || "null".equals(String.valueOf(val))) ? "''" : "N'" + val.toString().replace("'", "''").trim() + "'";
                 values.add(valStr);
             }
@@ -160,35 +287,5 @@ public class HsclController {
             newList.add(newMap);
         }
         return newList;
-    }
-
-    private ResponseEntity<?> saveHscl110(Map<String, Object> params, HttpSession session) {
-        try {
-            String sql = buildPositionalSql("HSCL_110U_STR", params);
-            List<Map<String, Object>> res = jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> row = new HashMap<>();
-                row.put("res", rs.getString(1));
-                row.put("msg", rs.getString(2));
-                return row;
-            });
-            return ResponseEntity.ok(convertToLowerCaseKeys(res));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    private ResponseEntity<?> saveHscl115(Map<String, Object> params, HttpSession session) {
-        try {
-            List<Map<String, Object>> list = (List<Map<String, Object>>) params.get("list");
-            String actkind = (String) params.get("actkind");
-            for (Map<String, Object> item : list) {
-                item.put("actkind", actkind);
-                String sql = buildPositionalSql("HSCL_115U_STR", item);
-                jdbcTemplate.execute(sql);
-            }
-            return ResponseEntity.ok(List.of(Map.of("res", "OK", "result", "ok")));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
-        }
     }
 }

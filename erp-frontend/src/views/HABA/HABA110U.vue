@@ -184,7 +184,7 @@ const formatymd = (v: string) => v && v.length === 8 ? `${v.substring(0, 4)}-${v
 const search = async () => {
 	if (!searchform.acctcd_t) return valert('검색하고자 하는 계정과목을 선택해 주십시오.')
 	try {
-		const res = await api.post('/haba/haba_110u_str', {
+		const res = await api.post('/haba/HABA_110U_STR', {
 			actkind: 'S1', cmpycd: authstore.cmpycd, acctcd: searchform.acctcd,
 			wonamt: 0, rate: 0, payamt: 0
 		})
@@ -214,7 +214,7 @@ const save = async () => {
 			stdymd: (masterdata.stdymd || '').replace(/-/g, ''),
 			endymd: (masterdata.endymd || '').replace(/-/g, '')
 		}
-		const res = await api.post('/haba/haba_110u_str', payload)
+		const res = await api.post('/haba/HABA_110U_STR', payload)
 		const resdata = res.data?.[0] || {};
 		if (resdata.ret_yn === 'Y' || resdata.result === 'N') valerterror(resdata.ret_msg || resdata.msg || '저장 실패')
 		else { valert('정상적으로 처리되었습니다.'); search(); initialize() }
@@ -232,7 +232,7 @@ const modalprops = reactive<ModalProps>({ title: '', path: '', defaultField: '',
 function openhelp(type: string) {
 	if (type === 'search_acct') {
 		Object.assign(modalprops, {
-			title: '계정과목 선택', path: '/ha00/ha00_00p_str',
+			title: '계정과목 선택', path: '/ha00/HA00_00P_STR',
 			data: { gubun: 'A6', cmpycd: authstore.cmpycd, gbncd:'023' },
 			columns: [{ title: '코드', field: 'acctcd', width: 80 }, { title: '계정명', field: 'acctnm', width: 180 }],
 			onConfirm: (d: any) => {
@@ -243,7 +243,7 @@ function openhelp(type: string) {
 	} else if (type === 'bank') {
 		if (!masterdata.acctcd) return valert('조회 후 입력하시기 바랍니다.')
 		Object.assign(modalprops, {
-			title: '금융기관 선택', path: '/ha00/ha00_00p_str',
+			title: '금융기관 선택', path: '/ha00/HA00_00P_STR',
 			data: { gubun: 'C3', cmpycd: authstore.cmpycd },
 			columns: [{ title: '코드', field: 'custcd', width: 80 }, { title: '금융기관명', field: 'custnm', width: 180 }],
 			onConfirm: (d: any) => {

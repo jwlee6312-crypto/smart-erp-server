@@ -34,7 +34,7 @@ const columns = [
 const fetchData = async (searchWord: string) => {
   loading.value = true;
   try {
-    const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'C4', cmpycd: authStore.cmpycd, codenm: searchWord })
+    const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'C4', cmpycd: authStore.cmpycd, code: searchWord })
     baseRef.value?.setData(res.data || [])
   } finally { loading.value = false }
 }

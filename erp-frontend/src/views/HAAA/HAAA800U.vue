@@ -154,7 +154,7 @@ let maingrid: Tabulator | null = null
 async function fetchsearchgrpcd() {
 	if (!searchform.upmucd) { searchgrpcdoptions.value = []; return; }
 	try {
-		const res = await api.post('/ha00/ha00_00p_str', { gubun: 'sc', gbncd: searchform.upmucd, cmpycd: authstore.cmpycd })
+		const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'sc', gbncd: searchform.upmucd, cmpycd: authstore.cmpycd })
 		const processed = res.data || [];
 		searchgrpcdoptions.value = processed.map((n: any) => ({ grpcd: n.codecd || n.grpcd, grpnm: n.codenm || n.grpnm }))
 		search()
@@ -164,7 +164,7 @@ async function fetchsearchgrpcd() {
 watch(() => formdata.upmucd, async (newval) => {
 	if (!newval) { grpcdoptions.value = []; return; }
 	try {
-		const res = await api.post('/ha00/ha00_00p_str', { gubun: 'sc', gbncd: newval, cmpycd: authstore.cmpycd })
+		const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'sc', gbncd: newval, cmpycd: authstore.cmpycd })
 		const processed = res.data || [];
 		grpcdoptions.value = processed.map((n: any) => ({ grpcd: n.codecd || n.grpcd, grpnm: n.codenm || n.grpnm }))
 	} catch (e) { console.error('분류 로드 실패') }
@@ -172,7 +172,7 @@ watch(() => formdata.upmucd, async (newval) => {
 
 async function fetchupmu() {
 	try {
-		const res = await api.post('/ha00/ha00_00p_str', { gubun: 'e0', gbncd: '320', cmpycd: authstore.cmpycd })
+		const res = await api.post('/ha00/HA00_00P_STR', { gubun: 'e0', gbncd: '320', cmpycd: authstore.cmpycd })
 		if (res.data) {
 			const processed = res.data || [];
 			upmuoptions.value = processed.map((n: any) => ({ codecd: n.codecd || n.code, codenm: n.codenm || n.cdnm }))
@@ -187,7 +187,7 @@ async function fetchupmu() {
 
 async function search() {
 	try {
-		const res = await api.post('/haaa/haaa_800u_str', { actkind: 'S0', upmucd: searchform.upmucd, grpcd: searchform.grpcd, cmpycd: authstore.cmpycd })
+		const res = await api.post('/haaa/HAAA_800U_STR', { actkind: 'S0', upmucd: searchform.upmucd, grpcd: searchform.grpcd, cmpycd: authstore.cmpycd })
 		const processed = res.data || [];
 		maingrid?.setData(processed)
 		valert('프로그램 리스트를 불러왔습니다.')
