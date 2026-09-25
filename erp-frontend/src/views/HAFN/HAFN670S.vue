@@ -1,6 +1,6 @@
 <!--
 	=============================================================
-	프로그램명	: 은행별자금현황 (HAFN670S)
+	프로그램명	: 미지급금현황 (HAFN670S)
 	작성일자	: 2025.02.24
 	설명        : 은행별 계좌 잔액 및 실시간 자금 현황 조회
 	=============================================================
@@ -14,7 +14,7 @@
       <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-bank2 me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">은행별자금현황 (HAFN670S)</span>
+        <span class="text-primary fw-bolder">미지급금현황 (HAFN670S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
         <button class="btn-erp btn-search" @click="search">조회</button>

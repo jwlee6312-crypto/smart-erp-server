@@ -157,9 +157,9 @@ const initGrid = () => {
 // 3. 기능 구현
 async function search() {
   try {
-    const res = await api.post('/hsba/HSBA_711U_STR', {
+    const res = await api.post('/hsba/HSBA_711U_STR', [{
       actkind: 'S0', cmpycd: authStore.cmpycd, imgbn: '', imgbnnm: searchForm.imgbnnm
-    })
+    }])
     if (grid.value) {
       grid.value.setData(res.data || [])
       activeItemCount.value = (res.data || []).length
@@ -176,7 +176,7 @@ async function save() {
   const finalUseYn = deleteCheck.value ? 'N' : 'Y'
 
   try {
-    await api.post('/hsba/HSBA_711U_STR', { ...formData, useyn: finalUseYn })
+    await api.post('/hsba/HSBA_711U_STR', [{ ...formData, useyn: finalUseYn }])
     vAlert('성공적으로 저장되었습니다.')
     search()
     initialize()

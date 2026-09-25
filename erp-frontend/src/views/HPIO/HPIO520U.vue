@@ -402,10 +402,10 @@ async function fetchDetail(row: any) {
   onLineChange()
 
   try {
-    const res = await api.post('/hpio/HPIO_521U_STR', {
+    const res = await api.post('/hpio/HPIO_521U_STR', [{
       actkind: 'S', cmpycd: authStore.cmpycd, ioym: row.ioym, iono: row.iono, linecd: row.linecd,
       ioqty: 0
-    })
+    }])
     const data = (res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' }))
     grid2?.setData(data)
   } catch (e) {
@@ -449,7 +449,7 @@ async function saveData() {
 
     for (const item of details) {
       item.ioym = keyYM; item.iono = keyNO
-      await api.post('/hpio/HPIO_521U_STR', item)
+      await api.post('/hpio/HPIO_521U_STR', [item])
     }
 
     vAlert('저장되었습니다(Alt+S)'); search()

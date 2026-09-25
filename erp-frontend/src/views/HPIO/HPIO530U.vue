@@ -250,10 +250,10 @@ const fetchMaster = async () => {
 
 const fetchDetails = async () => {
   try {
-    const res = await api.post('/hpio/HPIO_501U_STR', { // Detail은 501U 공동사용
+    const res = await api.post('/hpio/HPIO_501U_STR', [{ // Detail은 501U 공동사용
       actkind: 'S', cmpycd: authStore.cmpycd, iogbn: '200',
       ioym: masterData.ioym, iono: masterData.iono
-    })
+    }])
     const mapped = (res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' }))
     grid?.setData(mapped)
     itemCount.value = mapped.length
@@ -317,12 +317,12 @@ const saveData = async () => {
         else if (item._status === '수정') act = 'U';
         else act = !masterData.iono ? 'A' : 'U';
 
-        await api.post('/hpio/HPIO_501U_STR', {
+        await api.post('/hpio/HPIO_501U_STR', [{
             ...item, actkind: act, cmpycd: authStore.cmpycd, userid: authStore.userid,
             iogbn: '200', ioym: masterData.ioym, iono: newIono, INNO: newInno,
             deptcd: masterData.deptcd, whcd: masterData.whcd, iwhcd: masterData.iwhcd, ioymd: ioYmd,
             linecd: '010', progcd: '888'
-        })
+        }])
     }
     vAlert('정상적으로 저장되었습니다.')
     masterData.iono = newIono

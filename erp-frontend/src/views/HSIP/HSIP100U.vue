@@ -498,9 +498,9 @@ async function fetchDetail(fileNo: string) {
         _isNew: false
       })
 
-      const itemRes = await api.post('/hsip/HSIP_101U_STR', {
+      const itemRes = await api.post('/hsip/HSIP_101U_STR', [{
         fileno: fileNo, actkind: 'S0', qty: 0, amt: 0
-      })
+      }])
       const data = (itemRes.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' }))
       // 🚀 [표준] 조회 시에는 실데이터만 출력
       mainGrid?.setData(data)

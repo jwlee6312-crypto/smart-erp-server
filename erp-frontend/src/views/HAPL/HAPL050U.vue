@@ -186,7 +186,8 @@ const loadInitData = async () => {
 const searchDepts = async () => {
   try {
     const ym = searchForm.yy + searchForm.mm;
-    const res = await api.post('/hapl/HAPL_050U_STR', { actkind: 'S1', cmpycd: authStore.cmpycd, iogbn: '200', yymm: ym });
+    const res = await api.post('/hapl/HAPL_050U_STR', {
+    actkind: 'S1', cmpycd: authStore.cmpycd, iogbn: '200', stdym: ym });
     deptGrid?.setData(res.data || []);
     mainGrid?.clearData(); selectedDept.code = ''; selectedDept.nm = '';
 
@@ -200,7 +201,7 @@ const fetchItems = async () => {
   try {
     const ym = searchForm.yy + searchForm.mm;
     const res = await api.post('/hapl/HAPL_050U_STR', {
-      actkind: 'S0', cmpycd: authStore.cmpycd, gubun: '020', yymm: ym, divcd: searchForm.divcd, deptcd: selectedDept.code
+      actkind: 'S0', cmpycd: authStore.cmpycd, gubun: '020', stdym: ym, divcd: searchForm.divcd, deptcd: selectedDept.code
     });
     mainGrid?.setData((res.data || []).map((n: any) => ({ ...n, _status: '' })));
   } catch (e) { vAlertError('품목 조회 실패') }
@@ -222,7 +223,7 @@ const generateWeights = async () => {
     try {
         const ym = searchForm.yy + searchForm.mm;
         await api.post('/hapl/HAPL_050U_STR', {
-            actkind: 'DR', cmpycd: authStore.cmpycd, gubun: '020', yymm: ym, divcd: searchForm.divcd, deptcd: selectedDept.code, userid: authStore.userid
+            actkind: 'DR', cmpycd: authStore.cmpycd, gubun: '020', stdym: ym, divcd: searchForm.divcd, deptcd: selectedDept.code, userid: authStore.userid
         });
         vAlert('배부적수가 생성되었습니다.'); fetchItems();
     } catch (e) { vAlertError('생성 실패') }
@@ -232,40 +233,30 @@ const save = async () => {
   if (updYn.value === 'N') return vAlertError('마감된 자료는 재작업할 수 없습니다.')
   const details = mainGrid?.getData().filter((r: any) => r._status === '수정') || []
   if (details.length === 0) return vAlertError('수정된 항목이 없습니다.')
-
   if (!confirm('저장하시겠습니까?')) return
 
   try {
     const ym = searchForm.yy + searchForm.mm
-    const res = await api.post('/hapl/HAPL_050U_STR', {
-      actkind: 'U0',
-      cmpycd: authStore.cmpycd,
-      gubun: '020',
-      stdym: ym,
-      divcd: searchForm.divcd,
-      deptcd: selectedDept.code,
-      items: details.map((row: any) => ({
-        custcd: row.custcd,
+    for (const row of details) {
+      await api.post('/hapl/HAPL_050U_STR', {
+        actkind: 'U0',
+        cmpycd: authStore.cmpycd,
+        gubun: '020',
+        stdym: ym,
+        divcd: searchForm.divcd,
+        deptcd: selectedDept.code,
         itemcd: row.itemcd,
         itsize: row.itsize || '',
         unit: row.unit || '',
         itemnm: row.itemnm || '',
         divrate1: Number(row.divrate1 || 0),
         divrate2: 0,
-        divrate3: 0
-      })),
-      userid: authStore.userid
-    })
-
-    const resData = res.data?.[0] || {}
-    const resCode = String(resData.res || resData.result || resData.outym || '').trim()
-
-    if (resCode === '000000' || resCode === 'N') {
-      vAlertError('저장 실패');
-    } else {
-      vAlert('저장되었습니다.')
-      fetchItems()
+        divrate3: 0,
+        userid: authStore.userid
+      })
     }
+    vAlert('저장되었습니다.')
+    fetchItems()
   } catch (e: any) {
     vAlertError('저장 오류')
   }

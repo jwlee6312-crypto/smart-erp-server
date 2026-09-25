@@ -402,10 +402,10 @@ async function fetchDetail(row: any) {
   if (row.linecd) onLineChange()
 
   try {
-    const res = await api.post('/hpio/HPIO_501U_STR', {
+    const res = await api.post('/hpio/HPIO_501U_STR', [{
       actkind: 'S0', cmpycd: authStore.cmpycd, iogbn: '200', ioym: row.ioym, ono: row.iono,
       ioqty: 0 // 조회 시 숫자 필드 초기화
-    })
+    }])
     const data = (res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' }))
     // 🚀 [표준] 조회 시에는 실데이터만 출력
     grid2?.setData(data)
@@ -467,7 +467,7 @@ async function save() {
     // 상세 루프 저장 (서버 통합 저장 프로시저 부재 시 표준 대응)
     for (const item of details) {
       item.ono = iono
-      await api.post('/hpio/HPIO_501U_STR', item)
+      await api.post('/hpio/HPIO_501U_STR', [item])
     }
 
     vAlert('저장되었습니다(Alt+S)'); search()

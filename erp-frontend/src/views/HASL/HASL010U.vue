@@ -350,7 +350,7 @@ async function searchSlips() { const res = await api.post('/hasl/HASL_010U_STR',
 async function fetchDetail(row: any) {
     Object.assign(masterForm, row); if (masterForm.slipymd?.length === 8) { const d = masterForm.slipymd; masterForm.slipymd = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` }
     try {
-      const resd = await api.post('/hasl/HASL_011U_STR', { actkind: 'S', cmpycd: authStore.cmpycd, slipymd: masterForm.slipymd.replace(/-/g,''), slipno: masterForm.slipno });
+      const resd = await api.post('/hasl/HASL_011U_STR', [{ actkind: 'S', cmpycd: authStore.cmpycd, slipymd: masterForm.slipymd.replace(/-/g,''), slipno: masterForm.slipno }]);
       // 🚀 [해결] 서버의 dbamt, cramt를 그리드의 amount 필드로 합산 매핑
       const data = (resd.data || []).map((i:any) => ({
         ...i,

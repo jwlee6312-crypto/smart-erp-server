@@ -1,15 +1,20 @@
 <template>
   <div class="side-bar shadow-sm" :class="{ 'is-collapsed': isCollapsed }">
-    <!-- 👤 유저 프로필 카드 (사진 90px 및 세션 정보 강조) -->
+    <!-- 👤 유저 프로필 카드 (사진 표시 및 세션 정보) -->
     <div v-if="!isCollapsed" class="profile-card">
       <div class="user-details text-center">
         <div class="avatar-area mb-2">
           <div class="avatar-placeholder cursor-pointer" @click="goToProfile" title="개인정보 관리로 이동">
-            <img v-if="profileImageSrc" :src="profileImageSrc" class="profile-img" alt="Profile" />
+            <img
+              v-if="profileImageSrc && !imageLoadError"
+              :src="profileImageSrc"
+              class="profile-img"
+              alt="Profile"
+              @error="handleImageError"
+            />
             <i v-else class="bi bi-person-fill"></i>
           </div>
         </div>
-        <!-- 💡 세션 유지 확인을 위해 정보를 진하게 표시 -->
         <div class="user-info-text">
           <div class="user-name-info fw-bolder text-dark">
             {{ authStore.usernm }}
@@ -22,7 +27,7 @@
       </div>
     </div>
 
-    <!-- 📋 메뉴 리스트 (기존 기능 유지) -->
+    <!-- 📋 메뉴 리스트 (우측 pgmid 제거, 마우스 오버 :title 툴팁만 보존) -->
     <div id="accordionMenu" class="menu-list">
       <div v-for="group in groupedItems" :key="group.grpcd" class="w-100">
         <a
@@ -43,6 +48,7 @@
               class="sb-nav-link"
               :class="{ 'is-active': tabStore.activeTab?.pgmId === item.pgmid }"
               href="javascript:void(0)"
+              :title="`[${item.pgmid}] ${item.pgmnm}`"
               @click="goPage(item.pgmid, item.pgmnm, item.grpcd)"
             >
               <i class="bi bi-chevron-right sub-icon"></i>
@@ -56,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useMenuStore } from '@/stores/menuStore'
 import { useTabStore } from '@/stores/tabStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -70,19 +76,31 @@ const authStore = useAuthStore()
 const menuStore = useMenuStore()
 const tabStore = useTabStore()
 const openGroupId = ref<string | null>(null)
+const imageLoadError = ref(false)
 
-// 🚀 프로필 이미지 경로 계산 (리눅스 대소문자 무결성 보장)
+// 🚀 프로필 이미지 경로 계산
 const profileImageSrc = computed(() => {
   if (authStore.photo_path) {
     const path = authStore.photo_path.trim()
     if (path.startsWith('http') || path.startsWith('data:')) return path
 
-    // 💡 [최종 보정] 조회 경로를 /api/storage/ 로 명시적으로 통일하고 대소문자 문제 해결
     const cmpycd = (authStore.cmpycd || 'COIT').toUpperCase()
+    if (path.includes('/')) {
+      const cleanPath = path.replace(/^\/?(api\/)?(storage\/)?/, '')
+      return `/api/storage/${cleanPath}`
+    }
     return `/api/storage/${cmpycd}/profile/${path}`
   }
   return ''
 })
+
+watch(() => authStore.photo_path, () => {
+  imageLoadError.value = false
+})
+
+function handleImageError() {
+  imageLoadError.value = true
+}
 
 const isGroupOpen = (grpcd: string) => openGroupId.value === grpcd
 const toggleGroup = (grpcd: string) => {
@@ -109,7 +127,6 @@ function goPage(pgmid: string, pgmnm: string, grpcd: string) {
 .side-bar { background-color: #fff; border-right: 1px solid #dcdfe6; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .profile-card { padding: 20px 10px; border-bottom: 1px solid #ebeef5; flex-shrink: 0; background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%); }
 
-/* 💡 사진 및 아이콘 크기 원복 (상담원님 요청 반영) */
 .avatar-placeholder {
   width: 70px;
   height: 70px;
@@ -118,7 +135,7 @@ function goPage(pgmid: string, pgmnm: string, grpcd: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38px; /* 🚀 아이콘 크기 원복 */
+  font-size: 38px;
   color: #005a9f;
   margin: 0 auto;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);

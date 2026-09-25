@@ -141,10 +141,10 @@ async function fetchOptions() {
 
 async function search() {
   try {
-    const res = await api.post('/hsba/HSBA_701U_STR', {
+    const res = await api.post('/hsba/HSBA_701U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd
-    })
+    }])
     if (grid.value) {
       grid.value.setData(res.data.map((i: any) => ({ ...i, procyn: false })))
       activeItemCount.value = res.data.length
@@ -163,7 +163,7 @@ async function save() {
   try {
     for (const row of selectedRows) {
       const actKind = row.SEQ ? 'U0' : 'A0'
-      await api.post('/hsba/HSBA_701U_STR', {
+      await api.post('/hsba/HSBA_701U_STR', [{
         ...row,
         actkind: actKind,
         cmpycd: authStore.cmpycd,

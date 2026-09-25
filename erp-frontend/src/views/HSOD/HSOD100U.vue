@@ -498,12 +498,12 @@ async function fetchDetail(row: any) {
   })
 
   try {
-    const res = await api.post('/hsod/HSOD_101U_STR', {
+    const res = await api.post('/hsod/HSOD_101U_STR', [{
       actkind: 'S0',
       cmpycd: authStore.cmpycd,
       ordym: row.ordym,
       ordno: row.ordno
-    })
+    }])
     grid2?.setData(res.data.map((i: any) => {
       const qty = Number(i.ordqty || 0)
       return {

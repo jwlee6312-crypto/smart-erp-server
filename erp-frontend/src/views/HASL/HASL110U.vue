@@ -376,7 +376,7 @@ async function fetchDetail(row: any) {
     Object.assign(masterForm, row); if (masterForm.slipymd?.length === 8) { const d = masterForm.slipymd; masterForm.slipymd = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` }
     if (masterForm.acctymd?.length === 8) { const d = masterForm.acctymd; masterForm.acctymd = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}` }
     try {
-      const resd = await api.post('/hasl/HASL_111U_STR', { actkind: 'S', cmpycd: authStore.cmpycd, slipymd: masterForm.slipymd.replace(/-/g,''), slipno: masterForm.slipno });
+      const resd = await api.post('/hasl/HASL_111U_STR', [{ actkind: 'S', cmpycd: authStore.cmpycd, slipymd: masterForm.slipymd.replace(/-/g,''), slipno: masterForm.slipno }]);
       const data = (resd.data || []).map((i:any) => ({
         ...i,
         amount: Number(i.dbamt || 0) + Number(i.cramt || 0),

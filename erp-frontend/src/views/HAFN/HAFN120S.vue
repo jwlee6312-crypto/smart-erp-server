@@ -14,7 +14,7 @@
       <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-safe me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">차입금현황 (HAFN120S)</span>
+        <span class="text-primary fw-bolder">적금명세서 (HAFN120S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
         <button class="btn-erp btn-search" @click="search">조회</button>

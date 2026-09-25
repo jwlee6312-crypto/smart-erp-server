@@ -118,10 +118,7 @@ public class HafaController {
         log.info("🏢 [Master SQL]: {}", buildPositionalSql("HAFA_150U_STR", params));
         List<Map<String, Object>> raw = hafaMapper.HAFA_150U_STR(params);
 
-        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
-
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
-        return ResponseEntity.ok(List.of(resultRow));
+        return ResponseEntity.ok(convertToLowerCaseKeys(raw));
     }
 
     @PostMapping("/HAFA_900U_STR")

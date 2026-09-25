@@ -35,13 +35,13 @@ export function useCommonHelp() {
       })
     } else if (type === 'MGT') {
       Object.assign(modalProps, {
-        title: extraData.title || '관리번호 선택', path: commonPath, defaultField: 'mgtnm', large: true,
+        title: extraData.title || '관리번호(계좌/카드) 선택', path: commonPath, defaultField: 'mgtnm', large: true,
         data: { gubun: 'M0', cmpycd: authStore.cmpycd, gbncd: extraData.mgtgbn || '', code: extraData.search || '', remark: extraData.acctcd || '' },
         columns: [
-          { title: '번호', field: 'mgtno', width: 150, hozAlign: 'center', headerSort: false },
-          { title: '명칭', field: 'mgtnm', minWidth: 150, widthGrow: 1, hozAlign: 'left' },
-          { title: '은행/카드', field: 'bankcd', width: 100, hozAlign: 'center' },
-          { title: '비고', field: 'remark', minWidth: 120 }
+          { title: '계좌/카드/관리번호', field: 'mgtno', width: 180, hozAlign: 'center', headerSort: false, mutator: (v: any, d: any) => v || d.col0 || d.mgtno },
+          { title: '명칭/예금주명', field: 'mgtnm', minWidth: 180, widthGrow: 1, hozAlign: 'left', mutator: (v: any, d: any) => v || d.col1 || d.mgtnm },
+          { title: '은행/카드사', field: 'bankcd', width: 120, hozAlign: 'center', mutator: (v: any, d: any) => v || d.col2 || d.banknm },
+          { title: '비고/계좌정보', field: 'remark', minWidth: 150, hozAlign: 'left', mutator: (v: any, d: any) => v || d.col3 || d.gujoa }
         ],
         onConfirm: callback
       })
@@ -102,7 +102,7 @@ export function useCommonHelp() {
         path: '/hpio/HPIO_250U_POP',
         defaultField: 'lotno',
         large: true,
-        searchDate: 'ordymd', // 날짜 필터 활성화
+        searchDate: 'ordymd',
         data: {
           cmpycd: authStore.cmpycd,
           linecd: extraData.linecd || '',

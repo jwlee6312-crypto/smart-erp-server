@@ -217,29 +217,31 @@ const handleBatchSave = async () => {
   if (!confirm(`${modified.length}건을 저장하시겠습니까?`)) return
 
   try {
-    const res = await api.post('/hapl/HAPL_030U_STR', {
-      actkind: 'A0',
-      cmpycd: authStore.cmpycd, gubun: '020', stdym: (searchForm.yy + searchForm.mm).replace(/-/g, ''),
-      divcd: searchForm.divcd, deptcd: selectedDeptCD.value,
-      items: modified.map((it: any) => ({
+    // 🚀 수정된 각 행을 순회하며 백엔드로 개별 저장 요청
+    for (const it of modified) {
+      await api.post('/hapl/HAPL_030U_STR', {
+        actkind: it._status === 'D' ? 'D0' : 'A0',
+        cmpycd: authStore.cmpycd,
+        gubun: '020',
+        stdym: (searchForm.yy + searchForm.mm).replace(/-/g, ''),
+        divcd: searchForm.divcd,
+        deptcd: selectedDeptCD.value,
         bdeptcd: it.deptcd,
-        divrate1: Number(it.divrate1 || 0), divrate2: Number(it.divrate2 || 0), divrate3: Number(it.divrate3 || 0),
-        remark: (it.remark || '').trim(), useyn: it._status === 'D' ? 'N' : 'Y'
-      })),
-      userid: authStore.userid
-    })
-
-    const resData = (res.data && res.data[0]) ? res.data[0] : {}
-    const resultStatus = String(resData.res || resData.result || '').toUpperCase();
-    const resultMsg = resData.msg || resData.message || '저장 오류';
-
-    if (resultStatus === 'OK') {
-      vAlert('성공적으로 저장되었습니다.');
-      selectDept({ deptcd: selectedDeptCD.value, deptnm: selectedDeptNM.value })
-    } else {
-      vAlertError(resultMsg);
+        divrate1: Number(it.divrate1 || 0),
+        divrate2: Number(it.divrate2 || 0),
+        divrate3: Number(it.divrate3 || 0),
+        remark: (it.remark || '').trim(),
+        useyn: it._status === 'D' ? 'N' : 'Y',
+        userid: authStore.userid
+      })
     }
-  } catch (e: any) { vAlertError('저장 실패') }
+
+    // 🚀 모든 행 저장이 성공적으로 완료된 후 알림 및 재조회
+    vAlert('성공적으로 저장되었습니다.')
+    selectDept({ deptcd: selectedDeptCD.value, deptnm: selectedDeptNM.value })
+  } catch (e: any) {
+    vAlertError('저장 실패')
+  }
 }
 
 onMounted(() => {

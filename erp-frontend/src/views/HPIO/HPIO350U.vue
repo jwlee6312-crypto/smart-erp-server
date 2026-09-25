@@ -392,9 +392,9 @@ const fetchPerformanceDetails = async (row: any) => {
   selectedProduct.itemcd = row.itemcd; selectedProduct.itemnm = row.itemnm; selectedProduct.prodid = row.prodid
   if (!row.prodid) { grid2?.setData([]); return; }
   try {
-    const res = await api.post('/hpio/HPIO_351U_STR', {
+    const res = await api.post('/hpio/HPIO_351U_STR', [{
       actkind: 'S0', cmpycd: authStore.cmpycd, prodid: row.prodid, matlid: 0, useyn: 'Y'
-    })
+    }])
     grid2?.setData((res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '수정' })))
   } catch (e) {}
 }
@@ -422,10 +422,10 @@ async function saveAll() {
     }
     for (const m of mats) {
       const actkind = (m._status === '삭제' || m.useyn === 'N') ? 'D0' : 'U0'
-      const resM = await api.post('/hpio/HPIO_351U_STR', {
+      const resM = await api.post('/hpio/HPIO_351U_STR', [{
         ...m, actkind, cmpycd: authStore.cmpycd, prodid: selectedProduct.prodid, matlid: m.matlid || 0,
         whcd: '300', updemp: authStore.userid
-      })
+      }])
       if (resM.data?.[0]?.ioym === '000000') throw new Error(resM.data?.[0]?.iono || '자재 소모 저장 오류')
     }
     vAlert(lastMsg); const sel = grid0?.getSelectedData()[0]; if(sel) fetchPerformanceMaster(sel)

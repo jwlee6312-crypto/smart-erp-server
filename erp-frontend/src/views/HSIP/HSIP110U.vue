@@ -206,7 +206,7 @@ async function fetchDetail() {
             arvymd: master.arvymd && master.arvymd.length === 8 ? `${master.arvymd.substring(0, 4)}-${master.arvymd.substring(4, 6)}-${master.arvymd.substring(6, 8)}` : master.arvymd
           });
 
-          const resItems = await api.post('/hsip/HSIP_111U_STR', {
+          const resItems = await api.post('/hsip/HSIP_111U_STR', [{
               actkind: 'S0',
               cmpycd: authStore.cmpycd,
               fileno: formData.fileno,
@@ -271,7 +271,7 @@ async function save() {
           shipseq: keyShipseq
       }
 
-      const resDtl = await api.post('/hsip/HSIP_111U_STR', detailParams)
+      const resDtl = await api.post('/hsip/HSIP_111U_STR', [detailParams])
       const dtlData = resDtl.data?.[0]
       const dtlValues = dtlData?.returnkeyvalue || Object.values(dtlData || {});
 

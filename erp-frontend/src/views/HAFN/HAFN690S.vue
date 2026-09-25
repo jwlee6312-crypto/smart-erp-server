@@ -1,6 +1,6 @@
 <!--
 	=============================================================
-	프로그램명: 카드미지급연계현황 (HAFN690S)
+	프로그램명: 카드미지급 상계현황 (HAFN690S)
 	작성일자	: 2025.03.14
 	작성자    : AI Assistant
 	설명        : 카드사별 카드 미지급금의 발생 및 지불 전표 연계 현황 조회
@@ -17,7 +17,7 @@
       <div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-arrow-left-right me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
-        <span class="text-primary fw-bolder">카드미지급연계현황 (hafn690s)</span>
+        <span class="text-primary fw-bolder">카드미지급 상계현황 (hafn690s)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize">초기화</button>

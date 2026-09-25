@@ -401,9 +401,9 @@ async function fetchList() {
 async function fetchDetail(row: any) {
   Object.assign(form_02, row)
   try {
-    const resP = await api.post('/hpio/HPIO_291U_STR', {
+    const resP = await api.post('/hpio/HPIO_291U_STR', [{
         actkind: 'S0', cmpycd: authStore.cmpycd, pumym: form_02.pumym, pumno: form_02.pumno, price: 0
-     })
+     }])
     const data = convertToLower(resP.data || []).map(i => ({ ...i, _state: 'EXIST', _status: '' }))
     await prodGrid?.setData(data)
 
@@ -475,9 +475,9 @@ async function saveAll() {
     // 2. 제품 저장
     for (const p of prods) {
       const pAct = p._status === '입력' ? 'A0' : (p._status === '삭제' ? 'D0' : 'U0')
-      await api.post('/hpio/HPIO_291U_STR', {
+      await api.post('/hpio/HPIO_291U_STR', [{
         ...p, actkind: pAct, cmpycd: authStore.cmpycd, pumym: form_02.pumym, pumno: form_02.pumno, updemp: authStore.userid
-      })
+      }])
     }
 
     // 3. 자재 저장

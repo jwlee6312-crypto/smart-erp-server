@@ -420,10 +420,10 @@ async function fetchDetail(row: any) {
   Object.assign(masterData, { ...row, ioymd: fYmd(row.ioymd) })
 
   try {
-    const res = await api.post('/hpio/HPIO_511U_STR', {
+    const res = await api.post('/hpio/HPIO_511U_STR', [{
       actkind: 'S', cmpycd: authStore.cmpycd, iogbn: '200', ioym: row.ioym, iono: row.iono,
       ioqty: 0
-    })
+    }])
     const data = (res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' }))
     // 🚀 [표준] 조회 시에는 실데이터만 출력
     grid2?.setData(data)
@@ -472,7 +472,7 @@ async function save() {
     // 2. 상세 루프 저장
     for (const item of details) {
       item.ioym = keyYM; item.iono = keyNO; item.inno = keyIN
-      await api.post('/hpio/HPIO_511U_STR', item)
+      await api.post('/hpio/HPIO_511U_STR', [item])
     }
 
     vAlert('저장되었습니다(Alt+S)'); search()

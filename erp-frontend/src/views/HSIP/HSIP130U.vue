@@ -213,7 +213,7 @@ const fetchDetail = async (fileno?: string, docno?: string) => {
         formData.pubymd = `${formData.pubymd.substring(0, 4)}-${formData.pubymd.substring(4, 6)}-${formData.pubymd.substring(6, 8)}`
       }
 
-      const resItems = await api.post('/hsip/HSIP_131U_STR', {
+      const resItems = await api.post('/hsip/HSIP_131U_STR', [{
         actkind: 'S0',
         cmpycd: authStore.cmpycd,
         fileno: formData.fileno,
@@ -257,7 +257,7 @@ const save = async () => {
       const itemRowno = clean(item.crowno)
       const detailAct = itemRowno === '' ? 'A0' : (item.state === 'D' ? 'D0' : 'U0');
 
-      await api.post('/hsip/HSIP_131U_STR', {
+      await api.post('/hsip/HSIP_131U_STR', [{
         actkind: detailAct,
         cmpycd: authStore.cmpycd,
         fileno: formData.fileno,
@@ -439,7 +439,7 @@ onMounted(() => {
              const row = c.getRow(); const data = row.getData();
              if (data.rowno) {
                 if (confirm('이 항목을 즉시 삭제하시겠습니까?')) {
-                   api.post('/hsip/HSIP_131U_STR', { ...data, actkind: 'D1', cmpycd: authStore.cmpycd, updemp: authStore.userid }).then(() => {
+                   api.post('/hsip/HSIP_131U_STR', [{ ...data, actkind: 'D1', cmpycd: authStore.cmpycd, updemp: authStore.userid }]).then(() => {
                       vAlert('삭제되었습니다.'); row.delete();
                    });
                 }

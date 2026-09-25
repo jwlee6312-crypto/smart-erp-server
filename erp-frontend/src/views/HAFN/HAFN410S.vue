@@ -1,6 +1,6 @@
 <!--
 	=============================================================
-	프로그램명	: 일일자금계획 (HAFN410S)
+	프로그램명	: 받을어음명세서 (HAFN410S)
 	작성일자	: 2025.02.24
 	설명        : 일자별 입금/출금 예정 내역 및 자금 수지 계획 조회
 	=============================================================
@@ -14,7 +14,7 @@
       <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-calendar-check me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">일일자금계획 (HAFN410S)</span>
+        <span class="text-primary fw-bolder">받을어음명세서 (HAFN410S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
         <button class="btn-erp btn-search" @click="search">조회</button>

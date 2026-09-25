@@ -581,7 +581,7 @@ const loadDetail = async (row: any) => {
 			formData.slipyn = 'N'
 			showExportFields.value = (d.taxtype === '070' || d.taxtype === '030')
 
-			const resItems = await api.post('/hatx/HATX_011U_STR', { actkind: 'S1', cmpycd: row.cmpycd, taxkind: '200', taxym: row.taxym, taxno: row.taxno })
+			const resItems = await api.post('/hatx/HATX_011U_STR', [{ actkind: 'S1', cmpycd: row.cmpycd, taxkind: '200', taxym: row.taxym, taxno: row.taxno }])
 			formData.items = Array.from({ length: 4 }, (_, i) => {
 				const it = resItems.data?.[i]
 				return it ? {

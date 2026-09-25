@@ -122,4 +122,30 @@ public class InboundController {
     }
 
     @Data public static class SaveRequest { private CallMstDto dto; private List<String> recordings; private String ai_mode; }
+
+    // 1. 콜백 목록 조회 API
+    @GetMapping("/callback-list")
+    public ResponseEntity<?> getCallbackList(
+            @RequestParam String fromdt,
+            @RequestParam String todt,
+            @RequestParam(required = false) String src_no,
+            HttpSession session) {
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        Map<String, Object> params = new HashMap<>();
+        params.put("cmpycd", user != null ? user.getCmpycd() : "");
+        params.put("fromdt", fromdt.replace("-", ""));
+        params.put("todt", todt.replace("-", ""));
+        params.put("src_no", src_no != null ? src_no : "");
+        return ResponseEntity.ok(inboundMapper.selectCallbackList(params));
+    }
+
+    // 2. 콜백 응대 결과 저장 API
+    @PostMapping("/interaction/save-response")
+    public ResponseEntity<?> saveCallbackResponse(@RequestBody Map<String, Object> payload, HttpSession session) {
+        UserSession user = (UserSession) session.getAttribute("user_session");
+        payload.put("cmpycd", user != null ? user.getCmpycd() : "");
+        payload.put("userid", user != null ? user.getUserid() : "system");
+        inboundMapper.updateCallbackResult(payload);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
 }

@@ -1,144 +1,150 @@
 <!--
 	=============================================================
-	프로그램명: 지급어음기초자료 (haba160u)
+	프로그램명: 지급어음기초자료 (HABA160U)
 	작성일자	: 2025.03.14
 	작성자    : AI Assistant
-	설명        : 지급어음의 기초 정보를 등록하고 관리하는 화면 (표준 UI 적용)
+	설명        : 지급어음의 기초 정보를 등록하고 관리하는 화면 (HSOD100U 균등 배분 레이아웃 적용)
 	=============================================================
 -->
 
 <template>
 	<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
-	<div class="erp-container">
-		<!-- 🚀 상단 액션 바 -->
-		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 px-3 sticky-top shadow-sm flex-shrink-0">
-			<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
+	<div class="erp-container d-flex flex-column h-100 bg-white">
+		<!-- [1] 상단 액션 바 -->
+		<div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom">
+			<div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
 				<i class="bi bi-file-earmark-ruled me-2 text-primary" style="font-size: 18px;"></i>
-				기본정보 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
-				<span class="text-primary fw-bolder">지급어음기초자료 (haba160u)</span>
+				기본정보 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+				기초자료 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+				<span class="text-primary fw-bolder">지급어음기초자료 (HABA160U)</span>
 			</div>
-			<div class="btn-group-erp d-flex gap-1">
-				<button class="btn-erp btn-init" @click="initialize">
-					<i class="bi bi-plus-lg"></i> 신규
-				</button>
-				<button class="btn-erp btn-search" @click="search">
-					<i class="bi bi-search"></i> 조회
-				</button>
-				<button class="btn-erp btn-save" @click="save">
-					<i class="bi bi-check-lg"></i> 저장
-				</button>
-				<button v-if="masterForm.actkind === 'U1'" class="btn-erp btn-danger" @click="deleteData">
-					<i class="bi bi-trash"></i> 삭제
-				</button>
+			<div class="btn-group-erp d-flex gap-1 pe-3">
+				<button class="btn-erp btn-init" @click="initialize">신규(N)</button>
+				<button class="btn-erp btn-search" @click="search">조회(F)</button>
+				<button class="btn-erp btn-save" @click="save">저장(S)</button>
+				<button v-if="masterForm.actkind === 'U1'" class="btn-erp btn-delete" @click="deleteData">삭제(D)</button>
 			</div>
 		</div>
 
-		<!-- 🔍 검색 조건 영역 -->
-		<div class="p-2 pb-0 flex-shrink-0 bg-light">
-			<div class="card border shadow-sm bg-white overflow-hidden">
-				<div class="card-body p-2">
-					<div class="d-flex align-items-center flex-wrap gap-3 small">
-						<div class="d-flex align-items-center">
-							<span class="erp-label"><i class="bi bi-dot"></i>어음번호</span>
-							<div class="d-flex align-items-center gap-1">
-								<input v-model="searchForm.billno" type="text" class="form-control form-control-sm" style="width: 150px;" maxlength="14" @keydown.enter="search" />
-								<span class="text-muted">~</span>
-								<input v-model="searchForm.billno_TO" type="text" class="form-control form-control-sm" style="width: 150px;" maxlength="14" @keydown.enter="search" />
-							</div>
-						</div>
-                        <div class="ms-auto">
-                            <button class="btn btn-outline-success btn-sm" @click="excel"><i class="bi bi-file-earmark-excel me-1"></i>엑셀</button>
-                            <button class="btn btn-outline-dark btn-sm ms-1" @click="print"><i class="bi bi-printer me-1"></i>인쇄</button>
-                        </div>
-					</div>
+		<!-- [2] 메인 컨텐츠 영역 -->
+		<div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2 bg-light main-content-wrapper">
+
+			<!-- 상단 조회 필터 (균등 배분 레이아웃) -->
+			<div class="card border shadow-sm flex-shrink-0 overflow-hidden">
+				<div class="card-body p-0 bg-white">
+					<table class="erp-table-dense w-100">
+						<colgroup>
+							<col style="width: 110px;" /><col style="width: 380px;" />
+							<col />
+						</colgroup>
+						<tbody>
+							<tr>
+								<th class="required bg-light text-center small">어음번호</th>
+								<td>
+									<div class="d-flex align-items-center gap-1">
+										<input v-model="searchForm.billno" type="text" class="form-control form-control-sm" style="width: 170px;" maxlength="14" placeholder="시작 어음번호" @keydown.enter="search" />
+										<span class="small text-muted px-1">~</span>
+										<input v-model="searchForm.billno_TO" type="text" class="form-control form-control-sm" style="width: 170px;" maxlength="14" placeholder="종료 어음번호" @keydown.enter="search" />
+									</div>
+								</td>
+								<td class="text-end pe-3">
+									<button class="btn btn-outline-success btn-sm py-0 px-2 fw-bold me-1" @click="excel" style="font-size: 11px;"><i class="bi bi-file-earmark-excel me-1"></i>엑셀</button>
+									<button class="btn btn-outline-dark btn-sm py-0 px-2 fw-bold" @click="print" style="font-size: 11px;"><i class="bi bi-printer me-1"></i>인쇄</button>
+								</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 			</div>
-		</div>
 
-		<!-- 📝 상세 정보 입력 영역 -->
-		<div class="p-2 pb-0 flex-shrink-0 bg-light">
-			<div class="card border shadow-sm bg-white overflow-hidden">
-				<div class="card-header py-1 px-2 bg-light border-bottom">
-					<span class="small fw-bold text-secondary"><i class="bi bi-pencil-square me-1"></i> 어음 상세 정보 [{{ masterForm.actkind === 'I1' ? '신규' : '수정' }}]</span>
+			<!-- 상세 정보 입력 영역 -->
+			<div class="card border shadow-sm flex-shrink-0 overflow-hidden">
+				<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center">
+					<i class="bi bi-pencil-square me-2 text-primary"></i>
+					<span class="fw-bold small text-dark">어음 상세 정보 [{{ masterForm.actkind === 'I1' ? '신규' : '수정' }}]</span>
 				</div>
-				<table class="erp-table-full small border-0">
-					<colgroup>
-						<col style="width: 100px;" /><col style="width: 20%;" />
-						<col style="width: 100px;" /><col style="width: 25%;" />
-						<col style="width: 100px;" /><col />
-					</colgroup>
-					<tbody>
-						<tr>
-							<th class="text-center bg-light-subtle border-end">어음번호</th>
-							<td class="bg-white border-end px-2 py-1">
-								<input v-model="masterForm.billno" type="text" class="form-control form-control-sm fw-bold text-primary" maxlength="14" :readonly="masterForm.actkind === 'U1'" />
-							</td>
-							<th class="text-center bg-light-subtle border-end border-top">발행기관</th>
-							<td class="bg-white border-end border-top px-2 py-1">
-								<div class="input-group input-group-sm">
-									<input v-model="masterForm.bankcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
-									<input v-model="masterForm.banknm" type="text" class="form-control" placeholder="금융기관 선택" @keydown.enter="openHelp('BANK')" />
-									<button class="btn btn-outline-secondary px-2" @click="openHelp('BANK')"><i class="bi bi-search"></i></button>
-								</div>
-							</td>
-							<th class="text-center bg-light-subtle border-end border-top">발행인</th>
-							<td class="bg-white border-top px-2 py-1">
-								<input v-model="masterForm.issuman" type="text" class="form-control form-control-sm" maxlength="20" />
-							</td>
-						</tr>
-						<tr>
-							<th class="text-center bg-light-subtle border-end border-top">발행일자</th>
-							<td class="bg-white border-end border-top px-2 py-1">
-								<input v-model="masterForm.stdymd" type="date" class="form-control form-control-sm" />
-							</td>
-							<th class="text-center bg-light-subtle border-end border-top">만기일자</th>
-							<td class="bg-white border-end border-top px-2 py-1">
-								<input v-model="masterForm.endymd" type="date" class="form-control form-control-sm" />
-							</td>
-							<th class="text-center bg-light-subtle border-end border-top">금&nbsp;&nbsp;&nbsp;&nbsp;액</th>
-							<td class="bg-white border-top px-2 py-1">
-								<div class="input-group input-group-sm">
-									<input v-model="masterForm.billamt" type="number" class="form-control form-control-sm text-end fw-bold" step="0" />
-									<span class="input-group-text bg-light border-0 small">원</span>
-								</div>
-							</td>
-						</tr>
-						<tr>
-							<th class="text-center bg-light-subtle border-end border-top">어음유형</th>
-							<td class="bg-white border-end border-top px-2 py-1">
-								<select v-model="masterForm.billtype" class="form-select form-select-sm">
-									<option v-for="opt in billTypeOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
-								</select>
-							</td>
-							<th class="text-center bg-light-subtle border-end border-top">지급거래처</th>
-							<td class="bg-white border-end border-top px-2 py-1">
-								<div class="input-group input-group-sm">
-									<input v-model="masterForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 80px;" readonly />
-									<input v-model="masterForm.custnm" type="text" class="form-control" placeholder="거래처 선택" @keydown.enter="openHelp('CUST')" />
-									<button class="btn btn-outline-secondary px-2" @click="openHelp('CUST')"><i class="bi bi-search"></i></button>
-								</div>
-							</td>
-							<th class="text-center bg-light-subtle border-end border-top">사용여부</th>
-							<td class="bg-white border-top px-3 py-1">
-								<div class="form-check form-switch pt-1">
-									<input v-model="masterForm.useyn" class="form-check-input" type="checkbox" id="useYnCheck" true-value="Y" false-value="N" />
-									<label class="form-check-label small fw-bold" for="useYnCheck">사용</label>
-								</div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
+				<div class="card-body p-0 bg-white">
+					<table class="erp-table-dense w-100">
+						<colgroup>
+							<col style="width: 110px;" /><col style="width: 220px;" />
+							<col style="width: 110px;" /><col style="width: 280px;" />
+							<col style="width: 110px;" /><col />
+						</colgroup>
+						<tbody>
+							<tr>
+								<th class="required bg-light small text-center">어음번호</th>
+								<td>
+									<input v-model="masterForm.billno" type="text" class="form-control form-control-sm fw-bold text-primary" maxlength="14" :readonly="masterForm.actkind === 'U1'" />
+								</td>
+								<th class="required bg-light small text-center border-start">발행기관</th>
+								<td>
+									<div class="input-group input-group-sm" style="max-width: 260px;">
+										<input v-model="masterForm.bankcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
+										<input v-model="masterForm.banknm" type="text" class="form-control" placeholder="금융기관 선택" @keydown.enter="openHelp('BANK')" />
+										<button class="btn btn-outline-secondary px-2" @click="openHelp('BANK')"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+								<th class="required bg-light small text-center border-start">발행인</th>
+								<td>
+									<input v-model="masterForm.issuman" type="text" class="form-control form-control-sm" style="max-width: 180px;" maxlength="20" />
+								</td>
+							</tr>
+							<tr>
+								<th class="required bg-light small text-center border-top">발행일자</th>
+								<td class="border-top">
+									<input v-model="masterForm.stdymd" type="date" class="form-control form-control-sm" style="max-width: 150px;" />
+								</td>
+								<th class="required bg-light small text-center border-start border-top">만기일자</th>
+								<td class="border-top">
+									<input v-model="masterForm.endymd" type="date" class="form-control form-control-sm" style="max-width: 150px;" />
+								</td>
+								<th class="required bg-light small text-center border-start border-top">금액</th>
+								<td class="border-top">
+									<div class="d-flex align-items-center gap-1 px-1">
+										<input v-model="masterForm.billamt" type="number" class="form-control form-control-sm text-end fw-bold text-primary" style="max-width: 160px;" step="0" />
+										<span class="small text-muted">원</span>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<th class="bg-light small text-center border-top">어음유형</th>
+								<td class="border-top">
+									<select v-model="masterForm.billtype" class="form-select form-select-sm" style="max-width: 160px;">
+										<option v-for="opt in billTypeOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
+									</select>
+								</td>
+								<th class="required bg-light small text-center border-start border-top">지급거래처</th>
+								<td class="border-top">
+									<div class="input-group input-group-sm" style="max-width: 260px;">
+										<input v-model="masterForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 70px;" readonly />
+										<input v-model="masterForm.custnm" type="text" class="form-control" placeholder="거래처 선택" @keydown.enter="openHelp('CUST')" />
+										<button class="btn btn-outline-secondary px-2" @click="openHelp('CUST')"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+								<th class="bg-light small text-center border-start border-top">사용여부</th>
+								<td class="border-top">
+									<div class="form-check form-switch pt-1 ms-2">
+										<input v-model="masterForm.useyn" class="form-check-input" type="checkbox" id="useYnCheck" true-value="Y" false-value="N" />
+										<label class="form-check-label small fw-bold" for="useYnCheck">사용</label>
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 			</div>
-		</div>
 
-		<!-- 📊 그리드 영역 -->
-		<div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column bg-light">
-			<div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column bg-white">
-                <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-                  <div ref="mainGridRef" class="tabulator-instance flex-grow-1"></div>
-                </div>
+			<!-- 그리드 영역 -->
+			<div class="card border shadow-sm flex-grow-1 d-flex flex-column overflow-hidden bg-white">
+				<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
+					<span class="fw-bold small text-dark"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>지급어음 기초 목록</span>
+				</div>
+				<div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
+					<div ref="mainGridRef" class="tabulator-instance flex-grow-1"></div>
+				</div>
 			</div>
+
 		</div>
 	</div>
 
@@ -191,9 +197,12 @@ let mainGrid: Tabulator | null = null
 
 const fetchOptions = async () => {
 	try {
-		// 어음유형 (170)
-		const resType = await api.post('/ha00/HA00_00P_STR', { gubun: 'E0', cmpycd: authStore.cmpycd, search: '170' })
-		billTypeOptions.value = resType.data?.map((i: any) => ({ value: i.col0, text: i.col1 })) || []
+		// 🚀 [해결] gbncd: '170' 전달하여 어음유형 콤보박스 옵션 로드
+		const resType = await api.post('/ha00/HA00_00P_STR', { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '170', code: '' })
+		billTypeOptions.value = resType.data?.map((i: any) => ({
+			value: i.code || i.codecd || i.col0,
+			text: i.cdnm || i.codenm || i.col1
+		})) || []
 		if (billTypeOptions.value.length > 0) masterForm.billtype = billTypeOptions.value[0].value
 	} catch (e) { console.error('기초 데이터 로드 실패', e) }
 }
@@ -205,7 +214,8 @@ const search = async () => {
 			cmpycd: authStore.cmpycd,
 			BILLGU: '100',
 			billno: searchForm.billno,
-			billno_TO: searchForm.billno_TO
+			billno_TO: searchForm.billno_TO,
+			billamt: 0
 		})
 		const list = res.data || []
 		mainGrid?.setData(list)
@@ -323,17 +333,17 @@ onMounted(async () => {
 		mainGrid = new Tabulator(mainGridRef.value, {
 			layout: 'fitColumns',
 			height: '100%',
-			columnDefaults: { headerSort: false, vertAlign: "middle", headerHozAlign: "center", hozAlign: "center" },
+			columnDefaults: { headerSort: false, vertAlign: "middle", headerHozAlign: "center" },
 			columns: [
-				{ title: "어음번호", field: "col0", width: 130, hozAlign: "center", cssClass: "fw-bold" },
+				{ title: "어음번호", field: "col0", width: 130, hozAlign: "center", cssClass: "fw-bold text-primary" },
 				{ title: "발행기관", field: "col11", width: 150, hozAlign: "left" },
-				{ title: "발행인", field: "col1", width: 120 },
-				{ title: "발행일", field: "col3", width: 100, formatter: (c) => formatDate(c.getValue()) },
-				{ title: "만기일", field: "col4", width: 100, formatter: (c) => formatDate(c.getValue()) },
+				{ title: "발행인", field: "col1", width: 120, hozAlign: "center" },
+				{ title: "발행일", field: "col3", width: 100, hozAlign: "center", formatter: (c) => formatDate(c.getValue()) },
+				{ title: "만기일", field: "col4", width: 100, hozAlign: "center", formatter: (c) => formatDate(c.getValue()) },
 				{ title: "금액", field: "col5", width: 120, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
-				{ title: "유형", field: "col10", width: 100 },
-				{ title: "지급거래처", field: "col9", minWidth: 200, hozAlign: "left" },
-                { title: "사용", field: "col8", width: 70, formatter: "tickCross" }
+				{ title: "유형", field: "col10", width: 100, hozAlign: "center" },
+				{ title: "지급거래처", field: "col9", minWidth: 200, hozAlign: "left", cssClass: "fw-bold" },
+                { title: "사용", field: "col8", width: 70, hozAlign: "center", formatter: "tickCross" }
 			]
 		})
         mainGrid.on("rowClick", (e, row) => {
@@ -359,6 +369,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.erp-label { min-width: 80px; font-weight: 500; font-size: 13px; }
-.bg-light-subtle { background-color: #f8f9fa !important; }
+.tabulator-instance { width: 100% !important; background-color: #fff; font-size: 12px; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
 </style>

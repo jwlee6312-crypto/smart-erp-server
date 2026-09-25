@@ -429,7 +429,7 @@ const fetchPerfData = async (keepDetail = false) => {
 const fetchMaterialData = async (product: any) => {
   Object.assign(selectedProduct, product)
   try {
-    const res = await api.post('/hpio/HPIO_301U_STR', {
+    const res = await api.post('/hpio/HPIO_301U_STR', [{
         actkind: 'S0',
         prodid: product.prodid || 0,
         matlid: 0,
@@ -512,7 +512,7 @@ const saveMaterials = async () => {
   try {
     for (const item of details) {
       const actkind = item._status === '입력' ? 'A0' : (item._status === '삭제' ? 'D0' : 'U0')
-      const res = await api.post('/hpio/HPIO_301U_STR', {
+      const res = await api.post('/hpio/HPIO_301U_STR', [{
         ...item,
         actkind,
         prodid: selectedProduct.prodid,

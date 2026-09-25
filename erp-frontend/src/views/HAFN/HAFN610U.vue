@@ -1,8 +1,8 @@
 <!--
 	=============================================================
-	프로그램명	: 자금수지등록(은행) (HAFN610U)
+	프로그램명	: 미지급금 지불처리 (HAFN610U)
 	작성일자	: 2025.02.24
-	설명        : 은행 계좌별 입출금 내역 등록 및 자금 수지 관리
+	설명        : 미지급금 지불처리
 	=============================================================
 -->
 
@@ -14,7 +14,7 @@
       <div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-bank me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">자금수지등록(은행) (HAFN610U)</span>
+        <span class="text-primary fw-bolder">미지급금 지불처리 (HAFN610U)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize">초기화</button>

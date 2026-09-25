@@ -71,19 +71,18 @@ const selectTopMenu = async (codecd: string) => { await menuStore.selectTopMenu(
 const handleLogoClick = () => { router.push('/') }
 const logout = async () => { await authStore.logout() }
 
-/** 🚀 모든 탭 닫기 */
+/** 🚀 모든 탭 닫기 (상단 및 좌측 메뉴 상태 유지) */
 const closeAllTabs = () => {
   if (confirm('열려있는 모든 탭을 닫으시겠습니까?')) {
+    // 💡 window.location.href 리로드 대신 tabStore.closeAllTabs()만 호출하여 메뉴 상태를 기온 상태로 유지
     tabStore.closeAllTabs()
-    window.location.href = '/'
   }
 }
 
-/** 🚀 우측 패널 도움말 열기 (기존 방식 유지) */
+/** 🚀 우측 패널 도움말 열기 */
 const openManualPanel = () => {
   const activeTab = tabStore.activeTab
   if (!activeTab) return alert('도움말을 보려면 프로그램을 먼저 선택하세요.')
-  // 💡 중복 탭 지원에 따라 path가 아닌 실제 pgmId를 전달하도록 수정
   manualStore.open(activeTab.pgmId)
 }
 </script>
@@ -98,7 +97,6 @@ const openManualPanel = () => {
 .custom-menu .nav-link { color: rgba(255, 255, 255, 0.8) !important; font-size: 1rem; font-weight: 600; padding: 0.5rem 1.5rem !important; }
 .custom-menu .nav-link:hover, .custom-menu .nav-link.active { color: #ffffff !important; }
 
-/* 🚀 상단 툴 버튼 스타일 */
 .btn-navbar-tool {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -112,7 +110,6 @@ const openManualPanel = () => {
 }
 .btn-navbar-tool:hover { background: rgba(255, 255, 255, 0.2); border-color: #ffc107; }
 
-/* 🚀 도움말 버튼 강조 (노란색 텍스트 포인트) */
 .btn-help-highlight { color: #ffc107; border-color: rgba(255, 193, 7, 0.3); }
 .btn-help-highlight:hover { border-color: #ffc107; background: rgba(255, 193, 7, 0.1); }
 

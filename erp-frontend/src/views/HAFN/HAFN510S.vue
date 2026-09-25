@@ -1,6 +1,6 @@
 <!--
 	=============================================================
-	프로그램명	: 수지현황(계정별) (HAFN510S)
+	프로그램명	: 지급어음명세서 (HAFN510S)
 	작성일자	: 2025.02.24
 	설명        : 기간별/계정별 자금 입금 및 출금 상세 수지 현황 조회
 	=============================================================
@@ -14,7 +14,7 @@
       <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-graph-up-arrow me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">수지현황(계정별) (HAFN510S)</span>
+        <span class="text-primary fw-bolder">지급어음명세서 (HAFN510S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
         <button class="btn-erp btn-search" @click="search">조회</button>

@@ -443,9 +443,9 @@ async function fetchDetail(row: any) {
   Object.assign(form_02, { ...row, outymd: fYmd(row.outymd), proymd: fYmd(row.proymd) })
 
   try {
-    const res = await api.post('/hpio/HPIO_341U_STR', {
+    const res = await api.post('/hpio/HPIO_341U_STR', [{
       actkind: 'S', cmpycd: authStore.cmpycd, iogbn: '200', outym: row.outym, outno: row.outno, ioqty: 0
-    })
+    }])
     grid2?.setData((res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' })))
   } catch (e) { vAlertError('상세 조회 실패') }
 }
@@ -454,7 +454,7 @@ async function fetchDetailItems() {
   if (!form_02.itemcd) return
   const qty = Number(form_02.proqty || 1)
   try {
-    const res = await api.post('/hpio/HPIO_341U_STR', {
+    const res = await api.post('/hpio/HPIO_341U_STR', [{
       actkind: 'B', cmpycd: authStore.cmpycd, iogbn: '200', itemcd: form_02.itemcd, ioqty: qty,
       pumym: form_02.pumym, pumno: form_02.pumno, outym: form_02.outym, outno: form_02.outno,
       linecd: form_02.linecd, progcd: form_02.progcd, ioymd: form_02.outymd.replace(/-/g, ''), proymd: form_02.proymd.replace(/-/g, '')
@@ -492,7 +492,7 @@ async function saveAll() {
     // 2. 상세 저장
     for (const d of details) {
       const dAct = d._status === '입력' ? 'A' : (d._status === '삭제' ? 'D' : 'U')
-      await api.post('/hpio/HPIO_341U_STR', {
+      await api.post('/hpio/HPIO_341U_STR', [{
         ...d, actkind: dAct, cmpycd: authStore.cmpycd, iogbn: '200',
         ioymd: form_02.outymd.replace(/-/g, ''), outym: keyYM, outno: keyNO, inno: keyIN,
         owhcd: form_02.whcd, custcd: form_02.custcd, linecd: form_02.linecd, progcd: form_02.progcd,

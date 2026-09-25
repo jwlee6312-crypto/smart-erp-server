@@ -264,12 +264,12 @@ async function fetchDetail(row: any) {
   });
 
   try {
-    const res = await api.post('/hsba/HSBA_211U_STR', {
+    const res = await api.post('/hsba/HSBA_211U_STR', [{
         actkind: 'S0',
         cmpycd: authStore.cmpycd,
         yymm: n.yymm,
         rowno: n.rowno
-    });
+    }]);
     grid2?.setData((res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' })));
   } catch (e: any) { vAlertError('상세 로드 실패'); }
 }

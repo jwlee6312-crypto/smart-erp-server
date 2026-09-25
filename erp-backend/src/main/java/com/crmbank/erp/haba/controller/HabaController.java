@@ -72,10 +72,10 @@ public class HabaController {
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "acctcd", "acctnm");
-        String code = String.valueOf(resultRow.get("acctcd")).trim();
-        if ("000000".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("acctnm")));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -93,10 +93,10 @@ public class HabaController {
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "yyyy", "gubun");
-        String code = String.valueOf(resultRow.get("yyyy")).trim();
-        if ("000000".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("gubun")));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -125,8 +125,8 @@ public class HabaController {
             List<Map<String, Object>> raw = habaMapper.HABA_021U_STR(detail);
             if (raw != null && !raw.isEmpty()) {
                 Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
-                if ("000000".equals(String.valueOf(resRow.getOrDefault("yyyy", "")))) {
-                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("gubun", "저장 실패"));
+                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "msg")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("msg", "저장 실패"));
                 }
                 totalResults.add(resRow);
             }
@@ -158,8 +158,8 @@ public class HabaController {
             List<Map<String, Object>> raw = habaMapper.HABA_022U_STR(detail);
             if (raw != null && !raw.isEmpty()) {
                 Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
-                if ("000000".equals(String.valueOf(resRow.getOrDefault("yyyy", "")))) {
-                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("gubun", "저장 실패"));
+                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "msg")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("msg", "저장 실패"));
                 }
                 totalResults.add(resRow);
             }
@@ -180,10 +180,10 @@ public class HabaController {
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "unitcd", "unitnm");
-        String code = String.valueOf(resultRow.get("unitcd")).trim();
-        if ("000000".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("unitnm")));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -201,10 +201,10 @@ public class HabaController {
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "subcd", "subnm");
-        String code = String.valueOf(resultRow.get("subcd")).trim();
-        if ("000000".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("subnm")));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -222,10 +222,10 @@ public class HabaController {
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "bankcd", "banknm");
-        String code = String.valueOf(resultRow.get("bankcd")).trim();
-        if ("000000".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("banknm")));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -243,10 +243,10 @@ public class HabaController {
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
-        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "deptcd", "deptnm");
-        String code = String.valueOf(resultRow.get("deptcd")).trim();
-        if ("000000".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("deptnm")));
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
+        String code = String.valueOf(resultRow.get("result")).trim();
+        if (!"OK".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -267,7 +267,7 @@ public class HabaController {
         Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "result", "msg");
         String code = String.valueOf(resultRow.get("result")).trim();
         if (!"OK".equals(code)) {
-            throw new RuntimeException(String.valueOf(resultRow.get("prjnm")));
+            throw new RuntimeException(String.valueOf(resultRow.get("msg")));
         }
         return ResponseEntity.ok(List.of(resultRow));
     }
@@ -521,10 +521,10 @@ public class HabaController {
         fillMissingParameters("HABA_180U_STR", params);
         log.info("🏢 [Master SQL]: {}", buildPositionalSql("HABA_180U_STR", params));
 
-        String actkind = String.valueOf(params.getOrDefault("actkind", "S1")).toUpperCase();
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
         List<Map<String, Object>> raw = habaMapper.HABA_180U_STR(params);
 
-        if ("SR".equals(actkind) || "S1".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+        if ("S0".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 

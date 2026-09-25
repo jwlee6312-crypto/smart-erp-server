@@ -144,7 +144,7 @@ async function search() {
 	try {
 		const res = await api.post('/hafa/HAFA_150U_STR',
 		{   cmpycd: authStore.cmpycd,
-		    baseym: searchForm.yy + searchForm.mm
+		    ym: searchForm.yy + searchForm.mm
 		})
 		const data = (res.data || []).map((row: any) => ({
 			deptcd: row.deptcd,

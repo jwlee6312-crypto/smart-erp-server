@@ -300,7 +300,7 @@ const saveReceipt = async () => {
       const ioNo = masterRes.data[0].iono;
 
       // 2. 입고 상세 저장 (HSIO_061U_STR)
-      const detailRes = await api.post('/hsio/HSIO_061U_STR', {
+      const detailRes = await api.post('/hsio/HSIO_061U_STR', [{
           actkind: 'A0', cmpycd: authStore.cmpycd, iogbn: '100', iotype: '100', custcd: '',
           ioym: ioYm, iono: ioNo, deptcd: authStore.deptcd, whcd: targetWhcd, ioymd: inYmd,
           itemcd: item.itemcd, unit: item.unit, itsize: item.itsize,

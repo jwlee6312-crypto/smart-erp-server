@@ -1,6 +1,6 @@
 <!--
 	=============================================================
-	프로그램명	: 카드결제현황 (HAFN210S)
+	프로그램명	: 차입금명세서 (HAFN210S)
 	작성일자	: 2025.02.24
 	설명        : 법인카드별 결제 예정 금액 및 상세 내역 조회
 	=============================================================
@@ -14,7 +14,7 @@
       <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-credit-card-2-front me-2 text-primary" style="font-size: 18px;"></i>
         자금관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">카드결제현황 (HAFN210S)</span>
+        <span class="text-primary fw-bolder">차입금명세서 (HAFN210S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
         <button class="btn-erp btn-search" @click="search">조회</button>

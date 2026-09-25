@@ -244,7 +244,7 @@ const fetchDetail = async () => {
         // 🚀 shipseq 정보가 있으면 표시, 없으면 '직통관' 등으로 유연하게 표시
         formData.shipseqnm = formData.shipseq ? `${formData.shipseq.substring(0,1)}차 선적` : '미선적(직통관)'
 
-        const resItems = await api.post('/hsip/HSIP_121U_STR', {
+        const resItems = await api.post('/hsip/HSIP_121U_STR', [{
             actkind: 'S0', cmpycd: authStore.cmpycd,
             fileno: formData.fileno,
             shipseq: formData.shipseq || '10', // 🚀 상세 조회도 기본값 대응

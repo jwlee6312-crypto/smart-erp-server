@@ -82,7 +82,7 @@ public class HaplController {
         String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
         List<Map<String, Object>> raw = haplMapper.HAPL_030U_STR(params);
 
-        if ("S2".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+        if ("S2".equals(actkind) || "S0".equals(actkind) || "S1".equals(actkind)  || "DR".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 
@@ -124,7 +124,7 @@ public class HaplController {
         String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
         List<Map<String, Object>> raw = haplMapper.HAPL_050U_STR(params);
 
-        if ( "S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+        if ( "S0".equals(actkind) || "S1".equals(actkind)  || "DR".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
 
         if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
 

@@ -1,148 +1,149 @@
 <!--
 	=============================================================
-	프로그램명: 카드미지급금기초잔액
-	작성일자	: 2025.02.24
+	프로그램명: 카드미지급금기초잔액 (HABA250U)
+	작성일자	: 2025.03.14
 	작성자    : AI Assistant
-	설명        : 카드별 미지급금 기초 잔액 관리(계정과목, 카드번호, 결제처별)
+	설명        : 카드별 미지급금 기초 잔액 관리 (HSOD100U 균등 배분 레이아웃 및 SaleCustHelp 적용)
 	=============================================================
 -->
 
 <template>
 	<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
+	<SaleCustHelp v-model:visible="popVisible.cust" @confirm="onCustConfirm" />
 
-	<div class="erp-container">
-		<!-- [헤더] 상단 액션 바 -->
-		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 px-3 sticky-top shadow-sm flex-shrink-0">
-			<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
+	<div class="erp-container d-flex flex-column h-100 bg-white">
+		<!-- [1] 상단 액션 바 -->
+		<div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom">
+			<div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
 				<i class="bi bi-credit-card-2-front me-2 text-primary" style="font-size: 18px;"></i>
-				기본정보 <i class="bi bi-chevron-right mx-2 small opacity-50"></i>
+				기본정보 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+				기초자료 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
 				<span class="text-primary fw-bolder">카드미지급금기초잔액 (HABA250U)</span>
 			</div>
-			<div class="btn-group-erp d-flex gap-1">
-				<button class="btn-erp btn-init" @click="initialize">
-					<i class="bi bi-plus-lg"></i> 신규
-				</button>
-				<button class="btn-erp btn-search" @click="search">
-					<i class="bi bi-search"></i> 조회
-				</button>
-				<button class="btn-erp btn-save" @click="save">
-					<i class="bi bi-check-lg"></i> 저장
-				</button>
+			<div class="btn-group-erp d-flex gap-1 pe-3">
+				<button class="btn-erp btn-init" @click="initialize">신규(N)</button>
+				<button class="btn-erp btn-search" @click="search">조회(F)</button>
+				<button class="btn-erp btn-save" @click="save">저장(S)</button>
 			</div>
 		</div>
 
-		<!-- [조회] 검색 조건 영역 -->
-		<div class="p-2 pb-0 flex-shrink-0">
-			<div class="card border shadow-sm bg-white overflow-hidden">
-				<div class="card-body p-2 bg-light">
-					<div class="d-flex align-items-center flex-wrap gap-3 small">
-						<div class="d-flex align-items-center">
-							<span class="erp-label"><i class="bi bi-dot"></i>계정과목</span>
-							<div class="input-group input-group-sm" style="width: 220px;">
-								<input v-model="searchForm.acctcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
-								<input v-model="searchForm.acctnm" type="text" class="form-control" placeholder="계정명" @keydown.enter="openHelp('S_ACCT')" />
-								<button class="btn btn-outline-secondary px-2" @click="openHelp('S_ACCT')"><i class="bi bi-search"></i></button>
-							</div>
-						</div>
-						<div class="d-flex align-items-center">
-							<span class="erp-label"><i class="bi bi-dot"></i>발생일</span>
-							<div class="d-flex align-items-center gap-1">
-								<input v-model="searchForm.symd" type="date" class="form-control form-control-sm" style="width: 140px;" />
-								<span>~</span>
-								<input v-model="searchForm.eymd" type="date" class="form-control form-control-sm" style="width: 140px;" />
-							</div>
-						</div>
-					</div>
+		<!-- [2] 메인 컨텐츠 영역 -->
+		<div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2 bg-light main-content-wrapper">
+
+			<!-- 상단 조회 필터 (균등 배분 4컬럼 그리드) -->
+			<div class="card border shadow-sm flex-shrink-0 overflow-hidden">
+				<div class="card-body p-0 bg-white">
+					<table class="erp-table-dense w-100">
+						<colgroup>
+							<col style="width: 120px;" /><col style="width: 38%;" />
+							<col style="width: 120px;" /><col />
+						</colgroup>
+						<tbody>
+							<tr>
+								<th class="required bg-light text-center small">계정과목</th>
+								<td>
+									<div class="input-group input-group-sm" style="width: 220px;">
+										<input v-model="searchForm.acctcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
+										<input v-model="searchForm.acctnm" type="text" class="form-control" placeholder="계정명" @keydown.enter="handleOpenHelp('S_ACCT')" />
+										<button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('S_ACCT')"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+								<th class="required bg-light text-center border-start small">발생일</th>
+								<td>
+									<div class="d-flex align-items-center gap-1">
+										<input v-model="searchForm.symd" type="date" class="form-control form-control-sm" style="width: 140px;" />
+										<span class="small text-muted px-1">~</span>
+										<input v-model="searchForm.eymd" type="date" class="form-control form-control-sm" style="width: 140px;" />
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 			</div>
-		</div>
 
-		<!-- [상세] 입력 영역 -->
-		<div class="p-2 pb-0 flex-shrink-0">
-			<div class="card border shadow-sm bg-white overflow-hidden">
-				<div class="card-header py-1 px-2 bg-light border-bottom">
-					<span class="small fw-bold text-secondary"><i class="bi bi-pencil-square me-1"></i> 카드 미지급 상세 정보 [{{ masterForm.actkind === 'I1' ? '신규' : '수정' }}]</span>
+			<!-- 상세 정보 입력 영역 -->
+			<div class="card border shadow-sm flex-shrink-0 overflow-hidden">
+				<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center">
+					<i class="bi bi-pencil-square me-2 text-primary"></i>
+					<span class="fw-bold small text-dark">카드 미지급 상세 정보 [{{ masterForm.actkind === 'I1' ? '신규등록' : '정보수정' }}]</span>
 				</div>
-				<table class="erp-table-full small">
-					<colgroup>
-						<col style="width: 100px;" /><col style="width: 25%;" />
-						<col style="width: 100px;" /><col style="width: 25%;" />
-						<col style="width: 100px;" /><col />
-					</colgroup>
-					<tbody>
-						<tr>
-							<th class="text-center bg-light-subtle border-end">계정과목</th>
-							<td class="bg-white border-end px-2 py-1">
-								<div class="input-group input-group-sm">
-									<input v-model="masterForm.acctcd" type="text" class="form-control text-center bg-light" style="max-width: 70px;" readonly />
-									<input v-model="masterForm.acctnm" type="text" class="form-control" @keydown.enter="openHelp('M_ACCT')" />
-									<button class="btn btn-outline-secondary px-2" @click="openHelp('M_ACCT')"><i class="bi bi-search"></i></button>
-								</div>
-							</td>
-							<th class="text-center bg-light-subtle border-end">카드번호</th>
-							<td class="bg-white border-end px-2 py-1">
-								<div class="input-group input-group-sm">
-									<input v-model="masterForm.mgtno" type="text" class="form-control" @keydown.enter="openHelp('M_MGT')" />
-									<button class="btn btn-outline-secondary px-2" @click="openHelp('M_MGT')"><i class="bi bi-search"></i></button>
-								</div>
-							</td>
-							<td colspan="2" class="bg-white"></td>
-						</tr>
-						<tr>
-							<th class="text-center bg-light-subtle border-end">결 제 처</th>
-							<td class="bg-white border-end px-2 py-1">
-								<div class="input-group input-group-sm">
-									<input v-model="masterForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 70px;" readonly />
-									<input v-model="masterForm.custnm" type="text" class="form-control" @keydown.enter="openHelp('M_CUST')" />
-									<button class="btn btn-outline-secondary px-2" @click="openHelp('M_CUST')"><i class="bi bi-search"></i></button>
-								</div>
-							</td>
-							<th class="text-center bg-light-subtle border-end">미결잔액</th>
-							<td class="bg-white border-end px-2 py-1">
-								<div class="d-flex align-items-center gap-1">
-									<input v-model="masterForm.cramt" type="number" class="form-control form-control-sm text-end" step="0" />
-									<span>(원)</span>
-								</div>
-							</td>
-							<td colspan="2" class="bg-white"></td>
-						</tr>
-						<tr>
-							<th class="text-center bg-light-subtle border-end">발 생 일</th>
-							<td class="bg-white border-end px-2 py-1">
-								<input v-model="masterForm.pubymd" type="date" class="form-control form-control-sm" />
-							</td>
-							<th class="text-center bg-light-subtle border-end">지불예정일</th>
-							<td class="bg-white border-end px-2 py-1">
-								<input v-model="masterForm.reqymd" type="date" class="form-control form-control-sm" />
-							</td>
-							<td colspan="2" class="bg-white"></td>
-						</tr>
-						<tr>
-							<th class="text-center bg-light-subtle border-end">비 고</th>
-							<td class="bg-white border-end px-2 py-1">
-								<input v-model="masterForm.remark" type="text" class="form-control form-control-sm" />
-							</td>
-							<th class="text-center bg-light-subtle border-end">사용여부</th>
-							<td class="bg-white border-end px-2 py-1">
-								<div class="form-check form-check-inline mb-0">
-									<input v-model="masterForm.useyn" class="form-check-input" type="checkbox" id="useYnCheck" true-value="Y" false-value="N" />
-									<label class="form-check-label" for="useYnCheck">사용</label>
-								</div>
-							</td>
-							<td colspan="2" class="bg-white"></td>
-						</tr>
-					</tbody>
-				</table>
+				<div class="card-body p-0 bg-white">
+					<table class="erp-table-dense w-100">
+						<colgroup>
+							<col style="width: 110px;" /><col style="width: 220px;" />
+							<col style="width: 110px;" /><col style="width: 280px;" />
+							<col style="width: 110px;" /><col style="width: 220px;" />
+							<col style="width: 110px;" /><col />
+						</colgroup>
+						<tbody>
+							<tr>
+								<th class="required bg-light small text-center">계정과목</th>
+								<td>
+									<div class="input-group input-group-sm" style="max-width: 260px;">
+										<input v-model="masterForm.acctcd" type="text" class="form-control text-center bg-light" style="max-width: 70px;" readonly />
+										<input v-model="masterForm.acctnm" type="text" class="form-control" placeholder="계정명" @keydown.enter="handleOpenHelp('M_ACCT')" />
+										<button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('M_ACCT')"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+								<th class="required bg-light small text-center border-start">카드번호</th>
+								<td>
+									<div class="input-group input-group-sm" style="max-width: 260px;">
+										<input v-model="masterForm.mgtno" type="text" class="form-control" placeholder="카드번호 선택" @keydown.enter="handleOpenHelp('M_MGT')" />
+										<button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('M_MGT')"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+								<th class="required bg-light small text-center border-start">결제처</th>
+								<td colspan="3">
+									<div class="input-group input-group-sm" style="max-width: 280px;">
+										<input v-model="masterForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 70px;" readonly />
+										<input v-model="masterForm.custnm" type="text" class="form-control" placeholder="결제처 선택" @keydown.enter="handleOpenHelp('M_CUST')" />
+										<button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('M_CUST')"><i class="bi bi-search"></i></button>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<th class="required bg-light small text-center border-top">미결잔액</th>
+								<td class="border-top">
+									<div class="d-flex align-items-center gap-1 px-1">
+										<input v-model="masterForm.cramt" type="number" class="form-control form-control-sm text-end fw-bold text-danger" style="max-width: 160px;" step="0" />
+										<span class="small text-muted">원</span>
+									</div>
+								</td>
+								<th class="bg-light small text-center border-start border-top">발생일</th>
+								<td class="border-top">
+									<input v-model="masterForm.pubymd" type="date" class="form-control form-control-sm" style="max-width: 140px;" />
+								</td>
+								<th class="bg-light small text-center border-start border-top">지불예정일</th>
+								<td class="border-top">
+									<input v-model="masterForm.reqymd" type="date" class="form-control form-control-sm" style="max-width: 140px;" />
+								</td>
+								<th class="bg-light small text-center border-start border-top">비고</th>
+								<td class="border-top">
+									<div class="d-flex align-items-center gap-3">
+										<input v-model="masterForm.remark" type="text" class="form-control form-control-sm" />
+										<div class="form-check form-check-inline mb-0 flex-shrink-0">
+											<input v-model="masterForm.useyn" class="form-check-input" type="checkbox" id="useYnCheck" true-value="Y" false-value="N" />
+											<label class="form-check-label small fw-bold" for="useYnCheck">사용</label>
+										</div>
+									</div>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 			</div>
-		</div>
 
-		<!-- [그리드] 메인 그리드 영역 -->
-		<div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column">
-			<div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column bg-white">
-                <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-                  <div ref="mainGridRef" class="tabulator-instance flex-grow-1"></div>
-                </div>
+			<!-- 그리드 영역 -->
+			<div class="card border shadow-sm flex-grow-1 d-flex flex-column overflow-hidden bg-white">
+				<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
+					<span class="fw-bold small text-dark"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>카드 미지급 잔액 목록</span>
+				</div>
+				<div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
+					<div ref="mainGridRef" class="tabulator-instance flex-grow-1"></div>
+				</div>
 			</div>
+
 		</div>
 	</div>
 
@@ -158,12 +159,16 @@ import AppAlert from '@/components/AppAlert.vue'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
+import { useCommonHelp } from '@/composables/useCommonHelp'
 import Modal from '@/components/Modal.vue'
-import type { ModalProps } from '@/types/modal'
+import SaleCustHelp from '@/components/help/SaleCustHelp.vue'
 
 const authStore = useAuthStore()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
+const { modalVisible, modalProps, openHelp: commonOpenHelp } = useCommonHelp()
+
+const popVisible = reactive({ cust: false })
 
 // 날짜 초기화 (현재 월 1일 ~ 오늘)
 const today = new Date().toISOString().split('T')[0]
@@ -283,72 +288,45 @@ const initialize = () => {
 	masterForm.cramt = 0
 }
 
-// 팝업 설정
-const modalVisible = ref(false)
-const modalProps = reactive<ModalProps>({ title: '', path: '', defaultField: '', columns: [], data: {}, onConfirm: () => {}, type: 'table' })
-
-function openHelp(type: string) {
+// 🚀 [표준] HABA210U 규격 적용 및 SaleCustHelp 사용
+function handleOpenHelp(type: string) {
 	let searchVal = ''
 	if (type === 'S_ACCT') searchVal = searchForm.acctnm
 	if (type === 'M_ACCT') searchVal = masterForm.acctnm
 	if (type === 'M_MGT') searchVal = masterForm.mgtno
 	if (type === 'M_CUST') searchVal = masterForm.custnm
 
+	if (type === 'M_CUST') {
+		popVisible.cust = true
+		return
+	}
+
 	if (type.includes('ACCT')) {
-		Object.assign(modalProps, {
-			title: '계정과목 선택',
-			path: '/ha00/HA00_00P_STR',
-			data: { gbn: 'CRS', cmpycd: authStore.cmpycd, acctgbn: '020', search: searchVal },
-			columns: [
-				{ title: '코드', field: 'col0', width: 100, hozAlign: 'center' },
-				{ title: '계정명', field: 'col1', width: 250 }
-			],
-			onConfirm: (d: any) => {
-				if (type === 'S_ACCT') {
-					searchForm.acctcd = d.col0
-					searchForm.acctnm = d.col1
-					masterForm.acctcd = d.col0
-					masterForm.acctnm = d.col1
-				} else {
-					masterForm.acctcd = d.col0
-					masterForm.acctnm = d.col1
-				}
+		commonOpenHelp('ACCT', (d: any) => {
+			if (type === 'S_ACCT') {
+				searchForm.acctcd = d.acctcd
+				searchForm.acctnm = d.acctnm
+				masterForm.acctcd = d.acctcd
+				masterForm.acctnm = d.acctnm
+			} else {
+				masterForm.acctcd = d.acctcd
+				masterForm.acctnm = d.acctnm
 			}
-		})
+		}, { search: searchVal })
 	} else if (type === 'M_MGT') {
 		if (!masterForm.acctcd) return vAlert("계정과목을 우선 선택해 주십시오.")
-		Object.assign(modalProps, {
-			title: '카드번호 선택',
-			path: '/ha00/HA00_05P_STR',
-			data: { mgtgbn: '040', acctcd: masterForm.acctcd, cmpycd: authStore.cmpycd, search: searchVal },
-			columns: [
-				{ title: '관리번호', field: 'col0', width: 150, hozAlign: 'center' },
-				{ title: '관리명', field: 'col1', width: 200 }
-			],
-			onConfirm: (d: any) => {
-				masterForm.mgtno = d.col0
-				masterForm.mgtnm = d.col1
-			}
-		})
-	} else if (type === 'M_CUST') {
-		Object.assign(modalProps, {
-			title: '거래처 선택',
-			path: '/ha00/HA00_03P_STR',
-			data: { custgbn: '020', cmpycd: authStore.cmpycd, search: searchVal },
-			columns: [
-				{ title: '코드', field: 'col0', width: 100, hozAlign: 'center' },
-				{ title: '거래처명', field: 'col1', width: 250 }
-			],
-			onConfirm: (d: any) => {
-				masterForm.custcd = d.col0
-				masterForm.custnm = d.col1
-			}
-		})
+		commonOpenHelp('MGT', (d: any) => {
+			masterForm.mgtno = d.mgtno
+			masterForm.mgtnm = d.mgtnm
+		}, { search: searchVal, mgtgbn: '040', acctcd: masterForm.acctcd })
 	}
-	modalVisible.value = true
 }
 
-// yyyymmDD -> yyyy-mm-DD
+function onCustConfirm(d: any) {
+	masterForm.custcd = d.custcd
+	masterForm.custnm = d.custnm
+}
+
 const formatDate = (val: string) => {
 	if (!val || val.length !== 8) return ''
 	return `${val.substring(0, 4)}-${val.substring(4, 6)}-${val.substring(6, 8)}`
@@ -361,13 +339,13 @@ onMounted(() => {
 			height: '100%',
 			columnDefaults: { headerSort: false, vertAlign: "middle" },
 			columns: [
-				{ title: "카드번호", field: "col7", width: 150, hozAlign: "center" },
+				{ title: "카드번호", field: "col7", width: 150, hozAlign: "center", cssClass: "fw-bold text-primary" },
 				{ title: "결제처", field: "col5", width: 100, hozAlign: "center" },
-				{ title: "결제처명", field: "col6", minWidth: 150 },
+				{ title: "결제처명", field: "col6", minWidth: 150, cssClass: "fw-bold" },
 				{ title: "발생일", field: "col0", width: 110, hozAlign: "center", formatter: (cell) => formatDate(cell.getValue()) },
 				{ title: "금액", field: "col8", width: 120, hozAlign: "right", formatter: "money", formatterParams: { precision: 0 } },
 				{ title: "지불예정일", field: "col9", width: 110, hozAlign: "center", formatter: (cell) => formatDate(cell.getValue()) },
-				{ title: "적요", field: "col10", minWidth: 200 },
+				{ title: "적요", field: "col10", minWidth: 200, hozAlign: "left" },
 				{ title: "사용", field: "col11", width: 80, hozAlign: "center", formatter: "tickCross" }
 			],
 			rowClick: (e, row) => {
@@ -393,8 +371,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.erp-label { min-width: 70px; font-weight: 500; font-size: 13px; }
-.bg-light-subtle { background-color: #f8f9fa !important; }
-:deep(.tabulator-row) { cursor: pointer; }
-:deep(.tabulator-row:hover) { background-color: #f0f7ff !important; }
+.tabulator-instance { width: 100% !important; background-color: #fff; font-size: 12px; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
 </style>
