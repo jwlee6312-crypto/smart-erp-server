@@ -44,6 +44,8 @@
       <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize" tabindex="-1">신규(N)</button>
         <button class="btn-erp btn-search" @click="search" tabindex="-1">조회(F)</button>
+        <button class="btn-erp btn-primary" @click="printSpecification" tabindex="-1">거래명세서</button>
+        <button class="btn-erp btn-success" @click="printSheet('REQ_OUT')" tabindex="-1">출고의뢰서</button>
         <button class="btn-erp btn-save" @click="save" tabindex="-1">저장(S)</button>
         <button class="btn-erp btn-delete" @click="handleFullDelete" tabindex="-1">삭제(D)</button>
       </div>
@@ -236,6 +238,8 @@ import { getDate } from '@/composables/useDate'
 import { useManualStore } from '@/stores/manualStore'
 import { useSearchStore } from '@/stores/useSearchStore'
 import { useRoute } from 'vue-router'
+import { numberToHanja } from '@/utils/hanja'
+import { usePrintReport } from '@/composables/usePrintReport'
 
 import AppAlert from '@/components/AppAlert.vue'
 import DateForm from '@/components/DateForm.vue'
@@ -555,6 +559,28 @@ async function save() {
     await api.post('/hsio/HSIO_500U_SAVE', { mst, dtl: details })
     vAlert('저장되었습니다(Alt+S)'); initialize(); search()
   } catch (e) { vAlertError('저장 실패') } finally { isSaving.value = false }
+}
+
+const { printReportSheet, printSpecification: printSpec } = usePrintReport()
+
+/** 🚀 [거래명세서 출력] */
+const printSpecification = async () => {
+    if (!form_02.ioym || !form_02.iono) return vAlertError('출력할 내역을 선택하세요.')
+    try {
+        await printSpec(form_02.ioym, form_02.iono, grid2?.getData() || [])
+    } catch (e: any) {
+        vAlertError('거래명세서 출력 실패')
+    }
+}
+
+/** 🚀 [의뢰서/출고증 출력] 바코드 포함 출력 (REQ_OUT: 의뢰서, CERT_OUT: 출고증) */
+const printSheet = async (docType: 'REQ_OUT' | 'CERT_OUT' = 'REQ_OUT') => {
+    if (!form_02.ioym || !form_02.iono) return vAlertError('출력할 내역을 선택하세요.')
+    try {
+        await printReportSheet(docType, form_02.ioym, form_02.iono, grid2?.getData() || [], form_02)
+    } catch (e: any) {
+        vAlertError(docType === 'CERT_OUT' ? '출고증 출력 실패' : '의뢰서 출력 실패')
+    }
 }
 
 const handleOpenHelp = (type: string, target?: any) => {

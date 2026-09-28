@@ -39,6 +39,7 @@
       <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize" tabindex="-1">신규(N)</button>
         <button class="btn-erp btn-search" @click="search" tabindex="-1">조회(F)</button>
+        <button class="btn-erp btn-primary" @click="printSheet" tabindex="-1">의뢰서 출력</button>
         <button class="btn-erp btn-save" @click="save" :disabled="isClosed" tabindex="-1">저장(S)</button>
         <button class="btn-erp btn-delete" @click="handleFullDelete" :disabled="isClosed" tabindex="-1">삭제(D)</button>
       </div>
@@ -532,6 +533,235 @@ async function handleFullDelete() {
       vAlert('삭제되었습니다.'); initialize(); search()
     } catch (e) { vAlertError('삭제 실패') }
   }
+}
+
+/** 🚀 [의뢰서 출력] 입고/출고/반품 의뢰서 바코드 포함 인쇄 */
+const printSheet = async () => {
+    if (!form_02.ioym || !form_02.iono) return vAlertError('출력할 내역을 먼저 선택하세요.')
+
+    const win = window.open('', '_blank', 'width=850,height=950')
+    if (!win) return vAlertError('브라우저 팝업 차단을 해제해 주세요.')
+
+    try {
+        win.document.write('<div style="font-family:sans-serif; padding:20px; text-align:center;">의뢰서 서식을 생성하는 중입니다...</div>')
+
+        let dtl = grid2?.getData() || []
+
+        const [hRes, stampRes] = await Promise.allSettled([
+            api.post('/hsio/HSIO_REQIN_STR', { actkind: 'S1', cmpycd: authStore.cmpycd, ioym: form_02.ioym, iono: form_02.iono }),
+            api.post('/haba/HABA_100U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd })
+        ])
+
+        const hData = (hRes.status === 'fulfilled' && hRes.value.data?.length) ? hRes.value.data[0] : form_02
+        const sInfo = (stampRes.status === 'fulfilled' && stampRes.value.data?.[0]) ? stampRes.value.data[0] : {}
+
+        const h = { ...form_02, ...hData }
+
+        const gLines = [];
+        ['gline1', 'gline2', 'gline3', 'gline4', 'gline5'].forEach(key => {
+            const val = String(sInfo[key] || '').trim();
+            if (val) gLines.push(val);
+        });
+        if (gLines.length === 0) gLines.push('담 당', '팀 장', '부 장', '사 장');
+
+        const fC = (n: any) => Number(n || 0).toLocaleString()
+        const fSaup = (v: any) => {
+            const s = String(v || '').replace(/[^0-9]/g, '');
+            return s.length === 10 ? `${s.substring(0,3)}-${s.substring(3,5)}-${s.substring(5)}` : (v || '');
+        }
+
+        const fDate = (v: any) => {
+            const s = String(v || '').replace(/[^0-9]/g, '');
+            return s.length === 8 ? `${s.substring(0,4)}-${s.substring(4,6)}-${s.substring(6,8)}` : (v || '');
+        }
+
+        let rowsHtml = ''
+        let qtysum = 0, amtsum = 0
+
+        for (let i = 0; i < Math.max(dtl.length, 10); i++) {
+            const item = dtl[i] || {}
+            if (item.itemnm) {
+                const qty = Math.abs(Number(item.ioqty || item.balqty || item.qty || 0));
+                const amt = Math.abs(Number(item.ioamt || item.jsanamt || item.balamt || item.amt || 0));
+                const price = Number(item.price || item.ioprice || item.balprice || (qty > 0 ? Math.round(amt / qty) : 0));
+                qtysum += qty; amtsum += amt;
+                const cd = String(item.itemcd || '').trim();
+                const bc = String(item.barcode || item.gtin || item.itemcd || '').trim();
+                rowsHtml += `
+                <tr height="36">
+                    <td class="text-center" style="font-size:8.5pt;">${i + 1}</td>
+                    <td class="text-center" style="font-size:8pt; font-weight:bold; padding:2px;">
+                        <div>${cd}</div>
+                        ${bc ? `<svg id="itemBc_${i}" style="width:110px; height:24px;"></svg>` : ''}
+                    </td>
+                    <td class="text-left" style="padding-left:5px; font-size:8.5pt;">${String(item.itemnm || '').trim()}</td>
+                    <td class="text-left" style="padding-left:5px; font-size:8.5pt;">${String(item.itsize || '').trim()}</td>
+                    <td class="text-center" style="font-size:8.5pt;">${item.unit || ''}</td>
+                    <td class="text-right" style="padding-right:5px; font-size:8.5pt;">${fC(qty)}</td>
+                    <td class="text-right" style="padding-right:5px; font-size:8.5pt;">${fC(price)}</td>
+                    <td class="text-right" style="padding-right:5px; font-size:8.5pt;">${fC(amt)}</td>
+                </tr>`
+            } else {
+                rowsHtml += `<tr height="32"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`
+            }
+        }
+
+        const ioymStr = String(h.ioym || form_02.ioym || '').trim()
+        const ionoStr = String(h.iono || form_02.iono || '').trim()
+        const fullBarcode = `${ioymStr}${ionoStr}`
+        const dispIono = `${ioymStr}-${ionoStr}`
+
+        let itemBarcodesJs = ''
+        dtl.forEach((item: any, idx: number) => {
+            const bc = String(item.barcode || item.gtin || item.itemcd || '').trim()
+            if (bc) {
+                itemBarcodesJs += `
+                try {
+                    JsBarcode("#itemBc_${idx}", "${bc}", {
+                        format: "CODE128",
+                        width: 1.2,
+                        height: 22,
+                        displayValue: false,
+                        margin: 0
+                    });
+                } catch(e) {}`
+            }
+        })
+
+        const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>의뢰서 (${dispIono})</title>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+            <style>
+                body { font-family: 'Malgun Gothic', '맑은 고딕', 'GulimChe', sans-serif; color: black; margin: 0; padding: 15px; }
+                table { border-collapse: collapse; font-size: 8.5pt; width: 680px; margin: 0 auto; table-layout: fixed; }
+                th, td { border: 1px solid #BDBDBD; padding: 3px; text-align: center; }
+                .bg-eee { background-color: #f2f2f2; font-weight: bold; }
+                .text-left { text-align: left !important; }
+                .text-right { text-align: right !important; }
+                .text-center { text-align: center !important; }
+                @media print {
+                    body { padding: 0; }
+                    @page { size: A4; margin: 10mm; }
+                }
+            </style>
+        </head>
+        <body>
+            <table border="0" style="border:0; width:680px; margin:0 auto 10px auto; border-collapse:collapse;">
+                <tr>
+                    <td width="200" align="left" style="border:0; vertical-align:middle;">
+                        <svg id="barcodeSvg" style="width:180px; height:42px;"></svg>
+                        <div style="font-size:9pt; font-weight:bold; color:#000; margin-top:-2px;">${dispIono}</div>
+                    </td>
+                    <td width="260" align="center" style="font-size:22pt; font-weight:bold; vertical-align:middle; border:0; letter-spacing:8px;">
+                        의&nbsp;&nbsp;뢰&nbsp;&nbsp;서
+                    </td>
+                    <td width="220" align="right" valign="top" style="border:0;">
+                        <table border="1" style="width:100%; border-collapse:collapse; height:68px;">
+                            <tr>
+                                <td rowspan="2" width="20" class="bg-eee" style="font-size:9pt; line-height:1.2;">결<br>재</td>
+                                ${gLines.map(g => `<td class="bg-eee" height="18" style="font-size:8pt;">${g}</td>`).join('')}
+                            </tr>
+                            <tr>${gLines.map(() => '<td height="50" width="45"></td>').join('')}</tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <table border="1" style="width:680px; margin:0 auto; border-collapse:collapse;">
+                <colgroup><col style="width:13%"/><col style="width:37%"/><col style="width:13%"/><col style="width:37%"/></colgroup>
+                <tr height="25">
+                    <td class="bg-eee">의뢰번호</td><td class="text-left" style="font-weight:bold;">&nbsp;${dispIono}</td>
+                    <td class="bg-eee">회 사 명</td><td class="text-center"><b>${h.ccustnm || h.custnm || form_02.custnm || ''}</b></td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">일자</td><td class="text-left">&nbsp;${fDate(h.ioymd || form_02.ioymd)}</td>
+                    <td class="bg-eee">등록번호</td><td class="text-center">&nbsp;${fSaup(h.ccustno || h.saupno)}</td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">창고</td><td class="text-left">&nbsp;${h.whnm || form_02.whnm || ''}</td>
+                    <td class="bg-eee">소 재 지</td><td class="text-center" style="font-size:8pt;">&nbsp;${h.caddress || ''}</td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">부서</td><td class="text-left">&nbsp;${h.deptnm || form_02.deptnm || ''}</td>
+                    <td class="bg-eee" style="padding:0;">
+                        <div style="display:flex; height:100%;">
+                            <div style="flex:1; border-right:1px solid #BDBDBD; display:flex; align-items:center; justify-content:center;">전&nbsp;&nbsp;화</div>
+                            <div style="flex:1; display:flex; align-items:center; justify-content:center;">팩&nbsp;&nbsp;스</div>
+                        </div>
+                    </td>
+                    <td style="padding:0;">
+                        <div style="display:flex; height:100%;">
+                            <div style="flex:1; border-right:1px solid #BDBDBD; display:flex; align-items:center; justify-content:center;">${h.ctelno || ''}</div>
+                            <div style="flex:1; display:flex; align-items:center; justify-content:center;">${h.cfaxno || ''}</div>
+                        </div>
+                    </td>
+                </tr>
+                <tr height="25">
+                    <td class="bg-eee">담당자명</td><td align="left">&nbsp;${h.usernm || authStore.usernm || ''} (인)</td>
+                    <td class="bg-eee">거래처담당</td><td align="center">&nbsp;${h.cdamdang || ''}</td>
+                </tr>
+                <tr height="25"><td class="bg-eee">특기사항</td><td colspan="3" align="left">&nbsp;${h.remark || form_02.remark || ''}</td></tr>
+            </table>
+
+            <table border="1" style="width:680px; margin:6px auto 0 auto; border-collapse:collapse;">
+                <colgroup>
+                    <col style="width:5%"/><col style="width:18%"/><col style="width:28%"/><col style="width:11%"/><col style="width:5%"/><col style="width:10%"/><col style="width:11%"/><col style="width:12%"/>
+                </colgroup>
+                <thead>
+                    <tr class="bg-eee" height="28">
+                        <td>No.</td><td>품목코드 (바코드)</td><td>품 목 명</td><td>규 격</td><td>단위</td><td>수 량</td><td>단 가</td><td>금 액</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+                <tfoot>
+                    <tr height="28" style="font-weight:bold" class="bg-eee">
+                        <td class="text-center" colspan="5">합 계</td>
+                        <td class="text-right" style="padding-right:5px;">${fC(qtysum)}</td>
+                        <td>&nbsp;</td>
+                        <td class="text-right" style="padding-right:5px;">${fC(amtsum)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <script>
+                function generateBarcodes() {
+                    try {
+                        if (window.JsBarcode) {
+                            JsBarcode("#barcodeSvg", "${fullBarcode}", {
+                                format: "CODE128",
+                                width: 1.8,
+                                height: 38,
+                                displayValue: false,
+                                margin: 0
+                            });
+                            ${itemBarcodesJs}
+                        }
+                    } catch (e) {
+                        console.error("Barcode Generation Error:", e);
+                    }
+                }
+                window.onload = function() {
+                    generateBarcodes();
+                    setTimeout(function() { window.print(); }, 400);
+                };
+            <\/script>
+        </body>
+        </html>`;
+
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+
+    } catch (e) {
+        win?.close()
+        vAlertError('의뢰서 출력 실패')
+    }
 }
 
 function handleRemarkTab(e: KeyboardEvent) {

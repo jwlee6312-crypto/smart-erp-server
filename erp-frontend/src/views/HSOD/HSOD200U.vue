@@ -263,7 +263,11 @@ const initGrids = () => {
             }},
 			{ title: '출고금액', field: 'ioamt', hozAlign: 'right', headerHozAlign: 'center', width: 120, formatter: 'money', formatterParams: { precision: 0 } },
 			{ title: '출고창고', field: 'whnm', hozAlign: 'center', headerHozAlign: 'center', width: 120 },
-			{ title: '확정', field: 'cfmyn', hozAlign: 'center', headerHozAlign: 'center', width: 80, formatter: (c) => (c.getValue() === 'Y' ? '확정' : '미확정') },
+			{ title: '확정', field: 'cfmyn', hozAlign: 'center', headerHozAlign: 'center', width: 80, formatter: (c) => {
+                const d = c.getData();
+                const val = String(d.cfmyn || d.cfm_yn || d.slipyn || c.getValue() || 'N').toUpperCase();
+                return val === 'Y' ? '확정' : '미확정';
+            } },
 		],
 	})
 	grid1.on('rowClick', (e, row) => fetchDetail(row.getData()))
@@ -291,7 +295,7 @@ async function search() {
             todt: form_01.todt.replace(/-/g, ''),
             iogbn: '200',
             whcd: '000',
-            slipyn: form_01.slipyn === 'Y' ? 'Y' : 'N',
+            slipyn: form_01.slipyn,
             updemp: authStore.userid
         });
 		grid1?.setData(res.data || []);
@@ -302,6 +306,7 @@ async function search() {
 async function fetchDetail(rowData: any) {
     Object.assign(form_02, rowData);
     if (rowData.ioymd) form_02.ioymd = rowData.ioymd.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+    form_02.cfmyn = String(rowData.cfmyn || rowData.cfm_yn || 'N').trim().toUpperCase() === 'Y' ? 'Y' : 'N';
 
 	try {
 		const res = await api.post('/hsod/HSOD_200U_STR', {
@@ -325,7 +330,7 @@ async function fetchDetail(rowData: any) {
 async function save() {
     if (!form_02.iono) return vAlertError('대상 항목을 선택하세요.');
 
-    // 조회조건(slipyn)이 'Y'였다면 이미 처리된 건의 수정(U0), 'N'이었다면 신규 확정 처리(A0)
+    // 조회 조건(slipyn)이 'Y'였다면 기존 수정(U0), 'N'이었다면 확정(A0)
     const act = form_01.slipyn === 'Y' ? 'U0' : 'A0';
 
 	try {
@@ -334,8 +339,8 @@ async function save() {
             actkind: act,
             cmpycd: authStore.cmpycd,
             fromdt: form_02.ioymd.replace(/-/g, ''),
-            cfmyn: form_02.cfmyn === 'Y' ? 'Y' : 'N',
-            slipyn: form_01.slipyn === 'Y' ? 'Y' : 'N',
+            cfmyn: form_02.cfmyn,
+            slipyn: form_01.slipyn,
             whcd: '000',
             updemp: authStore.userid
         });
