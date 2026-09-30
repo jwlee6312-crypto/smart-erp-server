@@ -121,6 +121,20 @@ public class SubMenuActivity extends BaseActivity {
     }
 
     private void handleProgramClick(String pgmid, String pgnm) {
+        // 🚀 바코드 전용 독립 메뉴 라우팅 (기존 HSIO010U/HSIO510U 수동 입출고 화면과 100% 완전 분리)
+        if ("HSIO104U".equalsIgnoreCase(pgmid) || "MHSIO104U".equalsIgnoreCase(pgmid) || "BARCODE_INBOUND".equalsIgnoreCase(pgmid)) {
+            Intent intent = new Intent(this, InboundRegisterActivity.class);
+            intent.putExtra("IOGBN_MODE", "100");
+            startActivity(intent);
+            return;
+        }
+        if ("HSIO204U".equalsIgnoreCase(pgmid) || "MHSIO204U".equalsIgnoreCase(pgmid) || "BARCODE_OUTBOUND".equalsIgnoreCase(pgmid)) {
+            Intent intent = new Intent(this, InboundRegisterActivity.class);
+            intent.putExtra("IOGBN_MODE", "200");
+            startActivity(intent);
+            return;
+        }
+
         String activityName = "M" + pgmid.toUpperCase().replace("_", "");
         String[] modules = {"haba", "hgoa", "hsaa", "hpba", "hpio", "hppl", "hsba", "hsio", "hsod", "hsqm", "hsst"};
         boolean found = false;

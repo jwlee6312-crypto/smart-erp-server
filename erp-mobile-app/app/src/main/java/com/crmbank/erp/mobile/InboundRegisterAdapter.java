@@ -48,6 +48,8 @@ public class InboundRegisterAdapter extends BaseAdapter {
             holder = new ViewHolder();
             holder.tvItemCode = convertView.findViewById(R.id.tvItemCode);
             holder.tvItemName = convertView.findViewById(R.id.tvItemName);
+            holder.tvAutoYnBadge = convertView.findViewById(R.id.tvAutoYnBadge);
+            holder.tvLotNo = convertView.findViewById(R.id.tvLotNo);
             holder.tvOrderQty = convertView.findViewById(R.id.tvOrderQty);
             holder.etInboundQty = convertView.findViewById(R.id.etInboundQty);
             
@@ -64,18 +66,48 @@ public class InboundRegisterAdapter extends BaseAdapter {
 
         holder.tvItemCode.setText(getStringValue(item, "ITEMCD"));
         
-        // ?덈ぉ紐??쒖떆 (ITEMNM ?먮뒗 itemnm ???
         String itemNm = getStringValue(item, "ITEMNM");
         if (itemNm.isEmpty()) itemNm = getStringValue(item, "itemnm");
         holder.tvItemName.setText(itemNm);
-        
-        holder.tvOrderQty.setText(getStringValue(item, "BALQTY"));
 
-        // ?낃퀬?섎웾 (Inout_DtlDto??ioqty 留ㅽ븨)
-        Object ioQty = item.get("ioqty");
-        if (ioQty == null) ioQty = item.get("BALQTY"); // 珥덇린媛믪? 諛쒖＜?섎웾
+        // 💡 autoyn == 'Y' 시리얼 필수 관리 품목 시각적 강조 배지 표시
+        String autoYn = getStringValue(item, "autoyn");
+        if (autoYn.isEmpty()) autoYn = getStringValue(item, "AUTOYN");
+        if ("Y".equalsIgnoreCase(autoYn)) {
+            if (holder.tvAutoYnBadge != null) {
+                holder.tvAutoYnBadge.setVisibility(View.VISIBLE);
+                holder.tvAutoYnBadge.setText("[스캔필수]");
+            }
+            holder.tvItemName.setTextColor(android.graphics.Color.parseColor("#E65100"));
+        } else {
+            if (holder.tvAutoYnBadge != null) {
+                holder.tvAutoYnBadge.setVisibility(View.GONE);
+            }
+            holder.tvItemName.setTextColor(android.graphics.Color.parseColor("#333333"));
+        }
         
-        holder.etInboundQty.setText(ioQty != null ? ioQty.toString() : "0");
+        // 1. 의뢰수량 표시 (ioqty / balqty / qty)
+        String orderQty = getStringValue(item, "ioqty");
+        if (orderQty.isEmpty()) orderQty = getStringValue(item, "balqty");
+        if (orderQty.isEmpty()) orderQty = getStringValue(item, "qty");
+        if (orderQty.isEmpty()) orderQty = "0";
+        holder.tvOrderQty.setText(orderQty);
+
+        // 2. 스캔수량 표시 (scan_qty - DB에 기록된 실스캔 수량이 있으면 반영, 없으면 0)
+        Object scanQtyObj = item.get("scan_qty");
+        if (scanQtyObj == null) scanQtyObj = item.get("SCAN_QTY");
+        double scanQtyVal = 0.0;
+        if (scanQtyObj != null) {
+            try { scanQtyVal = Double.parseDouble(String.valueOf(scanQtyObj)); } catch (Exception ignored) {}
+        }
+        String scanQtyStr = scanQtyVal == (long) scanQtyVal ? String.format(java.util.Locale.getDefault(), "%d", (long) scanQtyVal) : String.valueOf(scanQtyVal);
+        holder.etInboundQty.setText(scanQtyStr);
+
+        // 3. 최근 스캔 LOT / 시리얼 번호 표시
+        String lotNo = getStringValue(item, "lotno");
+        if (lotNo.isEmpty()) lotNo = getStringValue(item, "LOTNO");
+        if (lotNo.isEmpty()) lotNo = "-";
+        if (holder.tvLotNo != null) holder.tvLotNo.setText(lotNo);
 
         return convertView;
     }
@@ -88,7 +120,7 @@ public class InboundRegisterAdapter extends BaseAdapter {
     }
 
     static class ViewHolder {
-        TextView tvItemCode, tvItemName, tvOrderQty;
+        TextView tvItemCode, tvItemName, tvOrderQty, tvAutoYnBadge, tvLotNo;
         EditText etInboundQty;
         QuantityWatcher quantityWatcher;
     }

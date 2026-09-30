@@ -14,3 +14,5 @@ backups/
 mssql_data/
 asterisk_data/
 *.gdmp
+*.jar
+*.apk

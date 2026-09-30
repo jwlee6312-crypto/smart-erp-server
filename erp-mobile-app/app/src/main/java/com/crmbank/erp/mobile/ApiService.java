@@ -465,4 +465,11 @@ public interface ApiService {
             @Part("doc") okhttp3.RequestBody doc,
             @Part okhttp3.MultipartBody.Part file
     );
+
+    // --- HSIO104T_TBL 바코드 스캔 이력 ---
+    @POST("hsio/HSIO_104U_SAVE")
+    Call<List<Map<String, Object>>> saveBarcodeScanHistory(@Body Map<String, Object> payload);
+
+    @POST("hsio/HSIO_104U_STR")
+    Call<List<Map<String, Object>>> getBarcodeScanHistory(@Body Map<String, Object> payload);
 }

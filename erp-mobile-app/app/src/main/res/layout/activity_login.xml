@@ -28,7 +28,7 @@
                 android:orientation="vertical"
                 android:padding="24dp"> <!-- Padding reduced -->
 
-                <!-- Logo Section (Reduced Sizes) -->
+                <!-- Logo Section (ic_main_logo 적용) -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -36,6 +36,14 @@
                     android:layout_gravity="center"
                     android:gravity="center"
                     android:layout_marginBottom="16dp">
+
+                    <ImageView
+                        android:id="@+id/ivMainLogo"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_marginBottom="8dp"
+                        android:src="@drawable/ic_main_logo"
+                        android:contentDescription="SmartERP Main Logo" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"
