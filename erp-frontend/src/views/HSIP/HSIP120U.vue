@@ -250,7 +250,7 @@ const fetchDetail = async () => {
             shipseq: formData.shipseq || '10', // 🚀 상세 조회도 기본값 대응
             passseq: formData.passseq,
             gqty: 0, qty: 0, amt: 0
-        })
+        }])
         itemGrid?.setData(resItems.data || [])
     }
   } catch (e) { vAlertError('상세 조회 실패') }

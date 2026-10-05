@@ -7,7 +7,7 @@
             #{actkind}, #{cmpycd}, #{itemcd}, #{itsize}, #{unit}, #{itemnm}, #{itemenm},
             #{inunit}, #{icqty}, #{outunit}, #{ocqty}, #{setyn}, #{astkind},  #{agrpcd}, #{bgrpcd},
             #{imprice}, #{omprice}, #{stock}, #{qtypnt}, #{vatyn}, #{sotaxyn}, #{udogyn},
-            #{barcode}, #{hscode}, #{remark}, #{useyn}, #{in_custcd}, #{updemp}
+            #{barcode}, #{hscode}, #{remark}, #{useyn}, #{in_custcd}, #{autoyn}, #{updemp}
     </select>
 
     <select id="HSBA_020U_STR" resultType="java.util.LinkedHashMap">

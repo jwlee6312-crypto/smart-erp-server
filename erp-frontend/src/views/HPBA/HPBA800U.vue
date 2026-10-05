@@ -173,8 +173,12 @@ const initGrids = () => {
 async function search() {
   try {
     const res = await api.post('/hpba/HPBA_800U_STR', {
-      actkind: 'S1', cmpycd: authStore.cmpycd,
-      yy: formData.yy, mm: monthStr.value, itemcd: formData.itemcd
+      actkind: 'S0',
+      cmpycd: authStore.cmpycd,
+      ym: formData.yy + monthStr.value,
+      mitemcd: formData.itemcd,
+      bsqty: 0,
+      bsamt: 0
     });
     grid?.setData(res.data);
     vAlert('조회되었습니다.');

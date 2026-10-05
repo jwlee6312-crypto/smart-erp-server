@@ -441,7 +441,7 @@ const fetchMaterialData = async (product: any) => {
         ordymd: '', lotymd: '', lotno: '', ordym: '', ordno: '',
         mitemcd: '', mitsize: '', munit: '', soqty: product.prdqty || 0, inqty: 0,
         useyn: 'Y', whcd: masterForm.whcd, befprog: '', astkind: '', updemp: authStore.userid
-    })
+    }])
     const mappedData = (res.data || []).map((i: any) => {
         const item: any = {};
         Object.keys(i).forEach(k => { item[k.toLowerCase()] = i[k]; });
@@ -522,7 +522,7 @@ const saveMaterials = async () => {
         whcd: masterForm.whcd,
         updemp: authStore.userid,
         useyn: item._status === '삭제' ? 'N' : 'Y'
-      })
+      }])
       if (res.data?.[0]?.result === 'Y') return vAlertError(res.data[0].msg);
     }
     vAlert('자재 정보가 저장되었습니다.'); fetchMaterialData(selectedProduct)

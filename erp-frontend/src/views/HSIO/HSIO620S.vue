@@ -149,7 +149,7 @@ async function searchMaster() {
         whcd: searchData.whcd,
         fromdt: searchData.fromdt.replace(/-/g, ''),
         todt: searchData.todt.replace(/-/g, ''),
-        custcd: searchData.custcd,
+        custcd: searchData.custcd || '0000000', // 💡 거래처코드 공백 시 '0000000' 대입
         ioym: '',
         iono: '',
         slipyn: searchData.slipyn
@@ -167,7 +167,7 @@ async function fetchDetails(row: any) {
         whcd: searchData.whcd,
         fromdt: searchData.fromdt.replace(/-/g, ''),
         todt: searchData.todt.replace(/-/g, ''),
-        custcd: row.custcd,
+        custcd: row.custcd || '0000000', // 💡 거래처코드 공백 시 '0000000' 대입
         ioym: row.ioym,
         iono: row.iono,
         slipyn: searchData.slipyn

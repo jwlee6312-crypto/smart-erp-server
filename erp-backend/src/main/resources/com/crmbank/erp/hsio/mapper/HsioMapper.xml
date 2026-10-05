@@ -355,7 +355,6 @@
     </select>
 
     <!-- 🚀 [HSIO104T_TBL] 바코드 세부 스캔 이력 저장 및 조회 -->
-    <!-- 🚀 [HSIO104T_TBL] 바코드 세부 스캔 이력 저장 및 조회 -->
     <insert id="INSERT_HSIO104T_BARCODE">
         INSERT INTO HSIO104T_TBL (
         cmpycd, iogbn, ioym, iono, srowno, itemcd, barcode, scan_qty, lotno, ADDTIME, UPDTIME, UPDEMP

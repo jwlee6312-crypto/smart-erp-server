@@ -306,7 +306,7 @@ const saveReceipt = async () => {
           itemcd: item.itemcd, unit: item.unit, itsize: item.itsize,
           ioqty: item.inqty, ioamt: 0, iovat: 0, balym: '', balno: '', browno: '', cfmyn: 'Y',
           userid: authStore.userid, ordym: item.ordym, ordno: item.ordno
-      })
+      }])
 
       const ioRowNo = detailRes.data[0].iorowno
 

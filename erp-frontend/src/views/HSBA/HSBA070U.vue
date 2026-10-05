@@ -1,3 +1,11 @@
+<!--
+	=============================================================
+	프로그램명	: 거래처등록 (HSBA070U)
+	작성일자	: 2025.02.27
+	설명        : 영업/구매 거래처 마스터 관리 (Tab 키 순항 및 Alt 키보드 단축키 연동)
+	=============================================================
+-->
+
 <template>
   <AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
@@ -10,9 +18,9 @@
         기본정보 > <span class="text-primary fw-bolder">거래처등록 (HSBA070U)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
-        <button class="btn-erp btn-init" @click="initialize">초기화</button>
-        <button class="btn-erp btn-search" @click="search">조회</button>
-        <button class="btn-erp btn-save" @click="save">저장</button>
+        <button class="btn-erp btn-init" @click="initialize" title="Alt+N: 신규초기화">신규(N)</button>
+        <button class="btn-erp btn-search" @click="search" title="Alt+F: 조회">조회(F)</button>
+        <button class="btn-erp btn-save" @click="save" title="Alt+S: 저장">저장(S)</button>
       </div>
     </div>
 
@@ -24,27 +32,27 @@
           <div class="d-flex align-items-center gap-3">
             <div class="input-group input-group-sm flex-nowrap" style="width: 180px;">
               <span class="input-group-text fw-bold border-0 bg-transparent">종류</span>
-              <select v-model="searchParams.qcustgbn" class="form-select border-0 bg-white" @change="search">
+              <select v-model="searchParams.qcustgbn" class="form-select border-0 bg-white" tabindex="1" @change="search">
                 <option value="000">전체</option>
                 <option v-for="opt in options.custGbn" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
               </select>
             </div>
             <div class="input-group input-group-sm flex-nowrap" style="width: 180px;">
               <span class="input-group-text fw-bold border-0 bg-transparent">상태</span>
-              <select v-model="searchParams.qstatus" class="form-select border-0 bg-white" @change="search">
+              <select v-model="searchParams.qstatus" class="form-select border-0 bg-white" tabindex="2" @change="search">
                 <option v-for="opt in options.status" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
               </select>
             </div>
             <div class="input-group input-group-sm flex-nowrap" style="width: 300px;">
               <span class="input-group-text fw-bold border-0 bg-transparent">거래처명</span>
-              <input v-model="searchParams.qcustnm" type="text" class="form-control border-0 bg-white" placeholder="거래처명 입력..." @keyup.enter="search" />
-              <button class="btn btn-dark btn-sm" @click="search"><i class="bi bi-search"></i></button>
+              <input v-model="searchParams.qcustnm" type="text" class="form-control border-0 bg-white" tabindex="3" placeholder="거래처명 입력..." @keyup.enter="search" />
+              <button class="btn btn-dark btn-sm" tabindex="4" @click="search"><i class="bi bi-search"></i></button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 🅱️ 상세 입력 폼 영역: 고정 -->
+      <!-- 🅱️ 상세 입력 폼 영역: 탭키 순서 순항 고정 -->
       <div class="card border shadow-sm overflow-hidden flex-shrink-0">
         <div class="card-header py-1 px-3 border-bottom d-flex align-items-center justify-content-between" style="background-color: #f8f9fa;">
           <span class="fw-bold small text-dark"><i class="bi bi-pencil-square me-1"></i> 거래처 상세 정보</span>
@@ -65,31 +73,31 @@
             <tbody>
               <tr>
                 <th class="required">거래처코드</th>
-                <td><input v-model="masterData.custcd" type="text" class="form-control form-control-sm text-center fw-bold text-primary" maxlength="7" :readonly="masterData.actkind === 'U0'" /></td>
+                <td><input v-model="masterData.custcd" type="text" class="form-control form-control-sm text-center fw-bold text-primary" tabindex="5" maxlength="7" :readonly="masterData.actkind === 'U0'" /></td>
                 <th>외부코드</th>
-                <td><input v-model="masterData.outcustcd" type="text" class="form-control form-control-sm" maxlength="7" /></td>
+                <td><input v-model="masterData.outcustcd" type="text" class="form-control form-control-sm" tabindex="6" maxlength="7" /></td>
                 <th class="required">상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호</th>
-                <td><input v-model="masterData.custnm" type="text" class="form-control form-control-sm fw-bold border-primary-subtle" maxlength="50" /></td>
+                <td><input ref="firstFocusRef" v-model="masterData.custnm" type="text" class="form-control form-control-sm fw-bold border-primary-subtle" tabindex="7" maxlength="50" /></td>
                 <th>사업자번호</th>
-                <td><input v-model="masterData.custno" type="text" class="form-control form-control-sm" maxlength="13" placeholder="- 없이" /></td>
+                <td><input v-model="masterData.custno" type="text" class="form-control form-control-sm" tabindex="8" maxlength="13" placeholder="- 없이" /></td>
                 <th>법인번호</th>
-                <td><input v-model="masterData.legalno" type="text" class="form-control form-control-sm" maxlength="14" placeholder="- 없이" /></td>
+                <td><input v-model="masterData.legalno" type="text" class="form-control form-control-sm" tabindex="9" maxlength="14" placeholder="- 없이" /></td>
               </tr>
               <tr>
                 <th>종&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;류</th>
                 <td>
-                  <select v-model="masterData.custgbn" class="form-select form-select-sm" @change="handleCustGbnChange">
+                  <select v-model="masterData.custgbn" class="form-select form-select-sm" tabindex="10" @change="handleCustGbnChange">
                     <option v-for="opt in options.custGbn" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>대&nbsp;&nbsp;표&nbsp;&nbsp;자</th>
-                <td><input v-model="masterData.bossnm" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.bossnm" type="text" class="form-control form-control-sm" tabindex="11" maxlength="30" /></td>
                 <th>업&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;태</th>
-                <td><input v-model="masterData.custtype" type="text" class="form-control form-control-sm" maxlength="50" /></td>
+                <td><input v-model="masterData.custtype" type="text" class="form-control form-control-sm" tabindex="12" maxlength="50" /></td>
                 <th>종&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;목</th>
-                <td><input v-model="masterData.custkind" type="text" class="form-control form-control-sm" maxlength="50" /></td>
+                <td><input v-model="masterData.custkind" type="text" class="form-control form-control-sm" tabindex="13" maxlength="50" /></td>
                 <th>연&nbsp;락&nbsp;처</th>
-                <td><input v-model="masterData.telno" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.telno" type="text" class="form-control form-control-sm" tabindex="14" maxlength="30" /></td>
               </tr>
               <tr>
                 <th>주&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;소</th>
@@ -98,42 +106,43 @@
                     v-model:postno="masterData.postno"
                     v-model:address="masterData.address"
                     v-model:d_address="masterData.d_address"
+                    tabindex="15"
                     @open-address="handleOpenHelp('ADDR')"
                   />
                 </td>
                 <th>FAX번호</th>
-                <td><input v-model="masterData.faxno" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.faxno" type="text" class="form-control form-control-sm" tabindex="16" maxlength="30" /></td>
               </tr>
               <tr>
                 <th>매입단가</th>
                 <td>
-                  <select v-model="masterData.inprcgbn" class="form-select form-select-sm">
+                  <select v-model="masterData.inprcgbn" class="form-select form-select-sm" tabindex="17">
                     <option value="000">선택</option>
                     <option v-for="opt in options.inPrcGbn" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>매출단가</th>
                 <td>
-                  <select v-model="masterData.outprcgbn" class="form-select form-select-sm">
+                  <select v-model="masterData.outprcgbn" class="form-select form-select-sm" tabindex="18">
                     <option value="000">선택</option>
                     <option v-for="opt in options.outPrcGbn" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>여신한도액</th>
-                <td><input v-model="masterData.hdamt" type="number" class="form-control form-control-sm text-end" /></td>
+                <td><input v-model="masterData.hdamt" type="number" class="form-control form-control-sm text-end" tabindex="19" /></td>
                 <th>여신기한</th>
                 <td>
                   <div class="d-flex gap-1 align-items-center">
-                    <input v-model="masterData.rcvdd" type="number" class="form-control form-control-sm text-end" style="width: 40px;" />
+                    <input v-model="masterData.rcvdd" type="number" class="form-control form-control-sm text-end" style="width: 40px;" tabindex="20" />
                     <span class="small">일</span>
-                    <select v-model="masterData.gigbcd" class="form-select form-select-sm flex-grow-1">
+                    <select v-model="masterData.gigbcd" class="form-select form-select-sm flex-grow-1" tabindex="21">
                       <option v-for="opt in options.gigGbn" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                     </select>
                   </div>
                 </td>
                 <th>대&nbsp;분&nbsp;류</th>
                 <td>
-                  <select v-model="masterData.agrpcd" class="form-select form-select-sm">
+                  <select v-model="masterData.agrpcd" class="form-select form-select-sm" tabindex="22">
                     <option value="000">선택</option>
                     <option v-for="opt in options.agrp" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
@@ -142,56 +151,56 @@
               <tr>
                 <th>중&nbsp;분&nbsp;류</th>
                 <td>
-                  <select v-model="masterData.bgrpcd" class="form-select form-select-sm">
+                  <select v-model="masterData.bgrpcd" class="form-select form-select-sm" tabindex="23">
                     <option value="000">선택</option>
                     <option v-for="opt in options.bgrp" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>소&nbsp;분&nbsp;류</th>
                 <td>
-                  <select v-model="masterData.cgrpcd" class="form-select form-select-sm">
+                  <select v-model="masterData.cgrpcd" class="form-select form-select-sm" tabindex="24">
                     <option value="000">선택</option>
                     <option v-for="opt in options.cgrp" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>담&nbsp;당&nbsp;자</th>
-                <td><input v-model="masterData.cdamdang" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.cdamdang" type="text" class="form-control form-control-sm" tabindex="25" maxlength="30" /></td>
                 <th>연락처(SMS)</th>
-                <td><input v-model="masterData.ctelno" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.ctelno" type="text" class="form-control form-control-sm" tabindex="26" maxlength="30" /></td>
                 <th>전자메일</th>
-                <td><input v-model="masterData.cemail" type="text" class="form-control form-control-sm" maxlength="50" /></td>
+                <td><input v-model="masterData.cemail" type="text" class="form-control form-control-sm" tabindex="27" maxlength="50" /></td>
               </tr>
               <tr>
                 <th>신용등급</th>
                 <td>
-                  <select v-model="masterData.singrd" class="form-select form-select-sm">
+                  <select v-model="masterData.singrd" class="form-select form-select-sm" tabindex="28">
                     <option value="A">A등급</option><option value="B">B등급</option><option value="C">C등급</option>
                   </select>
                 </td>
                 <th>적용일자</th>
-                <td><input v-model="uiStdYmd" type="date" class="form-control form-control-sm" /></td>
+                <td><input v-model="uiStdYmd" type="date" class="form-control form-control-sm" tabindex="29" /></td>
                 <th>전자여부</th>
                 <td>
-                  <div class="form-check form-switch m-0"><input v-model="masterData.elcyn" class="form-check-input" type="checkbox" true-value="Y" false-value="N"> <span class="small fw-bold">전자계산서</span></div>
+                  <div class="form-check form-switch m-0"><input v-model="masterData.elcyn" class="form-check-input" type="checkbox" true-value="Y" false-value="N" tabindex="30"> <span class="small fw-bold">전자계산서</span></div>
                 </td>
                 <th>상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;태</th>
                 <td>
-                  <select v-model="masterData.status" class="form-select form-select-sm">
+                  <select v-model="masterData.status" class="form-select form-select-sm" tabindex="31">
                     <option v-for="opt in options.status" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>사용여부</th>
                 <td>
-                  <div class="form-check form-switch m-0"><input v-model="masterData.useyn" class="form-check-input" type="checkbox" true-value="Y" false-value="N"> <span class="small fw-bold">사용</span></div>
+                  <div class="form-check form-switch m-0"><input v-model="masterData.useyn" class="form-check-input" type="checkbox" true-value="Y" false-value="N" tabindex="32"> <span class="small fw-bold">사용</span></div>
                 </td>
               </tr>
               <tr>
                 <th>입금은행</th>
-                <td><input v-model="masterData.banknm" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.banknm" type="text" class="form-control form-control-sm" tabindex="33" maxlength="30" /></td>
                 <th>입금통장</th>
-                <td><input v-model="masterData.gujoa" type="text" class="form-control form-control-sm" maxlength="30" /></td>
+                <td><input v-model="masterData.gujoa" type="text" class="form-control form-control-sm" tabindex="34" maxlength="30" /></td>
                 <th>비&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;고</th>
-                <td colspan="5"><input v-model="masterData.remark" type="text" class="form-control form-control-sm w-100" maxlength="50" /></td>
+                <td colspan="5"><input v-model="masterData.remark" type="text" class="form-control form-control-sm w-100" tabindex="35" maxlength="50" /></td>
               </tr>
             </tbody>
           </table>
@@ -205,7 +214,7 @@
           <span class="text-muted" style="font-size: 11px;">※ 행 클릭 시 상세 정보가 로드됩니다.</span>
         </div>
         <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-          <div ref="gridElement" class="tabulator-instance flex-grow-1"></div>
+          <div ref="gridElement" class="tabulator-instance flex-grow-1" tabindex="36"></div>
         </div>
       </div>
     </div>
@@ -215,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, nextTick, computed } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import AppAlert from '@/components/AppAlert.vue'
@@ -226,11 +235,15 @@ import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
 import { useCommonHelp } from '@/composables/useCommonHelp'
+import { useManualStore } from '@/stores/manualStore'
 
 const authStore = useAuthStore()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 const { modalVisible, modalProps, openHelp } = useCommonHelp()
+const manualStore = useManualStore()
+
+const firstFocusRef = ref<HTMLInputElement | null>(null)
 
 // 1. 상태 관리
 const searchParams = reactive({ qcustgbn: '000', qstatus: '010', qcustnm: '' })
@@ -323,6 +336,7 @@ function initialize() {
     gigbcd: '305', stdymd: new Date().toISOString().substring(0, 10).replace(/-/g, ''), clsymd: '99991231',
     singrd: 'A', elcyn: 'Y', useyn: 'Y', agentyn: 'N', updemp: authStore.userid, outcustcd: '', area: '000'
   })
+  nextTick(() => firstFocusRef.value?.focus())
 }
 
 const handleCustGbnChange = () => { if(masterData.custgbn === '030') masterData.elcyn = 'N'; }
@@ -336,5 +350,33 @@ const handleOpenHelp = (type: string) => {
   }
 }
 
-onMounted(async () => { await fetchOptions(); nextTick(() => { initGrid(); search() }) })
+/** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') { e.preventDefault(); initialize() }
+    else if (key === 'f') { e.preventDefault(); search() }
+    else if (key === 's') { e.preventDefault(); save() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HSBA070U') }
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalShortcuts)
+  await fetchOptions()
+  nextTick(() => { initGrid(); search(); firstFocusRef.value?.focus() })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
+})
 </script>
+
+<style scoped>
+.tabulator-instance { width: 100% !important; background-color: #fff; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
+</style>

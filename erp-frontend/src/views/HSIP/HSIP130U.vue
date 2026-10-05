@@ -221,7 +221,7 @@ const fetchDetail = async (fileno?: string, docno?: string) => {
         crowno: '', costcd: '', deptcd: '', shipseq: '', passseq: '', pubymd: '', costamt: 0,
         currcd: '', frgnrate: 0, frgnamt: 0, paycust: '', mgtno: '', bigo: '',
         slipymd: '', slipno: '', srowno: '', updemp: authStore.userid
-      })
+      }])
       mainGrid?.setData(resItems.data || [])
     } else {
       mainGrid?.setData([])
@@ -276,7 +276,7 @@ const save = async () => {
         mgtno: '',
         bigo: item.bigo || '',
         updemp: authStore.userid
-      })
+      }])
     }
 
     vAlert('정상적으로 저장되었습니다.')
@@ -437,9 +437,9 @@ onMounted(() => {
           formatter: () => "<i class='bi bi-trash text-danger cursor-pointer'></i>",
           cellClick: (e, c) => {
              const row = c.getRow(); const data = row.getData();
-             if (data.rowno) {
+             if (data.crowno) {
                 if (confirm('이 항목을 즉시 삭제하시겠습니까?')) {
-                   api.post('/hsip/HSIP_131U_STR', [{ ...data, actkind: 'D1', cmpycd: authStore.cmpycd, updemp: authStore.userid }]).then(() => {
+                   api.post('/hsip/HSIP_131U_STR', [{ ...data, actkind: 'D1', rowno: data.crowno, cmpycd: authStore.cmpycd, updemp: authStore.userid }]).then(() => {
                       vAlert('삭제되었습니다.'); row.delete();
                    });
                 }

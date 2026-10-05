@@ -2,12 +2,19 @@
 	=============================================================
 	프로그램명	: 바코드 출고 처리 (HSIO204U)
 	작성일자	: 2026.09.30
-	설명        : 데스크탑/모바일 바코드 실시간 스캐닝 출고 처리 (HSIO104T_TBL)
+	설명        : 데스크탑/모바일 바코드 실시간 스캐닝 출고 처리
 	=============================================================
 -->
 
 <template>
   <AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
+
+  <!-- 💡 출고의뢰번호 검색 팝업 모달 (HSIO_620S_STR S1) -->
+  <Modal
+    :visible="modalVisible"
+    :modalProps="modalProps"
+    @close="modalVisible = false"
+  />
 
   <div class="erp-container d-flex flex-column h-100 bg-white">
     <!-- 🚀 1. 상단 액션 바 -->
@@ -27,23 +34,23 @@
 
     <!-- 💡 2. 상단 바코드 스캐너 입력 및 마스터 정보 -->
     <div class="p-2 flex-shrink-0">
-      <!-- 🔥 2-1. 바코드 스캐너 전용 포커스 입력창 -->
-      <div class="card border-primary mb-2 shadow-sm bg-primary-subtle">
+      <!-- 🔥 2-1. 확장된 대형 바코드 스캐너 포커스 입력창 -->
+      <div class="card border-2 border-primary mb-2 shadow-sm bg-primary-subtle">
         <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
-          <span class="fw-bold text-primary d-flex align-items-center fs-6">
+          <span class="fw-bolder text-primary d-flex align-items-center fs-6 text-nowrap">
             <i class="bi bi-upc-scan me-2 fs-5"></i> 바코드 스캔:
           </span>
           <input
             ref="barcodeInputRef"
             v-model="scanInput"
             type="text"
-            class="form-control form-control-lg border-2 border-primary fw-bold text-primary"
+            class="form-control border-2 border-primary fw-bold text-primary flex-grow-1"
             placeholder="출고의뢰서 상단 바코드 또는 품목/시리얼 바코드를 스캔하세요 (Enter)"
             @keyup.enter="handleBarcodeScan"
-            style="font-size: 16px;"
+            style="font-size: 14px;"
           />
           <button class="btn btn-primary px-3 text-nowrap fw-bold" @click="handleBarcodeScan">
-            <i class="bi bi-search me-1"></i> 엔터/입력
+            <i class="bi bi-search me-1"></i> 엔터/스캔
           </button>
         </div>
       </div>
@@ -63,7 +70,7 @@
                 <td>
                   <div class="input-group input-group-sm">
                     <input v-model="formMaster.dispIono" type="text" class="form-control text-center fw-bold text-primary" placeholder="예: 202609-0001" @keyup.enter="search" />
-                    <button class="btn btn-outline-secondary" @click="search"><i class="bi bi-search"></i></button>
+                    <button class="btn btn-outline-secondary" @click="openOutboundOrderModal"><i class="bi bi-search"></i></button>
                   </div>
                 </td>
                 <th class="bg-light text-center">출고일자</th>
@@ -94,12 +101,12 @@
       </div>
     </div>
 
-    <!-- 📊 3. 하단 바코드 실시간 스캔 이력 그리드 (HSIO104T_TBL) -->
+    <!-- 📊 3. 하단 바코드 실시간 스캔 이력 그리드 -->
     <div class="flex-grow-1 p-2 pt-0 overflow-hidden d-flex flex-column" style="min-height: 0;">
       <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column bg-white">
         <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between">
           <span class="fw-bold small text-dark d-flex align-items-center">
-            <i class="bi bi-list-check me-2 text-primary"></i> 실시간 스캔 필수 출고 품목 (autoyn = 'Y')
+            <i class="bi bi-list-check me-2 text-primary"></i> 출고 의뢰 상세 품목 목록
           </span>
           <span class="badge bg-primary fs-6">총 품목 건수: {{ itemList.length }}건</span>
         </div>
@@ -120,6 +127,7 @@ import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { getDate } from '@/composables/useDate'
 import AppAlert from '@/components/AppAlert.vue'
+import Modal from '@/components/Modal.vue'
 
 const authStore = useAuthStore()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
@@ -143,11 +151,61 @@ const formMaster = reactive<any>({
   remark: ''
 })
 
+const modalVisible = ref(false)
+const modalProps = reactive<any>({
+  title: '출고의뢰번호 검색',
+  path: '/hsio/HSIO_620S_STR',
+  large: true,
+  data: {},
+  columns: [
+    { title: '거래처코드', field: 'custcd', width: 90, hozAlign: 'center', formatter: (cell: any) => getVal(cell.getRow().getData(), 'custcd') },
+    { title: '거래처명', field: 'custnm', minWidth: 150, hozAlign: 'left', formatter: (cell: any) => getVal(cell.getRow().getData(), 'custnm') },
+    { title: '의뢰일자', field: 'ioymd', width: 100, hozAlign: 'center', formatter: (cell: any) => getVal(cell.getRow().getData(), 'ioymd') },
+    { title: '의뢰년월', field: 'ioym', width: 80, hozAlign: 'center', formatter: (cell: any) => getVal(cell.getRow().getData(), 'ioym') },
+    { title: '의뢰순번', field: 'iono', width: 80, hozAlign: 'center', formatter: (cell: any) => getVal(cell.getRow().getData(), 'iono') }
+  ],
+  onConfirm: (row: any) => {
+    handleModalConfirm(row)
+  }
+})
+
 const getVal = (obj: any, key: string) => {
   if (!obj) return ''
   const kLower = key.toLowerCase(); const kUpper = key.toUpperCase()
   const val = obj[kLower] !== undefined ? obj[kLower] : (obj[kUpper] !== undefined ? obj[kUpper] : '')
   return val === null ? '' : String(val).trim()
+}
+
+/** 🚀 [팝업 모달 열기] HSIO_620S_STR S1 프로시저 호출 */
+const openOutboundOrderModal = () => {
+  modalProps.data = {
+    actkind: 'S1',
+    cmpycd: authStore.cmpycd,
+    iogbn: '200',
+    whcd: '000',
+    custcd: '0000000',
+    ioym: '',
+    iono: '',
+    slipyn: 'Y',
+    fromdt: '20260101',
+    todt: today.replace(/-/g, ''),
+    custnm: ''
+  }
+  modalVisible.value = true
+}
+
+/** 🚀 [팝업 선택 확정] */
+const handleModalConfirm = async (row: any) => {
+  modalVisible.value = false
+  const ym = getVal(row, 'ioym')
+  const no = getVal(row, 'iono')
+  if (ym && no) {
+    formMaster.ioym = ym
+    formMaster.iono = no
+    formMaster.dispIono = `${ym}-${no}`
+    await search()
+    vAlert(`출고의뢰건 [${formMaster.dispIono}] 선택 완료`)
+  }
 }
 
 /** 🚀 [바코드 스캔 핸들러] 의뢰번호 스캔 vs 품목/시리얼 바코드 스캔 자동 판별 */
@@ -168,7 +226,7 @@ const handleBarcodeScan = async () => {
     return
   }
 
-  // Case 2: 품목/시리얼 바코드 스캔 시
+  // Case 2: 품목/시리얼 바코드 스캔 시 (iogbn: '200')
   if (!formMaster.ioym || !formMaster.iono) {
     vAlertError('출고의뢰서 상단 바코드를 먼저 스캔하세요.')
     scanInput.value = ''
@@ -179,7 +237,6 @@ const handleBarcodeScan = async () => {
   try {
     const srowNo = String(itemList.value.length + 1).padStart(3, '0')
 
-    // 💡 출고 모드 (iogbn = 200): 신규 LOT 채번 없음! 입고 시 생성된 기존 LOT 번호 스캔 연결!
     await api.post('/hsio/HSIO_104U_SAVE', [{
       cmpycd: authStore.cmpycd,
       iogbn: '200', // 200: 출고
@@ -189,7 +246,7 @@ const handleBarcodeScan = async () => {
       itemcd: val,
       barcode: val,
       scan_qty: 1,
-      lotno: val, // 입고 시 발행된 기존 LOT 번호 스캔 연결
+      lotno: val, // 스캔한 시리얼/LOT 번호
       updemp: authStore.userid
     }])
 
@@ -203,59 +260,34 @@ const handleBarcodeScan = async () => {
   }
 }
 
+/** 🚀 [출고 마스터(S2) 및 상세 품목(S0) 순수 프로시저 조회] */
 async function search() {
   if (!formMaster.dispIono && (!formMaster.ioym || !formMaster.iono)) return
-  if (formMaster.dispIono && formMaster.dispIono.replace(/-/g, '').length >= 10) {
-    const raw = formMaster.dispIono.replace(/-/g, '')
-    formMaster.ioym = raw.substring(0, 6)
-    formMaster.iono = raw.substring(6)
+  if (formMaster.dispIono) {
+    const raw = formMaster.dispIono.replace(/-/g, '').trim()
+    if (raw.length >= 10) {
+      formMaster.ioym = raw.substring(0, 6)
+      formMaster.iono = raw.substring(6)
+    }
   }
 
   try {
-    // 1. 마스터 정보 및 품목 상세 조회 (HSIO_620S_STR: 출고)
-    const [hRes, dRes, sRes] = await Promise.all([
-      api.post('/hsio/HSIO_620S_STR', { actkind: 'S1', cmpycd: authStore.cmpycd, iogbn: '200', ioym: formMaster.ioym, iono: formMaster.iono, whcd: '000' }),
-      api.post('/hsio/HSIO_620S_STR', { actkind: 'S0', cmpycd: authStore.cmpycd, iogbn: '200', ioym: formMaster.ioym, iono: formMaster.iono, whcd: '000' }),
-      api.post('/hsio/HSIO_104U_STR', { cmpycd: authStore.cmpycd, iogbn: '200', ioym: formMaster.ioym, iono: formMaster.iono })
+    // 💡 HSIO_620S_STR 순수 프로시저만으로 마스터(S2) 및 디테일(S0) 조회 (10개 매개변수 전체 세팅)
+    const [hRes, dRes] = await Promise.all([
+      api.post('/hsio/HSIO_620S_STR', { actkind: 'S2', cmpycd: authStore.cmpycd, iogbn: '200', whcd: '000', fromdt: '20260101', todt: '20261231', custcd: '0000000', ioym: formMaster.ioym, iono: formMaster.iono, slipyn: 'Y' }),
+      api.post('/hsio/HSIO_620S_STR', { actkind: 'S0', cmpycd: authStore.cmpycd, iogbn: '200', whcd: '000', fromdt: '20260101', todt: '20261231', custcd: '0000000', ioym: formMaster.ioym, iono: formMaster.iono, slipyn: 'Y' })
     ])
 
     if (hRes.data && hRes.data.length > 0) {
       const m = hRes.data[0]
       formMaster.custnm = getVal(m, 'custnm') || getVal(m, 'ccustnm') || getVal(m, 'cust_nm')
       formMaster.remark = getVal(m, 'remark')
+      formMaster.whcd = getVal(m, 'whcd') || '000'
       const ymd = getVal(m, 'ioymd')
       if (ymd.length === 8) formMaster.ioymd = `${ymd.substring(0,4)}-${ymd.substring(4,6)}-${ymd.substring(6,8)}`
     }
 
-    const rawDtl = dRes.data || []
-    const scanData = sRes.data || []
-
-    // 💡 1. 스캔 필수 품목 필터링 (autoyn == 'Y')
-    const filteredItems: any[] = []
-    rawDtl.forEach((item: any) => {
-      const autoYn = (getVal(item, 'autoyn') || getVal(item, 'autoyn')).toUpperCase()
-      if (autoYn === 'Y') filteredItems.push({ ...item })
-    })
-    const targetItems = filteredItems.length ? filteredItems : rawDtl
-
-    // 💡 2. HSIO104T_TBL 스캔 수량 대소문자 미구분 매핑
-    const scanMap: Record<string, number> = {}
-    scanData.forEach((row: any) => {
-      const cd = getVal(row, 'itemcd').toUpperCase()
-      const bc = getVal(row, 'barcode').toUpperCase()
-      const qty = Number(getVal(row, 'scan_qty')) || 1
-      if (cd) scanMap[cd] = (scanMap[cd] || 0) + qty
-      if (bc && bc !== cd) scanMap[bc] = (scanMap[bc] || 0) + qty
-    })
-
-    targetItems.forEach((item: any) => {
-      const cd = getVal(item, 'itemcd').toUpperCase()
-      const bc = getVal(item, 'barcode').toUpperCase()
-      const scannedTotal = scanMap[cd] !== undefined ? scanMap[cd] : (scanMap[bc] !== undefined ? scanMap[bc] : 0)
-      item.scan_qty = scannedTotal
-    })
-
-    itemList.value = targetItems
+    itemList.value = dRes.data || []
     grid?.setData(itemList.value)
   } catch (e) {
     vAlertError('조회 실패')
@@ -293,10 +325,11 @@ onMounted(() => {
         { title: 'No', formatter: 'rownum', width: 50, hozAlign: 'center' },
         { title: '품목코드', field: 'itemcd', minWidth: 120, hozAlign: 'center', formatter: (cell) => getVal(cell.getRow().getData(), 'itemcd') },
         { title: '품 명', field: 'itemnm', minWidth: 180, hozAlign: 'left', formatter: (cell) => getVal(cell.getRow().getData(), 'itemnm') },
-        { title: '규 격', field: 'itsize', width: 100, hozAlign: 'center', formatter: (cell) => getVal(cell.getRow().getData(), 'itsize') },
+        { title: '규 격', field: 'itsize', width: 90, hozAlign: 'center', formatter: (cell) => getVal(cell.getRow().getData(), 'itsize') },
         { title: '단위', field: 'unit', width: 60, hozAlign: 'center', formatter: (cell) => getVal(cell.getRow().getData(), 'unit') },
         { title: '의뢰수량', field: 'ioqty', width: 90, hozAlign: 'right', formatter: 'money', formatterParams: { precision: 0 } },
         { title: '스캔수량', field: 'scan_qty', width: 90, hozAlign: 'right', formatter: 'money', formatterParams: { precision: 0 }, cssClass: 'fw-bold text-primary fs-6' },
+        { title: 'LOT / 시리얼 번호', field: 'lotno', minWidth: 160, hozAlign: 'center', cssClass: 'fw-bold text-danger', formatter: (cell) => getVal(cell.getRow().getData(), 'lotno') || '-' },
         { title: '스캔필수', field: 'autoyn', width: 80, hozAlign: 'center', formatter: (cell) => {
             const v = (getVal(cell.getRow().getData(), 'autoyn') || '').toUpperCase()
             return v === 'Y' ? '<span class="badge bg-warning text-dark">필수</span>' : '<span class="badge bg-light text-secondary">일반</span>'

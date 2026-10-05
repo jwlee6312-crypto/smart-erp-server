@@ -1,8 +1,8 @@
 <!--
 	=============================================================
-	프로그램명	: 제품입고명세서 (HPIO430S)
+	프로그램명	: 입고상세명세서 (HSIO430S)
 	작성일자	: 2025.02.24
-	설명        : 창고별/제품별 상세 입고 내역 및 생산 연계 정보 조회 (Tab키 순항 및 Alt 단축키 지원)
+	설명        : 창고별/품목별 상세 입고 내역 조회 (Tab키 순항 및 Alt 단축키 지원)
 	=============================================================
 -->
 
@@ -15,8 +15,9 @@
     <div class="erp-header d-flex justify-content-between align-items-center flex-shrink-0 border-bottom">
       <div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-file-earmark-ruled me-2 text-primary" style="font-size: 18px;"></i>
-        생산정보 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">제품입고명세서 (HPIO430S)</span>
+        구매정보 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+        입고관리 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
+        <span class="text-primary fw-bolder">입고상세명세서 (HSIO430S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize" title="Alt+N: 초기화">초기화(N)</button>
@@ -41,24 +42,23 @@
               <tr>
                 <th class="text-center bg-light required">입고창고</th>
                 <td>
-                  <div class="input-group input-group-sm">
-                    <input v-model="searchData.whcd" type="text" class="form-control text-center bg-light fw-bold" style="max-width: 60px;" tabindex="1" readonly />
-                    <input ref="firstFocusRef" v-model="searchData.whnm" type="text" class="form-control" tabindex="2" placeholder="창고 선택" />
-                    <button class="btn btn-outline-secondary px-2" tabindex="3" @click="handleOpenHelp('WH')"><i class="bi bi-search"></i></button>
-                  </div>
+                  <select ref="firstFocusRef" v-model="searchData.whcd" class="form-select form-select-sm" tabindex="1">
+                      <option value="000">전체</option>
+                      <option v-for="opt in whOptions" :key="opt.whcd" :value="opt.whcd">{{ opt.whnm }}</option>
+                  </select>
                 </td>
                 <th class="text-center bg-light required">입고일자</th>
                 <td class="d-flex align-items-center border-0 gap-1" style="height: 32px;">
-                  <input v-model="fromdt" type="date" class="form-control form-control-sm" style="width: 140px;" tabindex="4" />
+                  <input v-model="fromdt" type="date" class="form-control form-control-sm" style="width: 140px;" tabindex="2" />
                   <span class="px-1 opacity-50">~</span>
-                  <input v-model="todt" type="date" class="form-control form-control-sm" style="width: 140px;" tabindex="5" />
+                  <input v-model="todt" type="date" class="form-control form-control-sm" style="width: 140px;" tabindex="3" />
                 </td>
-                <th class="text-center bg-light">제 품</th>
+                <th class="text-center bg-light">품 목</th>
                 <td>
                   <div class="input-group input-group-sm">
-                    <input v-model="searchData.itemcd" type="text" class="form-control text-center bg-light fw-bold" style="max-width: 80px;" tabindex="6" readonly />
-                    <input v-model="searchData.itemnm" type="text" class="form-control" tabindex="7" placeholder="제품 선택" />
-                    <button class="btn btn-outline-secondary px-2" tabindex="8" @click="handleOpenHelp('ITEM')"><i class="bi bi-search"></i></button>
+                    <input v-model="searchData.itemcd" type="text" class="form-control text-center bg-light fw-bold" style="max-width: 80px;" tabindex="4" readonly />
+                    <input v-model="searchData.itemnm" type="text" class="form-control" tabindex="5" placeholder="품목 선택" />
+                    <button class="btn btn-outline-secondary px-2" tabindex="6" @click="handleOpenHelp('ITEM')"><i class="bi bi-search"></i></button>
                   </div>
                 </td>
               </tr>
@@ -70,16 +70,18 @@
       <!-- [하단] 그리드 영역 -->
       <div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column grid-container-right">
         <div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
-          <span class="fw-bold small text-dark"><i class="bi bi-list-columns me-2 text-primary"></i>제품 입고 상세 내역</span>
+          <span class="fw-bold small text-dark"><i class="bi bi-list-columns me-2 text-primary"></i>품목 입고 상세 내역</span>
           <span v-if="rowCount" class="badge bg-secondary-subtle text-dark border border-secondary-subtle" style="font-size: 10px;">Total: {{ rowCount }}건</span>
         </div>
         <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-          <div ref="tableRef" class="tabulator-instance flex-grow-1" tabindex="9"></div>
+          <div ref="tableRef" class="tabulator-instance flex-grow-1" tabindex="7"></div>
         </div>
       </div>
 
     </div>
   </div>
+
+  <Modal v-model:visible="modalVisible" :modalProps="modalProps" />
 </template>
 
 <script setup lang="ts">
@@ -106,11 +108,12 @@ const { modalVisible, modalProps, openHelp } = useCommonHelp()
 const manualStore = useManualStore()
 
 const firstFocusRef = ref<HTMLElement | null>(null)
+const whOptions = ref<any[]>([])
 
 // [1] 데이터 모델링
 const searchData = reactive({
-  whcd: '200',
-  whnm: '제품창고',
+  whcd: '000',
+  whnm: '전체',
   fromdt: firstDay.replace(/-/g, ''),
   todt: today.replace(/-/g, ''),
   itemcd: '', itemnm: '', itsize: '', unit: ''
@@ -131,25 +134,23 @@ const initGrids = () => {
     columnDefaults: { headerHozAlign: 'center', headerSort: false, vertAlign: "middle" },
     columns: [
       { title: "No", formatter: "rownum", width: 40, hozAlign: "center" },
-      { title: "입고일자", field: "inymd", width: 110, hozAlign: "center", formatter: (c) => formatDate(c.getValue()) },
-      { title: "제품명", field: "itemnm", minWidth: 200, widthGrow: 1, cssClass: "fw-bold", formatter: (c) => `[${c.getData().itemcd || ''}] ${c.getValue() || ''}` },
+      { title: "입고일자", field: "ioymd", width: 110, hozAlign: "center", formatter: (c) => formatDate(c.getValue()) },
+      { title: "입고번호", field: "iono_disp", width: 120, hozAlign: "center", cssClass: "fw-bold text-primary", mutatorData: (v, d) => d.ioym && d.iono ? `${d.ioym}-${d.iono}` : v },
+      { title: "품목명", field: "itemnm", minWidth: 200, widthGrow: 1, cssClass: "fw-bold", formatter: (c) => `[${c.getData().itemcd || ''}] ${c.getValue() || ''}` },
       { title: "규격", field: "itsize", width: 150 },
       { title: "단위", field: "unit", width: 70, hozAlign: "center" },
-      { title: "생산라인", field: "linenm", width: 150 },
-      { title: "생산공정", field: "prognm", width: 150 },
-      { title: "생산일자", field: "proymd", width: 110, hozAlign: "center", formatter: (c) => formatDate(c.getValue()) },
-      { title: "입고량", field: "inqty", width: 120, hozAlign: "right", formatter: "money", cssClass: "text-primary fw-bold" }
+      { title: "입고창고", field: "whnm", width: 150 },
+      { title: "입고량", field: "ioqty", width: 120, hozAlign: "right", formatter: "money", cssClass: "text-primary fw-bold" }
     ],
   });
 }
 
 // [3] 비즈니스 로직
 async function fetchList() {
-  if (!searchData.whcd) return vAlertError('입고창고를 선택하세요.')
   try {
-    const res = await api.post('/hpio/HPIO_430S_STR', {
-      cmpycd: authStore.cmpycd, whcd: searchData.whcd, itemcd: searchData.itemcd || '',
-      fromdt: searchData.fromdt.replace(/-/g, ''), todt: searchData.todt.replace(/-/g, '')
+    const res = await api.post('/hsio/HSIO_470S_STR', {
+      cmpycd: authStore.cmpycd, whcd: searchData.whcd || '000', fromdt: searchData.fromdt, todt: searchData.todt,
+      deptcd: '', custcd: '', itemcd: searchData.itemcd || ''
     })
     grid?.setData(res.data || [])
     rowCount.value = res.data?.length || 0
@@ -158,23 +159,28 @@ async function fetchList() {
 }
 
 const handleOpenHelp = (type: string) => {
-  if (type === 'WH') {
-    openHelp('WH', (d) => { searchData.whcd = d.whcd; searchData.whnm = d.whnm }, { gubun: 'W1' });
-  } else if (type === 'ITEM') {
+  if (type === 'ITEM') {
     openHelp('ITEM', (d) => {
       Object.assign(searchData, { itemcd: d.itemcd, itemnm: d.itemnm, itsize: d.itsize, unit: d.unit });
     }, { codegbn: 'B' });
   }
 }
 
+const fetchWhOptions = async () => {
+  try {
+    const res = await api.get('/hs00/HS00_000S_STR', { params: { gubun: 'W0', cmpycd: authStore.cmpycd } })
+    whOptions.value = res.data.map((i: any) => ({ whcd: i.code || i.whcd, whnm: i.cdnm || i.whnm }));
+  } catch (e) {}
+}
+
 const initialize = () => {
   resetForm(searchData)
-  Object.assign(searchData, { whcd: '200', whnm: '제품창고', fromdt: firstDay.replace(/-/g, ''), todt: today.replace(/-/g, '') })
+  Object.assign(searchData, { whcd: '000', whnm: '전체', fromdt: firstDay.replace(/-/g, ''), todt: today.replace(/-/g, '') })
   grid?.clearData(); rowCount.value = 0;
   nextTick(() => firstFocusRef.value?.focus())
 }
 
-const exportExcel = () => grid?.download("xlsx", `제품입고명세_${searchData.todt}.xlsx`)
+const exportExcel = () => grid?.download("xlsx", `입고상세명세_${searchData.todt}.xlsx`)
 const formatDate = (v: any) => v && v.length === 8 ? `${v.substring(0, 4)}-${v.substring(4, 6)}-${v.substring(6, 8)}` : v;
 
 /** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
@@ -183,16 +189,17 @@ function handleGlobalShortcuts(e: KeyboardEvent) {
     const key = e.key.toLowerCase()
     if (key === 'n') { e.preventDefault(); initialize() }
     else if (key === 'f') { e.preventDefault(); fetchList() }
-    else if (key === 'h') { e.preventDefault(); manualStore.open('HPIO430S') }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HSIO430S') }
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', handleGlobalShortcuts)
+  await fetchWhOptions()
 
   // 쿼리 파라미터로 전달된 경우 수신
   if (route.query.itemcd) {
-    searchData.whcd = String(route.query.whcd || '200')
+    searchData.whcd = String(route.query.whcd || '000')
     searchData.itemcd = String(route.query.itemcd || '')
     searchData.itemnm = String(route.query.itemnm || '')
   }

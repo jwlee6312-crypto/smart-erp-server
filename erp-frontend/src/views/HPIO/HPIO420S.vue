@@ -2,7 +2,7 @@
 	=============================================================
 	프로그램명	: 제품입고현황 (HPIO420S)
 	작성일자	: 2025.02.24
-	설명        : 창고별/일자별 제품 입고 집계 현황 조회 (HPIO210U 표준 패턴 적용)
+	설명        : 창고별/일자별 제품 입고 집계 현황 조회 (Tab키 순항 및 Alt 단축키 지원)
 	=============================================================
 -->
 
@@ -19,8 +19,8 @@
         <span class="text-primary fw-bolder">제품입고현황 (HPIO420S)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1 pe-3">
-        <button class="btn-erp btn-init" @click="initialize">초기화</button>
-        <button class="btn-erp btn-search" @click="fetchList">조회</button>
+        <button class="btn-erp btn-init" @click="initialize" title="Alt+N: 초기화">초기화(N)</button>
+        <button class="btn-erp btn-search" @click="fetchList" title="Alt+F: 조회">조회(F)</button>
         <button class="btn-erp btn-excel" @click="exportExcel">엑셀</button>
       </div>
     </div>
@@ -40,15 +40,15 @@
               <tr>
                 <th class="text-center bg-light required">입고창고</th>
                 <td>
-                    <select v-model="searchForm.whcd" class="form-select form-select-sm">
+                    <select ref="firstFocusRef" v-model="searchData.whcd" class="form-select form-select-sm" tabindex="1">
                         <option v-for="opt in whOptions" :key="opt.whcd" :value="opt.whcd">{{ opt.whnm }}</option>
                     </select>
                 </td>
                 <th class="text-center bg-light required">입고일자</th>
                 <td class="d-flex align-items-center border-0 gap-1" style="height: 32px;">
-                  <input v-model="fromdt" type="date" class="form-control form-control-sm" style="width: 140px;" />
+                  <input v-model="fromdt" type="date" class="form-control form-control-sm" style="width: 140px;" tabindex="2" />
                   <span class="px-1 opacity-50">~</span>
-                  <input v-model="todt" type="date" class="form-control form-control-sm" style="width: 140px;" />
+                  <input v-model="todt" type="date" class="form-control form-control-sm" style="width: 140px;" tabindex="3" />
                   <span class="text-muted small ms-3"><i class="bi bi-info-circle me-1"></i> 품목명을 클릭하면 상세 수불 내역으로 이동합니다.</span>
                 </td>
               </tr>
@@ -64,7 +64,7 @@
           <span v-if="rowCount" class="badge bg-secondary-subtle text-dark border border-secondary-subtle" style="font-size: 10px;">Total: {{ rowCount }}건</span>
         </div>
         <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-          <div ref="tableRef" class="tabulator-instance flex-grow-1"></div>
+          <div ref="tableRef" class="tabulator-instance flex-grow-1" tabindex="4"></div>
         </div>
       </div>
 
@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, computed, nextTick } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
@@ -83,6 +83,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
 import { useCommonHelp } from '@/composables/useCommonHelp'
 import { getDate } from '@/composables/useDate'
+import { useManualStore } from '@/stores/manualStore'
 import AppAlert from '@/components/AppAlert.vue'
 import Modal from '@/components/Modal.vue'
 
@@ -92,6 +93,10 @@ const { today, firstDay } = getDate()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 const { modalVisible, modalProps, openHelp } = useCommonHelp()
+const manualStore = useManualStore()
+
+const firstFocusRef = ref<HTMLElement | null>(null)
+const whOptions = ref<any[]>([])
 
 // [1] 데이터 모델링
 const searchData = reactive({
@@ -110,7 +115,8 @@ let grid: Tabulator | null = null
 
 // [2] 그리드 초기화
 const initGrids = () => {
-  grid = new Tabulator(tableRef.value!, {
+  if (!tableRef.value) return
+  grid = new Tabulator(tableRef.value, {
     layout: "fitColumns", height: "100%", placeholder: "데이터 없음",
     columnDefaults: { headerHozAlign: 'center', headerSort: false, vertAlign: "middle" },
     columns: [
@@ -132,10 +138,10 @@ async function fetchList() {
   if (!searchData.whcd) return vAlertError('입고창고를 선택하세요.')
   try {
     const res = await api.post('/hpio/HPIO_420S_STR', {
-      cmpycd: authStore.cmpycd, whcd: searchData.whcd, proymdF: searchData.fromdt, proymdT: searchData.todt
+      cmpycd: authStore.cmpycd, whcd: searchData.whcd, fromdt: searchData.fromdt.replace(/-/g, ''), todt: searchData.todt.replace(/-/g, '')
     })
-    grid?.setData(res.data)
-    rowCount.value = res.data.length
+    grid?.setData(res.data || [])
+    rowCount.value = res.data?.length || 0
     vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }
 }
@@ -143,7 +149,7 @@ async function fetchList() {
 const navigateToDetail = (data: any) => {
     router.push({
         path: '/HPIO430S',
-        query: { whcd: searchData.whcd, whnm: searchData.whnm, fromdt: searchData.fromdt, todt: searchData.todt, itemcd: data.itemcd, itemnm: data.itemnm }
+        query: { whcd: searchData.whcd, whnm: searchData.whnm, fromdt: searchData.fromdt.replace(/-/g, ''), todt: searchData.todt.replace(/-/g, ''), itemcd: data.itemcd, itemnm: data.itemnm }
     })
 }
 
@@ -156,7 +162,8 @@ const handleOpenHelp = (type: string) => {
 const fetchWhOptions = async () => {
   try {
     const res = await api.post('/hs00/HS00_000S_STR', { gubun: 'W0', cmpycd: authStore.cmpycd, gbncd: '', code: '', codenm: '', etcval: '' })
-    whOptions.value = res.data.map((i: any) => ({ whcd: i.whcd, whnm: i.whnm }));
+    whOptions.value = (res.data || []).map((i: any) => ({ whcd: i.code || i.whcd, whnm: i.cdnm || i.whnm }));
+    if (whOptions.value.length === 0) whOptions.value = [{ whcd: '200', whnm: '제품창고' }]
   } catch (e) {}
 }
 
@@ -164,15 +171,39 @@ const initialize = () => {
   resetForm(searchData)
   Object.assign(searchData, { whcd: '200', whnm: '제품창고', fromdt: firstDay.replace(/-/g, ''), todt: today.replace(/-/g, '') })
   grid?.clearData(); rowCount.value = 0;
+  nextTick(() => firstFocusRef.value?.focus())
 }
 
 const exportExcel = () => grid?.download("xlsx", `제품입고현황_${searchData.todt}.xlsx`)
 const formatDate = (v: any) => v && v.length === 8 ? `${v.substring(0, 4)}-${v.substring(4, 6)}-${v.substring(6, 8)}` : v;
 
-onMounted(() => { nextTick(initGrids); fetchList(); })
+/** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') { e.preventDefault(); initialize() }
+    else if (key === 'f') { e.preventDefault(); fetchList() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HPIO420S') }
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalShortcuts)
+  await fetchWhOptions()
+  nextTick(() => { initGrids(); fetchList(); firstFocusRef.value?.focus() })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
+})
 </script>
 
 <style scoped>
 .tabulator-instance { width: 100% !important; background-color: #fff; }
 .grid-container-right { border-bottom: 3px solid #005a9f !important; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
 </style>

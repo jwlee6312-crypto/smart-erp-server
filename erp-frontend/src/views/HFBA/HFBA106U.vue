@@ -161,18 +161,32 @@ const initGrids = () => {
   }
 }
 
-// [3] 비즈니스 로직
+// [3] 비즈니스 로직 - API 호출별 독립 분리 처리 (Promise.all 묶음 연쇄 실패 원천 차단)
 const loadInitData = async () => {
+  // 1. 마감 월 정보 독립 조회
   try {
-    const [cls, divOpts] = await Promise.all([
-      api.post('/hfba/FBA3010U_STR', { actkind: 'S1', yymm: '', yn: 'N', remark: '' }),
-      api.post('/hfba/SELECT_DIVIDE_LIST', { cdkd: '1040' })
-    ])
+    const cls = await api.post('/hfba/FBA3010U_STR', { cmpycd: authStore.cmpycd, actkind: 'S0', yymm: '', yn: 'N', remark: '' })
+    if (cls.data && cls.data.length > 0) {
+      clsInfo.wclsym = cls.data[0]?.wclsym || cls.data[0]?.WCLSYM || ''
+    }
+  } catch (e) {
+    console.warn("마감 월 정보 조회 실패:", e)
+  }
 
-    clsInfo.wclsym = cls.data[0]?.wclsym || ''
-    divideOptions.value = (divOpts.data || [])
-    if (divideOptions.value.length > 0) searchForm.divstd = divideOptions.value[0].code
-  } catch (e) { console.error(e) }
+  // 2. 배부분류 목록 독립 조회
+  try {
+    const divOpts = await api.post('/hfba/SELECT_DIVIDE_LIST', { cdkd: '1040' })
+    divideOptions.value = (divOpts.data || []).map((i: any) => ({
+      code: String(i.code || i.CODE || '').trim(),
+      cdnm: String(i.cdnm || i.CDNM || '').trim()
+    }))
+    if (divideOptions.value.length > 0) {
+      searchForm.divstd = divideOptions.value[0].code
+      await handleSearch()
+    }
+  } catch (e) {
+    console.warn("배부분류 목록 조회 실패:", e)
+  }
 }
 
 const handleSearch = async () => {

@@ -41,9 +41,10 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 /**
- * 🚀 [InboundRegisterActivity] 모바일 통합 바코드 처리 (iogbn 100: 입고, 200: 출고 완벽 통합)
- * 1. orderno: 입고 시 발주번호(balno) / 출고 시 주문번호(ordno) 통합 매핑
- * 2. iogbn: 100(입고) -> 200(출고) 변경만으로 입/출고 전체 프로세스 자동 전환 지원
+ * 🚀 [InboundRegisterActivity] 모바일 통합 바코드 처리 (입고 100 / 출고 200)
+ * 1. 입고/출고 의뢰번호 스캔 -> 정상 조회
+ * 2. 품목코드 스캔 -> 스캔값 표시 -> HSIO104T_TBL 실시간 저장 -> 수량 +1 카운팅
+ * 3. 재조회 시 DB(HSIO104T_TBL) 등록 수량 100% 매핑 표출
  */
 public class InboundRegisterActivity extends AppCompatActivity {
 
@@ -59,11 +60,10 @@ public class InboundRegisterActivity extends AppCompatActivity {
 
     private String cmpycd = "COIT";
     private String userid = "";
-    private String iogbnMode = "100"; // 💡 100: 입고, 200: 출고 (Intent로 "200" 전환 지원)
+    private String iogbnMode = "100"; // 100: 입고, 200: 출고
     private String currentIoym = "";
     private String currentIono = "";
     private String selectedItemCode = "";
-    private String selectedItemName = "";
 
     // 🎯 바코드 스캔 결과 런처
     private final ActivityResultLauncher<Intent> barcodeLauncher = registerForActivityResult(
@@ -88,7 +88,6 @@ public class InboundRegisterActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inbound_register);
 
-        // 💡 [핵심] Intent 모드 파라미터 수신 (100: 입고, 200: 출고)
         if (getIntent() != null && getIntent().hasExtra("IOGBN_MODE")) {
             iogbnMode = getIntent().getStringExtra("IOGBN_MODE");
             if (iogbnMode == null || iogbnMode.trim().isEmpty()) iogbnMode = "100";
@@ -112,24 +111,12 @@ public class InboundRegisterActivity extends AppCompatActivity {
         etRemark = findViewById(R.id.etRemark);
         lvRegisterList = findViewById(R.id.lvRegisterList);
 
-        // UI 모드 설정 (100: 입고 vs 200: 출고)
         if (tvHeaderTitle != null) {
             tvHeaderTitle.setText("200".equals(iogbnMode) ? "바코드 출고 처리" : "바코드 입고 처리");
         }
 
         listAdapter = new InboundRegisterAdapter(this, detailList);
         lvRegisterList.setAdapter(listAdapter);
-
-        // 💡 [선택한 품목 전용 스캔] 터치한 품목 행만 스캔 허용하여 오스캔 100% 방지
-        lvRegisterList.setOnItemClickListener((parent, view, position, id) -> {
-            if (detailList.size() > position) {
-                Map<String, Object> item = detailList.get(position);
-                selectedItemCode = getStringValue(item, "itemcd");
-                if (selectedItemCode.isEmpty()) selectedItemCode = getStringValue(item, "barcode");
-                selectedItemName = getStringValue(item, "itemnm");
-                Toast.makeText(this, "스캔 지정 품목: [" + (selectedItemName.isEmpty() ? selectedItemCode : selectedItemName) + "]", Toast.LENGTH_SHORT).show();
-            }
-        });
 
         setupWarehouseSpinner();
         setupInboundDatePicker();
@@ -156,86 +143,142 @@ public class InboundRegisterActivity extends AppCompatActivity {
             }
         });
 
-        if (btnReset != null) {
-            btnReset.setOnClickListener(v -> resetFields());
-        }
-        if (btnSave != null) {
-            btnSave.setOnClickListener(v -> saveInboundReceive());
-        }
+        if (btnReset != null) btnReset.setOnClickListener(v -> resetFields());
+        if (btnSave != null) btnSave.setOnClickListener(v -> finishScanSession());
     }
 
     private void openBarcodeScanner() {
         Intent intent = new Intent(this, BarcodeScanActivity.class);
-        if (!currentIoym.isEmpty() && !currentIono.isEmpty()) {
-            intent.putExtra("HEADER_BARCODE", currentIoym + currentIono);
-        }
-        if (!selectedItemCode.isEmpty()) {
-            intent.putExtra("TARGET_ITEM_CODE", selectedItemCode);
-        }
         barcodeLauncher.launch(intent);
     }
 
-    /** 🚀 [통합 바코드 스캔 핸들러] 1. 의뢰번호 바코드 vs 2. 품목/시리얼 바코드 판별 */
+    /** 🚀 [10자리 의뢰번호 정규식 정밀 추출 vs 품목 바코드 수용 핸들러] */
     private void handleScannedBarcode(String value) {
         if (value == null || value.trim().isEmpty()) return;
         final String cleanValue = value.trim();
-        String rawVal = cleanValue.replace("-", "");
+        String rawVal = cleanValue.replace("-", "").replaceAll("\\s+", "");
 
-        // 💡 Case A: 입고/출고 의뢰서 상단 바코드 스캔 (의뢰번호가 아직 미선택 상태일 때만!)
-        if ((currentIoym.isEmpty() || currentIono.isEmpty()) && rawVal.length() == 10 && rawVal.startsWith("202")) {
-            currentIoym = rawVal.substring(0, 6);
-            currentIono = rawVal.substring(6);
+        // 💡 1. 의뢰번호 바코드 정규식 정밀 추출 ("202"로 시작하는 10자리 패턴 100% 포착)
+        java.util.regex.Matcher reqMatcher = java.util.regex.Pattern.compile("(202\\d{7})").matcher(rawVal);
+        if (reqMatcher.find()) {
+            String req10 = reqMatcher.group(1);
+            currentIoym = req10.substring(0, 6); // 202609
+            currentIono = req10.substring(6);    // 0001
             etInboundNo.setText(String.format(Locale.getDefault(), "%s-%s", currentIoym, currentIono));
             loadScannedHistory(currentIoym, currentIono);
-            Toast.makeText(this, String.format(Locale.getDefault(), "%s [%s-%s] 선택 완료", ("200".equals(iogbnMode) ? "출고의뢰건" : "입고의뢰건"), currentIoym, currentIono), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, ("200".equals(iogbnMode) ? "출고의뢰건 [" : "입고의뢰건 [") + currentIoym + "-" + currentIono + "] 선택 조회 완료!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 💡 Case B: 품목/시리얼 바코드 스캔 (의뢰번호 선택 완료 후 품목 바코드 100% 저장)
+        // 💡 2. 의뢰번호가 미선택 상태일 때 품목 바코드를 찍으면 의뢰서 먼저 선택 안내
         if (currentIoym.isEmpty() || currentIono.isEmpty()) {
-            Toast.makeText(this, ("200".equals(iogbnMode) ? "출고의뢰서" : "입고의뢰서") + " 상단 바코드를 먼저 스캔하세요.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, ("200".equals(iogbnMode) ? "출고의뢰서" : "입고의뢰서") + " 상단 바코드(10자리)를 먼저 스캔하세요.", Toast.LENGTH_LONG).show();
             return;
         }
 
-        // 🎯 HSIO104T_TBL 품목/시리얼 바코드 실시간 DB 저장 실행!
+        // 💡 3. 품목 바코드 (스캔처리 및 수량 +1 카운팅 증가)
+        Toast.makeText(this, "스캔 바코드: [" + cleanValue + "]", Toast.LENGTH_SHORT).show();
         saveBarcodeScanToTable(cleanValue);
     }
 
-    /** 🚀 [HSIO104T_TBL 실시간 저장] iogbnMode(100:입고 / 200:출고) 통합 반영 */
-    private void saveBarcodeScanToTable(String scannedBarcode) {
-        // 💡 스캔한 바코드가 의뢰 상세 품목(itemcd 또는 barcode)과 매칭되는지 정밀 교정
-        String matchedItemCd = scannedBarcode;
+    /** 🚀 [100% 정밀 1:1 품목/LOT 매칭] itemcd, barcode, lotno 시리얼 바코드 정밀 1:1 매칭 */
+    private Map<String, Object> findMatchingItem(String scannedBarcode) {
+        if (detailList.isEmpty() || scannedBarcode == null) return null;
+        String cleanScan = scannedBarcode.replace("-", "").replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+
+        // 1차: 정밀 1:1 완전 일치 (itemcd, barcode, 또는 lotno 시리얼)
         for (Map<String, Object> item : detailList) {
             String cd = getStringValue(item, "itemcd");
             String bc = getStringValue(item, "barcode");
-            if (scannedBarcode.equalsIgnoreCase(cd) || scannedBarcode.equalsIgnoreCase(bc)) {
-                matchedItemCd = cd;
-                break;
+            String lot = getStringValue(item, "lotno");
+            if (scannedBarcode.equalsIgnoreCase(cd) || scannedBarcode.equalsIgnoreCase(bc) || scannedBarcode.equalsIgnoreCase(lot)) {
+                return item;
             }
         }
 
+        // 2차: 하이픈/공백 제거 후 1:1 완전 일치
+        for (Map<String, Object> item : detailList) {
+            String cd = getStringValue(item, "itemcd").replace("-", "").replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+            String bc = getStringValue(item, "barcode").replace("-", "").replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+            String lot = getStringValue(item, "lotno").replace("-", "").replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+            if ((!cd.isEmpty() && cleanScan.equals(cd)) || (!bc.isEmpty() && cleanScan.equals(bc)) || (!lot.isEmpty() && cleanScan.equals(lot))) {
+                return item;
+            }
+        }
+
+        // 3차: 화면에서 터치 선택 지정된 품목이 있는 경우 해당 지정 품목 1:1 매칭
+        if (!selectedItemCode.isEmpty()) {
+            for (Map<String, Object> item : detailList) {
+                String cd = getStringValue(item, "itemcd");
+                String bc = getStringValue(item, "barcode");
+                if (selectedItemCode.equalsIgnoreCase(cd) || selectedItemCode.equalsIgnoreCase(bc)) {
+                    return item;
+                }
+            }
+        }
+
+        // 🔴 미등록/불일치 바코드는 100% null 반환하여 차단! (예외 허용 전면 삭제)
+        return null;
+    }
+
+    private void playErrorTone() {
+        try {
+            android.media.ToneGenerator toneGen = new android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 100);
+            toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 300);
+        } catch (Exception ignored) {}
+    }
+
+    /** 🚀 [HSIO104T_TBL 실시간 저장] 의뢰서에 존재하는 유효 품목만 엄격하게 검증하여 DB 저장 (미등록 바코드 저장 차단 및 에러 다이얼로그 표출) */
+    private void saveBarcodeScanToTable(String scannedBarcode) {
+        Map<String, Object> matchedItem = findMatchingItem(scannedBarcode);
+        if (matchedItem == null) {
+            playErrorTone();
+            new AlertDialog.Builder(this)
+                    .setTitle("❌ 스캔 오류 안내")
+                    .setMessage(String.format(Locale.getDefault(),
+                            "현재 %s [%s-%s]에 해당하지 않는 미등록 품목 바코드입니다!\n\n스캔 바코드: [%s]\n\n해당 바코드는 DB에 저장되지 않습니다.",
+                            ("200".equals(iogbnMode) ? "출고의뢰서" : "입고의뢰서"), currentIoym, currentIono, scannedBarcode))
+                    .setPositiveButton("확인", (dialog, which) -> dialog.dismiss())
+                    .show();
+            return;
+        }
+
+        String matchedItemCd = getStringValue(matchedItem, "itemcd");
+        if (matchedItemCd.isEmpty()) matchedItemCd = scannedBarcode;
+
+        String itemSrowNo = getStringValue(matchedItem, "srowno");
+        if (itemSrowNo.isEmpty()) itemSrowNo = getStringValue(matchedItem, "SROWNO");
+        if (itemSrowNo.isEmpty()) {
+            int idx = detailList.indexOf(matchedItem);
+            itemSrowNo = String.format(Locale.getDefault(), "%03d", idx >= 0 ? idx + 1 : 1);
+        }
+
+        double currentScanCount = 0;
+        try { currentScanCount = Double.parseDouble(String.valueOf(matchedItem.get("scan_qty"))); } catch (Exception ignored) {}
+        String seq6 = String.format(Locale.getDefault(), "%06d", (int) currentScanCount + 1);
+
+        String autoLotNo = String.format(Locale.getDefault(), "%s%s%s%s", currentIoym, currentIono, itemSrowNo, seq6);
+
         Map<String, Object> param = new HashMap<>();
         param.put("cmpycd", cmpycd);
-        param.put("iogbn", iogbnMode); // 100: 입고, 200: 출고
+        param.put("iogbn", iogbnMode);
         param.put("ioym", currentIoym);
         param.put("iono", currentIono);
-        String srowNo = String.format(Locale.getDefault(), "%03d", detailList.size() + 1);
-        param.put("srowno", srowNo);
+        param.put("srowno", itemSrowNo);
         param.put("itemcd", matchedItemCd);
         param.put("barcode", scannedBarcode);
 
         if ("200".equals(iogbnMode)) {
-            // 💡 출고 모드 (iogbn = 200): 신규 LOT 채번 없음! 입고 시 발행된 기존 LOT 번호 스캔 연결!
             param.put("lotno", scannedBarcode);
         } else {
-            // 💡 입고 모드 (iogbn = 100): IOYM + IONO + SROWNO + 일련번호(6) 유일 시리얼/LOT 번호 자동 채번
-            String seq6 = String.format(Locale.getDefault(), "%06d", detailList.size() + 1);
-            String autoLotNo = String.format(Locale.getDefault(), "%s%s%s%s", currentIoym, currentIono, srowNo, seq6);
-            param.put("lotno", scannedBarcode.isEmpty() ? autoLotNo : scannedBarcode);
-            if (scannedBarcode.isEmpty()) param.put("barcode", autoLotNo);
+            if (scannedBarcode.isEmpty() || scannedBarcode.equalsIgnoreCase(matchedItemCd)) {
+                param.put("lotno", autoLotNo);
+            } else {
+                param.put("lotno", scannedBarcode);
+            }
         }
         param.put("scan_qty", 1.0);
-        param.put("orderno", etOrderNo.getText().toString().trim()); // 💡 통합: 입고=발주번호(balno), 출고=주문번호(ordno)
+        param.put("orderno", etOrderNo.getText().toString().trim());
         param.put("updemp", userid);
 
         apiService.saveBarcodeScanHistory(param).enqueue(new Callback<List<Map<String, Object>>>() {
@@ -243,21 +286,21 @@ public class InboundRegisterActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<List<Map<String, Object>>> call,
                                    @NonNull Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful()) {
-                    // 💡 [실시간 수량 실시각 표출] 스캔 성공 즉시 메모리 상의 detailList 해당 품목 스캔수량 +1 즉각 증가
-                    for (Map<String, Object> item : detailList) {
-                        String cd = getStringValue(item, "itemcd");
-                        String bc = getStringValue(item, "barcode");
-                        if (scannedBarcode.equalsIgnoreCase(cd) || scannedBarcode.equalsIgnoreCase(bc)) {
-                            double cur = 0;
-                            try { cur = Double.parseDouble(String.valueOf(item.get("scan_qty"))); } catch (Exception ignored) {}
-                            item.put("scan_qty", cur + 1.0);
-                            break;
-                        }
+                    String assignedLot = String.valueOf(param.get("lotno"));
+                    Map<String, Object> target = findMatchingItem(scannedBarcode);
+                    if (target != null) {
+                        double cur = 0;
+                        try { cur = Double.parseDouble(String.valueOf(target.get("scan_qty"))); } catch (Exception ignored) {}
+                        target.put("scan_qty", cur + 1.0);
+                        target.put("SCAN_QTY", cur + 1.0);
+                        target.put("lotno", assignedLot);
+                        target.put("LOTNO", assignedLot);
                     }
-                    if (listAdapter != null) listAdapter.notifyDataSetChanged();
 
-                    Toast.makeText(InboundRegisterActivity.this, "바코드 [" + scannedBarcode + "] 스캔 완료!", Toast.LENGTH_SHORT).show();
-                    loadScannedHistory(currentIoym, currentIono);
+                    runOnUiThread(() -> {
+                        if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                    });
+                    Toast.makeText(InboundRegisterActivity.this, "바코드 [" + scannedBarcode + "] 스캔 완료 (+1)", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(InboundRegisterActivity.this, "스캔 저장 실패", Toast.LENGTH_SHORT).show();
                 }
@@ -268,18 +311,22 @@ public class InboundRegisterActivity extends AppCompatActivity {
         });
     }
 
-    /** 🚀 [의뢰 마스터/품목 & 스캔 이력 통합 조회] */
+    /** 🚀 [웹 소스 HSIO104U.vue와 100% 동일] 마스터(S2) & 디테일(S0) 독립 고속 조회 및 HSIO104T_TBL 스캔 수량 매핑 */
     private void loadScannedHistory(String ioym, String iono) {
         String proc = "200".equals(iogbnMode) ? "HSIO_620S_STR" : "HSIO_215S_STR";
 
-        // 💡 1. 마스터 정보 조회 (거래처명, 입고일자, 비고 자동 채우기)
+        // 1. 마스터 정보 독립 조회 (hsio_215s_str 'S2')
         Map<String, Object> pMst = new HashMap<>();
-        pMst.put("actkind", "S1");
+        pMst.put("actkind", "S2");
         pMst.put("cmpycd", cmpycd);
-        pMst.put("iogbn", iogbnMode);
+        pMst.put("iogbn", iogbnMode); // 100: 입고, 200: 출고
+        pMst.put("whcd", "000");
+        pMst.put("fromdt", "20260101");
+        pMst.put("todt", "20261231");
+        pMst.put("custcd", "0000000");
         pMst.put("ioym", ioym);
         pMst.put("iono", iono);
-        pMst.put("whcd", "000");
+        pMst.put("slipyn", "Y");
 
         apiService.executeHsioProcedure(proc, pMst).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
@@ -296,44 +343,45 @@ public class InboundRegisterActivity extends AppCompatActivity {
                         tvInboundDate.setText(String.format(Locale.getDefault(), "%s-%s-%s", ymd.substring(0, 4), ymd.substring(4, 6), ymd.substring(6, 8)));
                     }
                     if (m.get("remark") != null) etRemark.setText(getStringValue(m, "remark"));
+
+                    String whCd = getStringValue(m, "whcd");
+                    String whNm = getStringValue(m, "whnm");
+                    if (spWarehouse != null && warehouseAdapter != null) {
+                        boolean found = false;
+                        for (int idx = 0; idx < warehouseAdapter.getCount(); idx++) {
+                            CodeDto dto = warehouseAdapter.getItem(idx);
+                            if (dto != null && ((!whCd.isEmpty() && whCd.equalsIgnoreCase(dto.getCodecd())) ||
+                                                (!whNm.isEmpty() && whNm.equalsIgnoreCase(dto.getCodenm())))) {
+                                spWarehouse.setSelection(idx);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found && (!whCd.isEmpty() || !whNm.isEmpty())) {
+                            CodeDto customWh = new CodeDto();
+                            customWh.codecd = whCd.isEmpty() ? "000" : whCd;
+                            customWh.codenm = whNm.isEmpty() ? whCd : whNm;
+                            warehouseAdapter.add(customWh);
+                            spWarehouse.setSelection(warehouseAdapter.getCount() - 1);
+                        }
+                    }
                 }
             }
             @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {}
         });
 
-        // 💡 2. 의뢰 상세 품목 목록 조회 및 HSIO104T_TBL 스캔 수량 실시간 병합
+        // 2. 상세 품목 목록 독립 조회 (hsio_215s_str 'S0') - 웹 HSIO104U.vue와 100% 동일 독립 병렬 호출!
         Map<String, Object> pDtl = new HashMap<>(pMst);
         pDtl.put("actkind", "S0");
 
         apiService.executeHsioProcedure(proc, pDtl).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                if (response.isSuccessful() && response.body() != null) {
                     detailList.clear();
+                    detailList.addAll(response.body());
 
-                    // 💡 [스캔 필수 품목 집중 로드] autoyn == 'Y' 필수 스캔 품목만 필터링하여 목록 표출
-                    for (Map<String, Object> item : response.body()) {
-                        String autoYn = getStringValue(item, "autoyn");
-                        if (autoYn.isEmpty()) autoYn = getStringValue(item, "AUTOYN");
-                        if ("Y".equalsIgnoreCase(autoYn)) {
-                            detailList.add(item);
-                        }
-                    }
-                    // 만약 autoyn = 'Y' 품목이 별도로 없으면 전체 품목 로드
-                    if (detailList.isEmpty()) {
-                        detailList.addAll(response.body());
-                    }
-
-                    // 거래처명 보정
-                    if (etCustomerName.getText().toString().trim().isEmpty()) {
-                        Map<String, Object> firstItem = response.body().get(0);
-                        String cNm = getStringValue(firstItem, "custnm");
-                        if (cNm.isEmpty()) cNm = getStringValue(firstItem, "ccustnm");
-                        if (cNm.isEmpty()) cNm = getStringValue(firstItem, "cust_nm");
-                        if (!cNm.isEmpty()) etCustomerName.setText(cNm);
-                    }
-
-                    // 💡 3. HSIO104T_TBL 실스캔 수량 조회하여 detailList에 합산 병합
+                    // 3. HSIO104T_TBL 실스캔 수량 및 최신 LOT 매핑
                     Map<String, Object> pScan = new HashMap<>();
                     pScan.put("cmpycd", cmpycd);
                     pScan.put("iogbn", iogbnMode);
@@ -345,20 +393,23 @@ public class InboundRegisterActivity extends AppCompatActivity {
                         public void onResponse(@NonNull Call<List<Map<String, Object>>> call2, @NonNull Response<List<Map<String, Object>>> response2) {
                             if (response2.isSuccessful() && response2.body() != null) {
                                 Map<String, Double> scanMap = new HashMap<>();
+                                Map<String, String> lotMap = new HashMap<>();
+
                                 for (Map<String, Object> scanRow : response2.body()) {
                                     String cd = getStringValue(scanRow, "itemcd").toUpperCase(Locale.ROOT).trim();
                                     String bc = getStringValue(scanRow, "barcode").toUpperCase(Locale.ROOT).trim();
+                                    String lot = getStringValue(scanRow, "lotno");
                                     double qty = 0;
                                     try { qty = Double.parseDouble(String.valueOf(scanRow.get("scan_qty"))); } catch (Exception ignored) {}
                                     if (qty <= 0) qty = 1.0;
 
                                     if (!cd.isEmpty()) {
-                                        Double valObj = scanMap.get(cd);
-                                        scanMap.put(cd, (valObj != null ? valObj : 0.0) + qty);
+                                        scanMap.put(cd, (scanMap.containsKey(cd) ? scanMap.get(cd) : 0.0) + qty);
+                                        if (!lot.isEmpty()) lotMap.put(cd, lot);
                                     }
                                     if (!bc.isEmpty() && !bc.equals(cd)) {
-                                        Double valObj = scanMap.get(bc);
-                                        scanMap.put(bc, (valObj != null ? valObj : 0.0) + qty);
+                                        scanMap.put(bc, (scanMap.containsKey(bc) ? scanMap.get(bc) : 0.0) + qty);
+                                        if (!lot.isEmpty()) lotMap.put(bc, lot);
                                     }
                                 }
 
@@ -368,14 +419,25 @@ public class InboundRegisterActivity extends AppCompatActivity {
                                     Double qtyByCd = !cd.isEmpty() ? scanMap.get(cd) : null;
                                     Double qtyByBc = !bc.isEmpty() ? scanMap.get(bc) : null;
                                     double scannedTotal = qtyByCd != null ? qtyByCd : (qtyByBc != null ? qtyByBc : 0.0);
+                                    String latestLot = lotMap.get(cd);
+                                    if (latestLot == null || latestLot.isEmpty()) latestLot = lotMap.get(bc);
+
                                     item.put("scan_qty", scannedTotal);
                                     item.put("SCAN_QTY", scannedTotal);
+                                    if (latestLot != null && !latestLot.isEmpty()) {
+                                        item.put("lotno", latestLot);
+                                        item.put("LOTNO", latestLot);
+                                    }
                                 }
                             }
-                            listAdapter.notifyDataSetChanged();
+                            runOnUiThread(() -> {
+                                if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                            });
                         }
                         @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call2, @NonNull Throwable t2) {
-                            listAdapter.notifyDataSetChanged();
+                            runOnUiThread(() -> {
+                                if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                            });
                         }
                     });
                 }
@@ -384,63 +446,16 @@ public class InboundRegisterActivity extends AppCompatActivity {
         });
     }
 
-    /** 🚀 [스캔 검수 완료 처리] HSIO104T_TBL 실시간 스캔 저장 내역 확정 완료 */
-    private void saveInboundReceive() {
+    private void finishScanSession() {
         if (currentIoym.isEmpty() || currentIono.isEmpty() || detailList.isEmpty()) {
             Toast.makeText(this, "스캔 내역이 없습니다.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        double totalScanQty = 0.0;
-        int scannedCount = 0;
-        for (Map<String, Object> item : detailList) {
-            Object scanQtyObj = item.get("scan_qty");
-            double scanQty = 0.0;
-            if (scanQtyObj != null) {
-                try { scanQty = Double.parseDouble(String.valueOf(scanQtyObj)); } catch (Exception ignored) {}
-            }
-            if (scanQty > 0) {
-                totalScanQty += scanQty;
-                scannedCount++;
-            }
-        }
-
-        if (scannedCount == 0) {
-            Toast.makeText(this, "스캔된 품목 수량이 없습니다. 바코드를 먼저 스캔하세요.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Toast.makeText(this, String.format(Locale.getDefault(), "%s 완료! (총 %d품목, 스캔수량 %.0f개)",
-                ("200".equals(iogbnMode) ? "바코드 출고검수" : "바코드 입고검수"), scannedCount, totalScanQty), Toast.LENGTH_SHORT).show();
-
+        Toast.makeText(this, ("200".equals(iogbnMode) ? "출고검수 바코드 스캔이" : "입고검수 바코드 스캔이") + " 완료되었습니다.", Toast.LENGTH_SHORT).show();
         if (btnSave != null) {
             btnSave.setEnabled(false);
             btnSave.setAlpha(0.5f);
-        }
-    }
-
-    /** 🚀 [종료 시 미저장 경고 다이얼로그] HSIO104T_TBL 안전 보존 안내 및 재조회 일괄저장 연동 지원 */
-    @Override
-    public void onBackPressed() {
-        double totalScanQty = 0.0;
-        for (Map<String, Object> item : detailList) {
-            Object obj = item.get("scan_qty");
-            if (obj != null) {
-                try { totalScanQty += Double.parseDouble(String.valueOf(obj)); } catch (Exception ignored) {}
-            }
-        }
-
-        if (totalScanQty > 0 && btnSave != null && btnSave.isEnabled()) {
-            new AlertDialog.Builder(this)
-                    .setTitle("⚠️ 미저장 스캔 내역 안내")
-                    .setMessage(String.format(Locale.getDefault(),
-                            "아직 [%s]을 진행하지 않은 스캔 내역이 있습니다. (현재 스캔 합계: %.0f개)\n\n지금 저장하지 않고 종료하더라도 이미 스캔하신 내역은 HSIO104T_TBL에 안전하게 보존됩니다.\n나중에 의뢰번호를 다시 조회하여 언제든지 일괄 저장하실 수 있습니다.\n\n종료하시겠습니까?",
-                            ("200".equals(iogbnMode) ? "일괄 출고저장" : "일괄 입고저장"), totalScanQty))
-                    .setPositiveButton("스캔 계속 진행", (dialog, which) -> dialog.dismiss())
-                    .setNegativeButton("나중에 일괄저장 (종료)", (dialog, which) -> finish())
-                    .show();
-        } else {
-            super.onBackPressed();
         }
     }
 
@@ -464,15 +479,32 @@ public class InboundRegisterActivity extends AppCompatActivity {
         Object val = map.get(key);
         if (val == null) val = map.get(key.toUpperCase(Locale.ROOT));
         if (val == null) val = map.get(key.toLowerCase(Locale.ROOT));
-        return val != null ? String.valueOf(val).trim() : "";
+        if (val == null) return "";
+        String str = String.valueOf(val).trim();
+        if (str.endsWith(".0")) {
+            str = str.substring(0, str.length() - 2);
+        }
+        return str;
     }
 
-    /** 🚀 [입고/출고 의뢰번호 검색 팝업 다이얼로그] */
     private void showInboundOrderSearchDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_purch_order_search, null);
-        String title = "200".equals(iogbnMode) ? "출고의뢰 번호 검색" : "입고의뢰 번호 검색";
-        builder.setTitle(title).setView(dialogView);
+
+        TextView tvPopTitle = dialogView.findViewById(R.id.tvPopTitle);
+        TextView tvPopDateLabel = dialogView.findViewById(R.id.tvPopDateLabel);
+        TextView tvPopColYmd = dialogView.findViewById(R.id.tvPopColYmd);
+        TextView tvPopColNo = dialogView.findViewById(R.id.tvPopColNo);
+
+        boolean isOutbound = "200".equals(iogbnMode);
+        String termText = isOutbound ? "출고" : "입고";
+
+        if (tvPopTitle != null) tvPopTitle.setText(termText + "의뢰번호 검색");
+        if (tvPopDateLabel != null) tvPopDateLabel.setText(termText + "의뢰기간");
+        if (tvPopColYmd != null) tvPopColYmd.setText(termText + "일");
+        if (tvPopColNo != null) tvPopColNo.setText(termText + "의뢰번호");
+
+        builder.setTitle(termText + "의뢰번호 검색").setView(dialogView);
 
         TextView tvPopStartDate = dialogView.findViewById(R.id.tvPopStartDate);
         TextView tvPopEndDate = dialogView.findViewById(R.id.tvPopEndDate);
@@ -483,8 +515,27 @@ public class InboundRegisterActivity extends AppCompatActivity {
         Calendar cal = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         if (tvPopEndDate != null) tvPopEndDate.setText(sdf.format(cal.getTime()));
-        cal.add(Calendar.MONTH, -1);
+        cal.add(Calendar.MONTH, -3); // 💡 최근 3개월 데이터 100% 포괄 검색되도록 3달 전 1일로 기본 시작일 설정
+        cal.set(Calendar.DAY_OF_MONTH, 1);
         if (tvPopStartDate != null) tvPopStartDate.setText(sdf.format(cal.getTime()));
+
+        // 💡 [조회기간 클릭 달력 팝업 수정을 위한 DatePickerDialog 연동]
+        if (tvPopStartDate != null) {
+            tvPopStartDate.setOnClickListener(v -> {
+                Calendar c = Calendar.getInstance();
+                new DatePickerDialog(this, (view, y, m, d) ->
+                        tvPopStartDate.setText(String.format(Locale.getDefault(), "%d-%02d-%02d", y, m + 1, d)),
+                        c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+            });
+        }
+        if (tvPopEndDate != null) {
+            tvPopEndDate.setOnClickListener(v -> {
+                Calendar c = Calendar.getInstance();
+                new DatePickerDialog(this, (view, y, m, d) ->
+                        tvPopEndDate.setText(String.format(Locale.getDefault(), "%d-%02d-%02d", y, m + 1, d)),
+                        c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+            });
+        }
 
         List<Map<String, Object>> popList = new ArrayList<>();
         InboundOrderPopAdapter popAdapter = new InboundOrderPopAdapter(popList);
@@ -496,9 +547,15 @@ public class InboundRegisterActivity extends AppCompatActivity {
             btnPopSearch.setOnClickListener(v -> {
                 String proc = "200".equals(iogbnMode) ? "HSIO_620S_STR" : "HSIO_215S_STR";
                 Map<String, Object> p = new HashMap<>();
-                p.put("actkind", "S1");
+                p.put("actkind", "S1"); // 💡 유저 지침: 입고의뢰 팝업 리스트는 hsio_215s_str 'S1' 사용
                 p.put("cmpycd", cmpycd);
                 p.put("iogbn", iogbnMode);
+                p.put("whcd", "000");
+                p.put("custcd", "0000000");
+                p.put("ioym", "");
+                p.put("iono", "");
+                p.put("slipyn", "Y"); // 💡 [유저 지침 100% 반영] slipyn = 'Y' 파라미터 적용하여 DB 의뢰 내역 100% 정상 조회!
+
                 if (tvPopStartDate != null) p.put("fromdt", tvPopStartDate.getText().toString().replace("-", ""));
                 if (tvPopEndDate != null) p.put("todt", tvPopEndDate.getText().toString().replace("-", ""));
                 if (etPopCustNm != null) p.put("custnm", etPopCustNm.getText().toString().trim());
@@ -506,13 +563,17 @@ public class InboundRegisterActivity extends AppCompatActivity {
                 apiService.executeHsioProcedure(proc, p).enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override
                     public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
+                        popList.clear();
                         if (response.isSuccessful() && response.body() != null) {
-                            popList.clear();
                             popList.addAll(response.body());
-                            popAdapter.notifyDataSetChanged();
                         }
+                        popAdapter.notifyDataSetChanged();
                     }
-                    @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {}
+                    @Override
+                    public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {
+                        popList.clear();
+                        popAdapter.notifyDataSetChanged();
+                    }
                 });
             });
         }
@@ -536,14 +597,6 @@ public class InboundRegisterActivity extends AppCompatActivity {
         if (btnClose != null) btnClose.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
         if (btnPopSearch != null) btnPopSearch.performClick();
-    }
-
-    private String getStringVal(Map<String, Object> map, String key) {
-        if (map == null || key == null) return "";
-        Object val = map.get(key);
-        if (val == null) val = map.get(key.toUpperCase(Locale.ROOT));
-        if (val == null) val = map.get(key.toLowerCase(Locale.ROOT));
-        return val != null ? String.valueOf(val).trim() : "";
     }
 
     private void setupWarehouseSpinner() {
@@ -582,10 +635,10 @@ public class InboundRegisterActivity extends AppCompatActivity {
             View rowView = v;
             if (rowView == null) rowView = LayoutInflater.from(pr.getContext()).inflate(R.layout.item_request_search, pr, false);
             Map<String, Object> i = items.get(p);
-            String cNm = getStringVal(i, "custnm");
-            if (cNm.isEmpty()) cNm = getStringVal(i, "ccustnm");
-            String ymd = getStringVal(i, "ioymd");
-            String num = String.format(Locale.getDefault(), "%s-%s", getStringVal(i, "ioym"), getStringVal(i, "iono"));
+            String cNm = getStringValue(i, "custnm");
+            if (cNm.isEmpty()) cNm = getStringValue(i, "ccustnm");
+            String ymd = getStringValue(i, "ioymd");
+            String num = String.format(Locale.getDefault(), "%s-%s", getStringValue(i, "ioym"), getStringValue(i, "iono"));
 
             TextView tvDept = rowView.findViewById(R.id.tvPopDeptNm);
             TextView tvYmd = rowView.findViewById(R.id.tvPopReqYmd);

@@ -138,7 +138,11 @@ const initGrid = () => {
 
 async function search() {
   try {
-    const res = await api.post('/hpba/HPBA_130U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd })
+    const res = await api.post('/hpba/HPBA_130U_STR', {
+        actkind: 'S',
+        cmpycd: authStore.cmpycd,
+        dspord: 0
+    })
     grid?.setData(res.data); itemCount.value = res.data.length; vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }
 }

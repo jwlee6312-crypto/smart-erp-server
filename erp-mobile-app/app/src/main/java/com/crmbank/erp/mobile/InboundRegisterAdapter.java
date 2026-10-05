@@ -1,18 +1,20 @@
 package com.crmbank.erp.mobile;
 
 import android.content.Context;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 🚀 [InboundRegisterAdapter] 모바일 입/출고 리스트 전용 Readonly 어댑터
+ * 1. 의뢰수량(tvOrderQty): 절대 수정 불가능 Readonly
+ * 2. 스캔수량(etInboundQty): 바코드 스캔 시에만 증가되는 Readonly
+ */
 public class InboundRegisterAdapter extends BaseAdapter {
 
     private Context context;
@@ -27,12 +29,12 @@ public class InboundRegisterAdapter extends BaseAdapter {
 
     @Override
     public int getCount() {
-        return itemList.size();
+        return itemList != null ? itemList.size() : 0;
     }
 
     @Override
     public Object getItem(int position) {
-        return itemList.get(position);
+        return itemList != null ? itemList.get(position) : null;
     }
 
     @Override
@@ -52,25 +54,24 @@ public class InboundRegisterAdapter extends BaseAdapter {
             holder.tvLotNo = convertView.findViewById(R.id.tvLotNo);
             holder.tvOrderQty = convertView.findViewById(R.id.tvOrderQty);
             holder.etInboundQty = convertView.findViewById(R.id.etInboundQty);
-            
-            holder.quantityWatcher = new QuantityWatcher();
-            holder.etInboundQty.addTextChangedListener(holder.quantityWatcher);
-            
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
         }
 
         Map<String, Object> item = itemList.get(position);
-        holder.quantityWatcher.updatePosition(position);
 
-        holder.tvItemCode.setText(getStringValue(item, "ITEMCD"));
+        // 1. 품목코드 표시
+        String cd = getStringValue(item, "ITEMCD");
+        if (cd.isEmpty()) cd = getStringValue(item, "itemcd");
+        holder.tvItemCode.setText(cd);
         
+        // 2. 품명 표시
         String itemNm = getStringValue(item, "ITEMNM");
         if (itemNm.isEmpty()) itemNm = getStringValue(item, "itemnm");
         holder.tvItemName.setText(itemNm);
 
-        // 💡 autoyn == 'Y' 시리얼 필수 관리 품목 시각적 강조 배지 표시
+        // 3. autoyn == 'Y' 시리얼 필수 관리 품목 시각적 강조 배지 표시
         String autoYn = getStringValue(item, "autoyn");
         if (autoYn.isEmpty()) autoYn = getStringValue(item, "AUTOYN");
         if ("Y".equalsIgnoreCase(autoYn)) {
@@ -86,14 +87,14 @@ public class InboundRegisterAdapter extends BaseAdapter {
             holder.tvItemName.setTextColor(android.graphics.Color.parseColor("#333333"));
         }
         
-        // 1. 의뢰수량 표시 (ioqty / balqty / qty)
+        // 4. 의뢰수량 표시 (ioqty / balqty / qty) - 절대 수정 불가 Readonly
         String orderQty = getStringValue(item, "ioqty");
         if (orderQty.isEmpty()) orderQty = getStringValue(item, "balqty");
         if (orderQty.isEmpty()) orderQty = getStringValue(item, "qty");
         if (orderQty.isEmpty()) orderQty = "0";
         holder.tvOrderQty.setText(orderQty);
 
-        // 2. 스캔수량 표시 (scan_qty - DB에 기록된 실스캔 수량이 있으면 반영, 없으면 0)
+        // 5. 스캔수량 표시 (scan_qty - DB 스캔 기록과 1:1 매핑)
         Object scanQtyObj = item.get("scan_qty");
         if (scanQtyObj == null) scanQtyObj = item.get("SCAN_QTY");
         double scanQtyVal = 0.0;
@@ -103,7 +104,7 @@ public class InboundRegisterAdapter extends BaseAdapter {
         String scanQtyStr = scanQtyVal == (long) scanQtyVal ? String.format(java.util.Locale.getDefault(), "%d", (long) scanQtyVal) : String.valueOf(scanQtyVal);
         holder.etInboundQty.setText(scanQtyStr);
 
-        // 3. 최근 스캔 LOT / 시리얼 번호 표시
+        // 6. 최근 스캔 LOT / 시리얼 번호 표시
         String lotNo = getStringValue(item, "lotno");
         if (lotNo.isEmpty()) lotNo = getStringValue(item, "LOTNO");
         if (lotNo.isEmpty()) lotNo = "-";
@@ -113,31 +114,19 @@ public class InboundRegisterAdapter extends BaseAdapter {
     }
 
     private String getStringValue(Map<String, Object> map, String key) {
+        if (map == null || key == null) return "";
         Object val = map.get(key);
-        if (val == null) val = map.get(key.toUpperCase());
-        if (val == null) val = map.get(key.toLowerCase());
-        return val != null ? val.toString() : "";
+        if (val == null) val = map.get(key.toUpperCase(java.util.Locale.ROOT));
+        if (val == null) val = map.get(key.toLowerCase(java.util.Locale.ROOT));
+        if (val == null) return "";
+        String str = String.valueOf(val).trim();
+        if (str.endsWith(".0")) {
+            str = str.substring(0, str.length() - 2);
+        }
+        return str;
     }
 
     static class ViewHolder {
-        TextView tvItemCode, tvItemName, tvOrderQty, tvAutoYnBadge, tvLotNo;
-        EditText etInboundQty;
-        QuantityWatcher quantityWatcher;
-    }
-
-    private class QuantityWatcher implements TextWatcher {
-        private int position;
-        public void updatePosition(int position) { this.position = position; }
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {}
-        @Override
-        public void afterTextChanged(Editable s) {
-            if (itemList.size() > position) {
-                // ?낅젰 ?섎웾??ioqty ?꾨뱶?????
-                itemList.get(position).put("ioqty", s.toString());
-            }
-        }
+        TextView tvItemCode, tvItemName, tvOrderQty, tvAutoYnBadge, tvLotNo, etInboundQty;
     }
 }

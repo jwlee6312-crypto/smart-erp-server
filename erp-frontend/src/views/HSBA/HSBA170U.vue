@@ -1,3 +1,11 @@
+<!--
+	=============================================================
+	프로그램명	: 거래처 담보관리 (HSBA170U)
+	작성일자	: 2025.02.27
+	설명        : 영업/재고 거래처 여신 및 담보 설정 관리 (Tab 키 순항 및 Alt 단축키 지원)
+	=============================================================
+-->
+
 <template>
   <AppAlert :show="showalert" :error="showerror" :message="alertmessage" />
 
@@ -9,9 +17,9 @@
         기본정보 > <span class="text-primary fw-bolder">거래처 담보관리 (HSBA170U)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
-        <button class="btn-erp btn-init" @click="initialize(false)">초기화</button>
-        <button class="btn-erp btn-search" @click="search">조회</button>
-        <button class="btn-erp btn-save" @click="save">저장</button>
+        <button class="btn-erp btn-init" @click="initialize(false)" title="Alt+N: 초기화">초기화(N)</button>
+        <button class="btn-erp btn-search" @click="search" title="Alt+F: 조회">조회(F)</button>
+        <button class="btn-erp btn-save" @click="save" title="Alt+S: 저장">저장(S)</button>
       </div>
     </div>
 
@@ -23,14 +31,14 @@
           <div class="d-flex align-items-center gap-3">
             <div class="input-group input-group-sm flex-nowrap" style="width: 350px;">
               <span class="input-group-text fw-bold border-0 bg-transparent">거래처검색</span>
-              <input v-model="searchdata.qcustnm" type="text" class="form-control border-0 bg-light" placeholder="거래처명 또는 코드" @keyup.enter="search" />
-              <button class="btn btn-dark btn-sm" @click="search"><i class="bi bi-search"></i></button>
+              <input ref="firstFocusRef" v-model="searchdata.qcustnm" type="text" class="form-control border-0 bg-light" tabindex="1" placeholder="거래처명 또는 코드" @keyup.enter="search" />
+              <button class="btn btn-dark btn-sm" tabindex="2" @click="search"><i class="bi bi-search"></i></button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 🅱️ 담보 정보 입력 -->
+      <!-- 🅱️ 담보 정보 입력 (탭키 순차 순항) -->
       <div class="card border shadow-sm overflow-hidden flex-shrink-0">
         <div class="card-header py-1 px-3 border-bottom d-flex align-items-center justify-content-between" style="background-color: #f8f9fa;">
           <span class="fw-bold small text-dark"><i class="bi bi-pencil-square me-1"></i> 담보 설정 정보</span>
@@ -52,49 +60,49 @@
                 <th class="required">거 래 처</th>
                 <td>
                    <div class="d-flex gap-1">
-                    <input v-model="masterdata.custcd" type="text" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 70px;" readonly />
-                    <input v-model="masterdata.custnm" type="text" class="form-control form-control-sm bg-light" readonly />
+                    <input v-model="masterdata.custcd" type="text" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 70px;" tabindex="3" readonly />
+                    <input v-model="masterdata.custnm" type="text" class="form-control form-control-sm bg-light" tabindex="4" readonly />
                   </div>
                 </td>
                 <th class="required">담보구분</th>
                 <td>
-                  <select v-model="masterdata.damkind" class="form-select form-select-sm">
+                  <select v-model="masterdata.damkind" class="form-select form-select-sm" tabindex="5">
                     <option v-for="opt in damkindoptions" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th class="required">담보종류</th>
                 <td>
-                  <select v-model="masterdata.damyeo" class="form-select form-select-sm">
+                  <select v-model="masterdata.damyeo" class="form-select form-select-sm" tabindex="6">
                     <option v-for="opt in damyeooptions" :key="opt.codecd" :value="opt.codecd">{{ opt.codenm }}</option>
                   </select>
                 </td>
                 <th>증권번호</th>
                 <td>
-                  <input v-model="masterdata.dmmgt" type="text" class="form-control form-control-sm" maxlength="30" placeholder="증권/관리번호" />
+                  <input v-model="masterdata.dmmgt" type="text" class="form-control form-control-sm" tabindex="7" maxlength="30" placeholder="증권/관리번호" />
                 </td>
               </tr>
               <tr>
                 <th>소&nbsp;&nbsp;유&nbsp;&nbsp;자</th>
-                <td><input v-model="masterdata.sounm" type="text" class="form-control form-control-sm" maxlength="50" /></td>
+                <td><input v-model="masterdata.sounm" type="text" class="form-control form-control-sm" tabindex="8" maxlength="50" /></td>
                 <th class="required">설&nbsp;&nbsp;정&nbsp;&nbsp;액</th>
-                <td><input v-model="masterdata.damsel" type="text" class="form-control form-control-sm text-end fw-bold" @input="formatinput('damsel')" /></td>
+                <td><input v-model="masterdata.damsel" type="text" class="form-control form-control-sm text-end fw-bold" tabindex="9" @input="formatinput('damsel')" /></td>
                 <th class="required">여신한도</th>
-                <td><input v-model="masterdata.samhan" type="text" class="form-control form-control-sm text-end fw-bold text-primary" @input="formatinput('samhan')" /></td>
+                <td><input v-model="masterdata.samhan" type="text" class="form-control form-control-sm text-end fw-bold text-primary" tabindex="10" @input="formatinput('samhan')" /></td>
                 <th>여신기한</th>
                 <td>
                   <div class="d-flex align-items-center gap-1">
-                    <input v-model="masterdata.rcvdd" type="text" class="form-control form-control-sm text-end" style="max-width: 60px;" />
+                    <input v-model="masterdata.rcvdd" type="text" class="form-control form-control-sm text-end" style="max-width: 60px;" tabindex="11" />
                     <span class="small fw-bold">일</span>
                   </div>
                 </td>
               </tr>
               <tr>
                 <th class="required">설&nbsp;&nbsp;정&nbsp;&nbsp;일</th>
-                <td><input v-model="fromdt" type="date" class="form-control form-control-sm" /></td>
+                <td><input v-model="fromdt" type="date" class="form-control form-control-sm" tabindex="12" /></td>
                 <th class="required">유&nbsp;&nbsp;효&nbsp;&nbsp;일</th>
-                <td><input v-model="todt" type="date" class="form-control form-control-sm" /></td>
+                <td><input v-model="todt" type="date" class="form-control form-control-sm" tabindex="13" /></td>
                 <th>비&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;고</th>
-                <td colspan="3"><input v-model="masterdata.bigo" type="text" class="form-control form-control-sm w-100" maxlength="100" /></td>
+                <td colspan="3"><input v-model="masterdata.bigo" type="text" class="form-control form-control-sm w-100" tabindex="14" maxlength="100" /></td>
               </tr>
             </tbody>
           </table>
@@ -108,7 +116,7 @@
             <i class="bi bi-list-ul me-1"></i> 거래처 목록
           </div>
           <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-              <div ref="custgridelement" class="tabulator-instance flex-grow-1"></div>
+              <div ref="custgridelement" class="tabulator-instance flex-grow-1" tabindex="15"></div>
           </div>
         </div>
 
@@ -120,7 +128,7 @@
             </span>
           </div>
             <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-                <div ref="damgridelement" class="tabulator-instance flex-grow-1"></div>
+                <div ref="damgridelement" class="tabulator-instance flex-grow-1" tabindex="16"></div>
             </div>
         </div>
       </div>
@@ -130,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, computed, nextTick } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import AppAlert from '@/components/AppAlert.vue'
@@ -139,12 +147,15 @@ import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
+import { useManualStore } from '@/stores/manualStore'
 import type { ModalProps } from '@/types/modal'
 
 const authstore = useAuthStore()
 const { showAlert: showalert, showError: showerror, alertMessage: alertmessage, vAlert: valert, vAlertError: valerterror } = useAlerts()
 const { resetForm: resetform } = useFormReset()
+const manualStore = useManualStore()
 
+const firstFocusRef = ref<HTMLInputElement | null>(null)
 const now = new Date()
 const initymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
 
@@ -211,7 +222,6 @@ const initgrids = () => {
       masterdata.rowno = data.rowno;
       masterdata.fromdt = data.frymd;
       masterdata.todt = data.toymd;
-
     })
   }
 }
@@ -277,6 +287,7 @@ function initialize(keepcust = false) {
   const cd = masterdata.custcd; const nm = masterdata.custnm; resetform(masterdata)
   Object.assign(masterdata, { actkind: 'A0', cmpycd: authstore.cmpycd, damkind: '100', damyeo: '100', damsel: '0', samhan: '0', rcvdd: '0', fromdt: initymd, useyn: 'Y', rowno: '' })
   if (keepcust) { masterdata.custcd = cd; masterdata.custnm = nm } else { selectedcustname.value = ''; damgrid?.clearData() }
+  nextTick(() => firstFocusRef.value?.focus())
 }
 
 const formatinput = (field: string) => { let val = String(masterdata[field]).replace(/[^0-9]/g, ''); masterdata[field] = val.replace(/\B(?=(\d{3})+(?!\d))/g, ',') }
@@ -284,9 +295,33 @@ const modalvisible = ref(false); const modalprops = reactive<ModalProps>({ title
 const formatdate = (v: any, sep: string) => v && String(v).length === 8 ? `${String(v).substring(0, 4)}${sep}${String(v).substring(4, 6)}${sep}${String(v).substring(6, 8)}` : v
 const formatnumber = (val: any) => new Intl.NumberFormat().format(Number(val) || 0)
 
-onMounted(async () => { await fetchoptions(); nextTick(() => { initgrids(); search() }) })
+/** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') { e.preventDefault(); initialize(false) }
+    else if (key === 'f') { e.preventDefault(); search() }
+    else if (key === 's') { e.preventDefault(); save() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HSBA170U') }
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalShortcuts)
+  await fetchoptions()
+  nextTick(() => { initgrids(); search(); firstFocusRef.value?.focus() })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
+})
 </script>
 
 <style scoped>
 .tabulator-instance { width: 100% !important; background-color: #fff; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
 </style>

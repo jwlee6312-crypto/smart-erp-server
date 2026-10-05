@@ -168,7 +168,7 @@ async function save() {
         actkind: actKind,
         cmpycd: authStore.cmpycd,
         userid: authStore.userid
-      })
+      }])
     }
     vAlert('정상적으로 저장되었습니다.')
     search()

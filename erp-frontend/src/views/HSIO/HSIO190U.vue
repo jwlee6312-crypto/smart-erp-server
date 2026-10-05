@@ -619,10 +619,10 @@ const printSheet = async () => {
                 try {
                     JsBarcode("#itemBc_${idx}", "${bc}", {
                         format: "CODE128",
-                        width: 1.2,
-                        height: 22,
+                        width: 1.5,
+                        height: 48,
                         displayValue: false,
-                        margin: 0
+                        margin: 10
                     });
                 } catch(e) {}`
             }
@@ -735,10 +735,10 @@ const printSheet = async () => {
                         if (window.JsBarcode) {
                             JsBarcode("#barcodeSvg", "${fullBarcode}", {
                                 format: "CODE128",
-                                width: 1.8,
-                                height: 38,
+                                width: 2.0,
+                                height: 50,
                                 displayValue: false,
-                                margin: 0
+                                margin: 10
                             });
                             ${itemBarcodesJs}
                         }

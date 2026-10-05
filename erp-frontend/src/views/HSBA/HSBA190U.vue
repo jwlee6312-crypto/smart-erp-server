@@ -1,3 +1,11 @@
+<!--
+	=============================================================
+	프로그램명	: 거래처 담당자등록 (HSBA190U)
+	작성일자	: 2025.02.27
+	설명        : 영업/재고 거래처 담당자 관리 (Tab 키 순항 및 Alt 단축키 지원)
+	=============================================================
+-->
+
 <template>
   <appalert :show="showalert" :error="showerror" :message="alertmessage" />
 
@@ -7,12 +15,12 @@
     <div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-1 px-3 sticky-top shadow-sm flex-shrink-0">
       <div class="fw-bold text-dark d-flex align-items-center" style="font-size: 13px;">
         <i class="bi bi-person-badge-fill me-2 text-primary"></i>
-        기본정보 > <span class="text-primary fw-bolder">거래처 담당자등록 (hsba190u)</span>
+        기본정보 > <span class="text-primary fw-bolder">거래처 담당자등록 (HSBA190U)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1">
-        <button class="btn-erp btn-init" @click="initialize(false)">초기화</button>
-        <button class="btn-erp btn-search" @click="searchcustomers">조회</button>
-        <button class="btn-erp btn-save" @click="save">저장</button>
+        <button class="btn-erp btn-init" @click="initialize(false)" title="Alt+N: 초기화">초기화(N)</button>
+        <button class="btn-erp btn-search" @click="searchcustomers" title="Alt+F: 조회">조회(F)</button>
+        <button class="btn-erp btn-save" @click="save" title="Alt+S: 저장">저장(S)</button>
       </div>
     </div>
 
@@ -24,14 +32,14 @@
           <div class="d-flex align-items-center gap-3 px-2">
             <div class="input-group input-group-sm flex-nowrap" style="width: 350px;">
               <span class="input-group-text fw-bold border-0 bg-transparent">거래처검색</span>
-              <input v-model="searchdata.qcustnm" type="text" class="form-control border-0 bg-light" placeholder="거래처명 또는 코드 입력" @keyup.enter="searchcustomers" />
-              <button class="btn btn-dark btn-sm" @click="searchcustomers"><i class="bi bi-search"></i></button>
+              <input ref="firstFocusRef" v-model="searchdata.qcustnm" type="text" class="form-control border-0 bg-light" tabindex="1" placeholder="거래처명 또는 코드 입력" @keyup.enter="searchcustomers" />
+              <button class="btn btn-dark btn-sm" tabindex="2" @click="searchcustomers"><i class="bi bi-search"></i></button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 🅱️ 담당자 정보 입력 영역: flex-shrink-0 -->
+      <!-- 🅱️ 담당자 정보 입력 영역: flex-shrink-0 (탭키 순차 순항) -->
       <div class="card border shadow-sm overflow-hidden flex-shrink-0">
         <div class="card-header py-1 px-3 border-bottom d-flex align-items-center justify-content-between" style="background-color: #f0f7ff !important;">
           <span class="fw-bold small text-primary"><i class="bi bi-pencil-square me-1"></i> 담당자 정보 입력</span>
@@ -47,30 +55,30 @@
                 <th style="width: 80px;">거 래 처</th>
                 <td style="width: 350px;">
                   <div class="input-group input-group-sm">
-                    <input v-model="masterdata.custcd" type="text" class="form-control text-center bg-light" style="max-width: 90px;" readonly />
-                    <input v-model="masterdata.custnm" type="text" class="form-control bg-light" placeholder="거래처 선택" readonly />
+                    <input v-model="masterdata.custcd" type="text" class="form-control text-center bg-light" style="max-width: 90px;" tabindex="3" readonly />
+                    <input v-model="masterdata.custnm" type="text" class="form-control bg-light" placeholder="거래처 선택" tabindex="4" readonly />
                   </div>
                 </td>
                 <th class="required" style="width: 70px;">부&nbsp;&nbsp;&nbsp;&nbsp;서</th>
                 <td style="width: 250px;">
-                  <input v-model="masterdata.deptnm" type="text" class="form-control form-control-sm" maxlength="30" />
+                  <input v-model="masterdata.deptnm" type="text" class="form-control form-control-sm" tabindex="5" maxlength="30" />
                 </td>
                 <th class="required" style="width: 70px;">담 당 자</th>
                 <td style="width: 150px;">
-                  <input v-model="masterdata.damdang" type="text" class="form-control form-control-sm" maxlength="50" />
+                  <input v-model="masterdata.damdang" type="text" class="form-control form-control-sm" tabindex="6" maxlength="50" />
                 </td>
                 <th style="width: 70px;">전화번호</th>
                 <td style="width: 150px;">
-                  <input v-model="masterdata.telno" type="text" class="form-control form-control-sm" maxlength="30" />
+                  <input v-model="masterdata.telno" type="text" class="form-control form-control-sm" tabindex="7" maxlength="30" />
                 </td>
                 <th style="width: 70px;">메일주소</th>
                 <td>
-                  <input v-model="masterdata.email" type="text" class="form-control form-control-sm" maxlength="50" style="ime-mode:inactive" />
+                  <input v-model="masterdata.email" type="text" class="form-control form-control-sm" tabindex="8" maxlength="50" style="ime-mode:inactive" />
                 </td>
                 <th style="width: 50px;">사용</th>
                 <td style="width: 60px;">
                   <div class="form-check form-switch m-0 d-flex justify-content-center">
-                    <input v-model="masterdata.useyn" class="form-check-input" type="checkbox" id="useyn190" true-value="Y" false-value="N">
+                    <input v-model="masterdata.useyn" class="form-check-input" type="checkbox" id="useyn190" true-value="Y" false-value="N" tabindex="9">
                   </div>
                 </td>
               </tr>
@@ -87,7 +95,7 @@
             <i class="bi bi-building me-1"></i> 거래처 목록
           </div>
           <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-              <div ref="custgridelement" class="tabulator-instance flex-grow-1"></div>
+              <div ref="custgridelement" class="tabulator-instance flex-grow-1" tabindex="10"></div>
           </div>
         </div>
 
@@ -100,7 +108,7 @@
             </span>
           </div>
             <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-                <div ref="damgridelement" class="tabulator-instance flex-grow-1"></div>
+                <div ref="damgridelement" class="tabulator-instance flex-grow-1" tabindex="11"></div>
             </div>
         </div>
       </div>
@@ -109,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, nextTick } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import appalert from '@/components/AppAlert.vue'
@@ -117,11 +125,14 @@ import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
+import { useManualStore } from '@/stores/manualStore'
 
 const authstore = useAuthStore()
 const { showAlert: showalert, showError: showerror, alertMessage: alertmessage, vAlert: valert, vAlertError: valerterror } = useAlerts()
 const { resetForm: resetform } = useFormReset()
+const manualStore = useManualStore()
 
+const firstFocusRef = ref<HTMLInputElement | null>(null)
 const searchdata = reactive({ qcustnm: '' })
 const masterdata = reactive<any>({
   actkind: 'A0', cmpycd: authstore.cmpycd, custcd: '', custnm: '', rowno: '',
@@ -217,14 +228,42 @@ async function save() {
     if (resdata?.result === 'N') return valerterror(resdata.msg || '저장 실패')
 
     valert('정상 처리되었습니다.'); fetchdamlist(); if (masterdata.actkind === 'A0') initialize(true)
-  } catch (e) { valerterror('저장 실패') }
+  } catch (e) { valerterror('저장 중 오류 발생') }
 }
 
 function initialize(keepcust = false) {
   const cd = masterdata.custcd; const nm = masterdata.custnm; resetform(masterdata)
   Object.assign(masterdata, { actkind: 'A0', cmpycd: authstore.cmpycd, useyn: 'Y', updemp: authstore.userid })
   if (keepcust) { masterdata.custcd = cd; masterdata.custnm = nm } else { selectedcustname.value = ''; damgrid?.clearData() }
+  nextTick(() => firstFocusRef.value?.focus())
 }
 
-onMounted(() => { nextTick(() => { initgrids(); searchcustomers() }) })
+/** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') { e.preventDefault(); initialize(false) }
+    else if (key === 'f') { e.preventDefault(); searchcustomers() }
+    else if (key === 's') { e.preventDefault(); save() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HSBA190U') }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalShortcuts)
+  nextTick(() => { initgrids(); searchcustomers(); firstFocusRef.value?.focus() })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
+})
 </script>
+
+<style scoped>
+.tabulator-instance { width: 100% !important; background-color: #fff; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
+</style>

@@ -5,23 +5,13 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- 1. 카메라 실시간 미리보기 -->
+    <!-- 1. 실시간 카메라 미리보기 -->
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- 1-2. 문서/이미지 선택 시 화면 미리보기 ImageView -->
-    <ImageView
-        android:id="@+id/ivDocPreview"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="fitCenter"
-        android:visibility="gone"
-        android:background="#000000"
-        android:contentDescription="Document Preview" />
-
-    <!-- 2. 초정밀 산업용 슬림 바코드 조준 프레임 (290dp x 70dp - 상하 폭 최소화) -->
+    <!-- 2. 슬림 바코드 조준 프레임 (290dp x 70dp) -->
     <View
         android:id="@+id/viewFinder"
         android:layout_width="290dp"
@@ -52,7 +42,7 @@
         android:background="@drawable/bg_button_gradient"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
-        android:text="바코드를 조준창에 맞추고 아래 [스캔하기] 버튼을 누르세요"
+        android:text="바코드를 레이저선에 조준 후 [스캔 확정하기] 버튼을 누르세요"
         android:textColor="#FFFFFF"
         android:textSize="13sp"
         android:textStyle="bold"
@@ -60,7 +50,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 2-3. 감지된 바코드 번호 실시간 바인딩 배지 -->
+    <!-- 2-3. 감지된 바코드 번호 표출 배지 -->
     <TextView
         android:id="@+id/tvDetectedBarcode"
         android:layout_width="wrap_content"
@@ -69,57 +59,42 @@
         android:background="#E000E5FF"
         android:paddingHorizontal="18dp"
         android:paddingVertical="8dp"
-        android:text="바코드 감지 대기 중..."
+        android:text=""
         android:textColor="#000000"
-        android:textSize="14sp"
+        android:textSize="15sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@id/btnTriggerScan"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- 2-4. 수동 스캔 확정 클릭 버튼 -->
+    <!-- 2-4. 사용자 클릭 확정 버튼 -->
     <Button
         android:id="@+id/btnTriggerScan"
-        android:layout_width="220dp"
-        android:layout_height="50dp"
+        android:layout_width="240dp"
+        android:layout_height="52dp"
         android:layout_marginBottom="16dp"
         android:backgroundTint="#00E676"
-        android:text="📸 바코드 스캔하기 (클릭)"
+        android:text="📸 스캔 확정하기 (클릭)"
         android:textColor="#000000"
         android:textSize="15sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@id/llBottomControls"
+        app:layout_constraintBottom_toTopOf="@id/btnClose"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- 3. 하단 컨트롤 버튼 -->
-    <LinearLayout
-        android:id="@+id/llBottomControls"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="30dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <Button
-            android:id="@+id/btnGallery"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:layout_marginEnd="20dp"
-            android:backgroundTint="#005A9F"
-            android:text="이미지/파일 선택"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnClose"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:backgroundTint="#E53935"
-            android:text="닫기"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-    </LinearLayout>
+    <!-- 3. 하단 닫기 컨트롤 버튼 -->
+    <Button
+        android:id="@+id/btnClose"
+        android:layout_width="160dp"
+        android:layout_height="48dp"
+        android:layout_marginBottom="40dp"
+        android:backgroundTint="#E53935"
+        android:text="닫기"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

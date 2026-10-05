@@ -214,7 +214,7 @@ async function fetchDetail() {
               qty: 0,
               amt: 0,
               wonamt: 0
-          });
+          }]);
           itemGrid?.setData(resItems.data || [])
         }
   } catch (e) { vAlertError('상세 조회 실패') }

@@ -859,6 +859,51 @@ public class HsioController {
         return ResponseEntity.ok(totalResults);
     }
 
+    @PostMapping("/HSIO_110U_STR")
+    public ResponseEntity<?> callHSIO_110U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_110U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_110U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_100U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "jsanym", "jsanno");
+        String code = String.valueOf(resultRow.get("jsanym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("jsanno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_120U_STR")
+    public ResponseEntity<?> callHSIO_120U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_120U_STR", params);
+        log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_120U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_100U_STR(params);
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S0".equals(actkind) || "S1".equals(actkind) ) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "jsanym", "jsanno");
+        String code = String.valueOf(resultRow.get("jsanym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("jsanno")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
     @PostMapping("/HSIO_130U_STR")
     public ResponseEntity<?> callHSIO_130U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
         injectSession(params, session);
@@ -1530,7 +1575,7 @@ public class HsioController {
         return ResponseEntity.ok(List.of(resultRow));
     }
 
-     @PostMapping("/HSIO_520U_STR")
+    @PostMapping("/HSIO_520U_STR")
     public ResponseEntity<?> callHSIO_520U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
         injectSession(params, session);
         fillMissingParameters("HSIO_520U_STR", params);

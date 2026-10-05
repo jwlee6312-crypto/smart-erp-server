@@ -1,9 +1,8 @@
 <!--
 	=============================================================
-	프로그램명	: 세트해체작업 (Set Deconstruction)
-	작성일자	: 25.02.24
-	작성자	    : AI Assistant
-	설명        : [최종완성] HSIO550U(레이아웃) + HSOD100U(스타일/정렬) 표준 적용
+	프로그램명	: 세트해체작업 (Set Deconstruction - HSIO730U)
+	작성일자	: 2025.02.24
+	설명        : 세트 상품 해체 관리 (Tab 키 순항 및 Alt 단축키 지원)
 	=============================================================
 -->
 
@@ -11,7 +10,7 @@
 	<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
 	<div class="erp-container">
-		<!-- 🚀 1. 상단 액션 바 (표준 버튼 배치) -->
+		<!-- 🚀 1. 상단 액션 바 (표준 버튼 배치 및 단축키 안내) -->
 		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 px-3 sticky-top shadow-sm">
 			<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
 				<i class="bi bi-tools me-2 text-danger" style="font-size: 18px;"></i>
@@ -20,10 +19,10 @@
 				<span class="text-primary fw-bolder">세트해체작업 (HSIO730U)</span>
 			</div>
 			<div class="btn-group-erp d-flex gap-1">
-				<button class="btn-erp btn-init" @click="initialize">초기화</button>
-				<button class="btn-erp btn-search" @click="fetchPoList">조회</button>
-				<button class="btn-erp btn-save" @click="save">저장</button>
-				<button class="btn-erp btn-danger" @click="deleteData" :disabled="!formData.iono">삭제</button>
+				<button class="btn-erp btn-init" @click="initialize" title="Alt+N: 초기화">초기화(N)</button>
+				<button class="btn-erp btn-search" @click="fetchPoList" title="Alt+F: 조회">조회(F)</button>
+				<button class="btn-erp btn-save" @click="save" title="Alt+S: 저장">저장(S)</button>
+				<button class="btn-erp btn-danger" @click="deleteData" :disabled="!formData.iono" title="Alt+D: 삭제">삭제(D)</button>
 			</div>
 		</div>
 
@@ -36,13 +35,13 @@
 							<span class="fw-bold small text-dark" style="min-width: 60px;">해체부서</span>
 							<div class="input-group input-group-sm" style="width: 250px;">
 								<input v-model="searchForm.deptcd" type="text" class="form-control text-center bg-white" style="max-width: 60px;" readonly />
-								<input v-model="searchForm.deptnm" type="text" class="form-control" @keyup.enter="handleOpenHelp('DEPT_search')" />
-								<button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('DEPT_search')"><i class="bi bi-search"></i></button>
+								<input ref="firstFocusRef" v-model="searchForm.deptnm" type="text" class="form-control" tabindex="1" @keyup.enter="handleOpenHelp('DEPT_search')" />
+								<button class="btn btn-outline-secondary px-2" tabindex="2" @click="handleOpenHelp('DEPT_search')"><i class="bi bi-search"></i></button>
 							</div>
 						</div>
 						<div class="d-flex align-items-center gap-2">
 							<span class="fw-bold small text-dark" style="min-width: 60px;">해체연월</span>
-							<input v-model="uiSearchym" type="month" class="form-control form-control-sm" style="width: 150px;" />
+							<input v-model="uiSearchym" type="month" class="form-control form-control-sm" style="width: 150px;" tabindex="3" />
 						</div>
 					</div>
 				</div>
@@ -57,11 +56,11 @@
 					<span class="fw-bold small text-dark"><i class="bi bi-list-task me-1"></i> 세트 해체 목록</span>
 				</div>
                   <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-                    <div ref="poGridRef" class="tabulator-instance flex-grow-1"></div>
+                    <div ref="poGridRef" class="tabulator-instance flex-grow-1" tabindex="4"></div>
                   </div>
 			</div>
 
-			<!-- 🅱️ 우측: 상세 정보 및 품목 그리드 -->
+			<!-- 🅱️ 우측: 상세 정보 및 품목 그리드 (탭키 순차 순항) -->
 			<div class="flex-grow-1 d-flex flex-column gap-2 overflow-hidden">
 				<!-- 마스터 정보 (2행 3열 완벽 준수) -->
 				<div class="card border shadow-sm overflow-hidden">
@@ -84,40 +83,40 @@
 									<th class="required">해체번호</th>
 									<td>
 										<div class="d-flex gap-1">
-											<input v-model="uiioym" type="month" class="form-control form-control-sm text-center fw-bold" style="width: 120px;" />
+											<input v-model="uiioym" type="month" class="form-control form-control-sm text-center fw-bold" style="width: 120px;" readonly />
 											<input v-model="formData.iono" type="text" class="form-control form-control-sm text-center bg-light fw-bold text-primary" style="width: 60px;" readonly placeholder="0000" />
 										</div>
 									</td>
 									<th class="required">해체일자</th>
-									<td><input v-model="formData.ioymd" type="date" class="form-control form-control-sm" /></td>
+									<td><input v-model="formData.ioymd" type="date" class="form-control form-control-sm" tabindex="5" /></td>
 								</tr>
 								<tr>
 									<th class="required">해체창고</th>
 									<td>
-										<select v-model="formData.whcd" class="form-select form-select-sm">
+										<select v-model="formData.whcd" class="form-select form-select-sm" tabindex="6">
 											<option v-for="opt in whOptions" :key="opt.code" :value="opt.code">{{ opt.cdnm }}</option>
 										</select>
 									</td>
 									<th>Lot No.</th>
-									<td><input v-model="formData.lotno" type="text" class="form-control form-control-sm" /></td>
+									<td><input v-model="formData.lotno" type="text" class="form-control form-control-sm" tabindex="7" /></td>
 									<th>특기사항</th>
-									<td><input v-model="formData.remark" type="text" class="form-control form-control-sm" placeholder="비고 입력" /></td>
+									<td><input v-model="formData.remark" type="text" class="form-control form-control-sm" tabindex="8" placeholder="비고 입력" /></td>
 								</tr>
 							</tbody>
 						</table>
 					</div>
 				</div>
 
-				<!-- 품목 그리드 (상하 정중앙 정렬) -->
+				<!-- 품목 그리드 -->
 				<div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column bg-white">
 					<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between" style="height: 40px;">
 						<span class="fw-bold small text-dark d-flex align-items-center">
 							<i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i> 세트 해체 품목 명세
 						</span>
-						<button class="btn btn-xs btn-primary fw-bold" @click="addRow"><i class="bi bi-plus-lg me-1"></i> 행추가</button>
+						<button class="btn btn-xs btn-primary fw-bold" tabindex="9" @click="addRow"><i class="bi bi-plus-lg me-1"></i> 행추가</button>
 					</div>
                       <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-                        <div ref="itemGridRef" class="tabulator-instance flex-grow-1"></div>
+                        <div ref="itemGridRef" class="tabulator-instance flex-grow-1" tabindex="10"></div>
                       </div>
 				</div>
 			</div>
@@ -130,13 +129,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
+import { useManualStore } from '@/stores/manualStore'
 import AppAlert from '@/components/AppAlert.vue'
 import Modal from '@/components/Modal.vue'
 import ItemHelpModal from '@/components/ItemHelpModal.vue'
@@ -145,7 +145,9 @@ import type { ModalProps } from '@/types/modal'
 const authStore = useAuthStore()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
+const manualStore = useManualStore()
 
+const firstFocusRef = ref<HTMLInputElement | null>(null)
 const modalVisible = ref(false)
 const modalProps = reactive<ModalProps>({ title: '', path: '', defaultField: '', columns: [], data: {}, onConfirm: () => {}, type: 'table' })
 
@@ -258,9 +260,23 @@ function initialize() {
   formData.ioymd = new Date().toISOString().substring(0, 10);
   formData.astkind = '2';
   itemGrid?.clearData(); poGrid?.deselectRow(); activeItemCount.value = 0;
+  nextTick(() => firstFocusRef.value?.focus())
+}
+
+/** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') { e.preventDefault(); initialize() }
+    else if (key === 'f') { e.preventDefault(); fetchPoList() }
+    else if (key === 's') { e.preventDefault(); save() }
+    else if (key === 'd') { e.preventDefault(); if (formData.iono) deleteData() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HSIO730U') }
+  }
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalShortcuts)
   api.get('/hs00/HS00_000S_STR', { params: { gubun: 'W0', cmpycd: authStore.cmpycd } })
      .then(r => whOptions.value = r.data.map((i:any)=>({code: i.code || i.whcd, cdnm: i.cdnm || i.whnm})));
 
@@ -304,7 +320,21 @@ onMounted(async () => {
         }
     })
   }
+  nextTick(() => { fetchPoList(); firstFocusRef.value?.focus() })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
 })
 
 const formatNumber = (val: any) => Number(val || 0).toLocaleString()
 </script>
+
+<style scoped>
+.tabulator-instance { background-color: #fff; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
+</style>

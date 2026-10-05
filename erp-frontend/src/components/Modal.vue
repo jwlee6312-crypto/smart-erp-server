@@ -136,6 +136,7 @@ async function search() {
 			...props.modalProps.data,
 			gubun: props.modalProps.data.gubun || '',
 			codenm: filterValue.value || props.modalProps.data.codenm || '',
+			custnm: filterValue.value || props.modalProps.data.custnm || '',
 			etcval: props.modalProps.data.etcval || ''
 		}
 

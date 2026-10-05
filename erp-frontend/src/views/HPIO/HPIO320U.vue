@@ -458,7 +458,7 @@ async function fetchDetailItems() {
       actkind: 'B', cmpycd: authStore.cmpycd, iogbn: '200', itemcd: form_02.itemcd, ioqty: qty,
       pumym: form_02.pumym, pumno: form_02.pumno, outym: form_02.outym, outno: form_02.outno,
       linecd: form_02.linecd, progcd: form_02.progcd, ioymd: form_02.outymd.replace(/-/g, ''), proymd: form_02.proymd.replace(/-/g, '')
-    })
+    }])
     grid2?.setData((res.data || []).map((i: any) => ({ ...i, _status: '입력', _state: 'NEW' })))
   } catch (e) {}
 }
@@ -497,7 +497,7 @@ async function saveAll() {
         ioymd: form_02.outymd.replace(/-/g, ''), outym: keyYM, outno: keyNO, inno: keyIN,
         owhcd: form_02.whcd, custcd: form_02.custcd, linecd: form_02.linecd, progcd: form_02.progcd,
         proymd: form_02.proymd.replace(/-/g, ''), pumym: form_02.pumym, pumno: form_02.pumno, userid: authStore.userid
-      })
+      }])
     }
 
     vAlert('저장되었습니다(Alt+S)'); fetchList(); fetchDetail({ outym: keyYM, outno: keyNO })

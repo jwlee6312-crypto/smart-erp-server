@@ -178,33 +178,57 @@ const initGrids = () => {
   }
 }
 
-// [3] 비즈니스 로직
+// [3] 비즈니스 로직 - API 호출별 독립 분리 처리 (Promise.all 묶음 연쇄 실패 원천 차단)
 const loadInitData = async () => {
+  const normalizeCodes = (list: any[]) => (list || []).map(i => {
+      const obj: any = {};
+      Object.keys(i).forEach(k => { obj[k.toLowerCase()] = typeof i[k] === 'string' ? i[k].trim() : i[k] });
+      return obj;
+  });
+
+  // 1. 마감 월 정보 독립 조회
   try {
-    const [cls, accts, d1, d2] = await Promise.all([
-      api.post('/hfba/FBA3010U_STR', { cmpycd: authStore.cmpycd, actkind: 'S1', yymm: '', yn: 'N', remark: '' }),
-      api.post('/hfba/SELECT_ACCT_LIST', { cmpycd: authStore.cmpycd }),
-      api.post('/hfba/SELECT_DIVIDE_LIST', { cmpycd: authStore.cmpycd, cdkd: '1030' }),
-      api.post('/hfba/SELECT_DIVIDE_LIST', { cmpycd: authStore.cmpycd, cdkd: '1040' })
-    ])
-    clsInfo.wclsym = cls.data[0]?.wclsym || ''
+    const cls = await api.post('/hfba/FBA3010U_STR', { cmpycd: authStore.cmpycd, actkind: 'S0', yymm: '', yn: 'N', remark: '' })
+    if (cls.data && cls.data.length > 0) {
+      clsInfo.wclsym = cls.data[0]?.wclsym || cls.data[0]?.WCLSYM || ''
+      if (clsInfo.wclsym) {
+        searchForm.ym = clsInfo.wclsym
+      }
+    }
+  } catch (e) {
+    console.warn("마감 월 정보 조회 실패:", e)
+  }
 
-    // 🚀 [보정] 코드값의 공백 제거 (콤보박스 매칭용)
-    const normalizeCodes = (list: any[]) => (list || []).map(i => {
-        const obj: any = {};
-        Object.keys(i).forEach(k => { obj[k.toLowerCase()] = typeof i[k] === 'string' ? i[k].trim() : i[k] });
-        return obj;
-    });
-
+  // 2. 계정과목 목록 독립 조회
+  try {
+    const accts = await api.post('/hfba/SELECT_ACCT_LIST', { cmpycd: authStore.cmpycd })
     acctOptions.value = normalizeCodes(accts.data)
-    divide1Options.value = normalizeCodes(d1.data)
-    divide2Options.value = normalizeCodes(d2.data)
-
     if (acctOptions.value.length > 0) {
       detailForm.acct = acctOptions.value[0].acct
       detailForm.acctnm = acctOptions.value[0].acctnm
     }
-  } catch (e) { vAlertError('기초 데이터 로드 실패') }
+  } catch (e) {
+    console.warn("계정과목 목록 조회 실패:", e)
+  }
+
+  // 3. 공정배부 목록(1030) 독립 조회
+  try {
+    const d1 = await api.post('/hfba/SELECT_DIVIDE_LIST', { cmpycd: authStore.cmpycd, cdkd: '1030' })
+    divide1Options.value = normalizeCodes(d1.data)
+  } catch (e) {
+    console.warn("공정배부 목록 조회 실패:", e)
+  }
+
+  // 4. 품목배부 목록(1040) 독립 조회
+  try {
+    const d2 = await api.post('/hfba/SELECT_DIVIDE_LIST', { cmpycd: authStore.cmpycd, cdkd: '1040' })
+    divide2Options.value = normalizeCodes(d2.data)
+  } catch (e) {
+    console.warn("품목배부 목록 조회 실패:", e)
+  }
+
+  // 5. 메인 그리드 독립 자동 조회 실행
+  await handleSearch()
 }
 
 const handleSearch = async () => {

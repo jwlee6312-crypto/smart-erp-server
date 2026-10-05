@@ -186,7 +186,7 @@ const saveData = async () => {
         deptcd: formData.deptcd,
         slipymd: formData.slipymd,
         slipno: slipNo
-      })
+      }])
 
       if (resU0.data?.[0]?.RTN_CD && resU0.data[0].RTN_CD !== '00000000') {
         vAlertError(resU0.data[0].RTN_MSG || '전표 발행 중 오류 발생')

@@ -67,30 +67,30 @@
         android:singleLine="true"
         android:ellipsize="middle"/>
 
-    <!-- 의뢰수량 -->
+    <!-- 의뢰수량 (절대 수정 불가 Readonly) -->
     <TextView
         android:id="@+id/tvOrderQty"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="0.7"
         android:gravity="center"
-        android:text="100"
+        android:text="0"
         android:textStyle="bold"
         android:textColor="#333333"
-        android:textSize="11sp"/>
+        android:textSize="11sp"
+        android:focusable="false"/>
 
-    <!-- 스캔수량 -->
-    <EditText
+    <!-- 스캔수량 (바코드 스캔으로만 업데이트되는 Readonly) -->
+    <TextView
         android:id="@+id/etInboundQty"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="0.7"
         android:gravity="center"
-        android:inputType="number"
         android:text="0"
-        android:background="@null"
         android:textColor="#005A9F"
         android:textStyle="bold"
-        android:textSize="12sp"/>
+        android:textSize="12sp"
+        android:focusable="false"/>
 
 </LinearLayout>

@@ -146,7 +146,7 @@ const formData = reactive({
   itemnm: '',
   itsize: '',
   unit: '',
-  qty: 0
+  bsqty: 0
 })
 
 const lineOptions = ref<any[]>([])
@@ -198,13 +198,13 @@ const initGrid = () => {
       height: "100%",
       placeholder: "조회된 데이터가 없습니다.",
       columns: [
-        { title: "품목코드", field: "itemcd", width: 100, hozAlign: "center" },
-        { title: "품 목", field: "itemnm", minWidth: 200, cssClass: "fw-bold" },
-        { title: "규격", field: "itsize", width: 150 },
-        { title: "단위", field: "unit", width: 70, hozAlign: "center" },
-        { title: "기초재고수량", field: "stkqty", width: 130, hozAlign: "right", formatter: "money", formatterParams: { precision: (c:any)=>c.getData().qtypnt||0 }, cssClass: "text-primary fw-bold" },
-        { title: "단가", field: "price", width: 100, hozAlign: "right", formatter: "money", formatterParams: { precision: 2 } },
-        { title: "기초재고금액", field: "stkamt", width: 120, hozAlign: "right", formatter: "money" }
+        { title: "품목코드", field: "itemcd", width: 120, hozAlign: "center" },
+        { title: "품 목", field: "itemnm", minWidth: 250, cssClass: "fw-bold" },
+        { title: "규격", field: "itsize", width: 250 },
+        { title: "단위", field: "unit", width: 80, hozAlign: "center" },
+        { title: "기초재고수량", field: "stkqty", width: 150, hozAlign: "right", formatter: "money", formatterParams: { precision: (c:any)=>c.getData().qtypnt||0 }, cssClass: "text-primary fw-bold" },
+        { title: "단가", field: "price", width: 150, hozAlign: "right", formatter: "money", formatterParams: { precision: 2 } },
+        { title: "기초재고금액", field: "stkamt", width: 150, hozAlign: "right", formatter: "money" }
       ],
     })
 
@@ -213,9 +213,8 @@ const initGrid = () => {
         Object.assign(formData, {
             ...data,
             actkind: 'U0',
-            yy: data.ym.substring(0, 4),
-            mm: Number(data.ym.substring(4, 6)),
-            qty: data.stkqty
+            ym: data.ym.substring(0, 4) + data.ym.substring(4, 6),
+            bsqty: data.stkqty
         })
       //  fetchProgOptions(formData.linecd)
     })
@@ -226,8 +225,14 @@ const fetchList = async () => {
   if (!formData.linecd || !formData.progcd || !formData.custcd) return vAlertError('라인, 공정, 외주처를 선택하세요.')
   try {
     const res = await api.post('/hpba/HPBA_840U_STR', {
-      actkind: 'S0', cmpycd: authStore.cmpycd, yy: formData.yy, mm: monthStr.value,
-      linecd: formData.linecd, progcd: formData.progcd, custcd: formData.custcd, itemcd: formData.itemcd
+      actkind: 'S0',
+      cmpycd: authStore.cmpycd,
+      ym: formData.yy + monthStr.value,
+      linecd: formData.linecd,
+      progcd: formData.progcd,
+      custcd: formData.custcd,
+      itemcd: formData.itemcd,
+      bsqty: 0
     })
 
     const mapped = res.data.map((i: any) => ({

@@ -152,7 +152,14 @@ const initGrid = () => {
 
 async function search() {
   try {
-    const res = await api.post('/hpba/HPBA_810U_STR', { actkind: 'S0', cmpycd: authStore.cmpycd, yy: formData.yy, mm: monthStr.value, deptcd: formData.deptcd, itemcd: formData.itemcd })
+    const res = await api.post('/hpba/HPBA_810U_STR', {
+        actkind: 'S0',
+        cmpycd: authStore.cmpycd,
+        ym: formData.yy + monthStr.value,
+        deptcd: formData.deptcd,
+        mitemcd: formData.itemcd,
+        bsqty: 0
+    })
     grid?.setData(res.data); itemCount.value = res.data.length; vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }
 }

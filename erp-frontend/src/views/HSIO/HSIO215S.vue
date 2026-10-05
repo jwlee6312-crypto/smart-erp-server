@@ -146,7 +146,7 @@ async function fetchCustList() {
       actkind: 'S1', cmpycd: authStore.cmpycd, iogbn: '100',
       fromdt: searchForm.fromdt.replace(/-/g, ''),
       todt: searchForm.todt.replace(/-/g, ''),
-      whcd: searchForm.whcd, custcd: searchForm.custcd, slipyn: searchForm.slipyn
+      whcd: searchForm.whcd, custcd: searchForm.custcd || '0000000', slipyn: searchForm.slipyn
     });
     poGrid?.setData(res.data || []);
     itemGrid?.clearData();
@@ -163,7 +163,7 @@ async function fetchDetail(row: any) {
   try {
     const res = await api.post('/hsio/HSIO_215S_STR', {
       actkind: 'S0', cmpycd: authStore.cmpycd, iogbn: '100',
-      whcd: searchForm.whcd, custcd: d.custcd, ioym: d.ioym, iono: d.iono,
+      whcd: searchForm.whcd, custcd: d.custcd || '0000000', ioym: d.ioym, iono: d.iono,
       fromdt: searchForm.fromdt.replace(/-/g, ''),
       todt: searchForm.todt.replace(/-/g, '')
     })
@@ -246,21 +246,21 @@ const printInboundSheet = async () => {
                 const cd = String(item.itemcd || '').trim();
                 const bc = String(item.barcode || item.gtin || item.itemcd || '').trim();
                 rowsHtml += `
-                <tr height="36">
-                    <td class="text-center" style="font-size:8.5pt;">${i + 1}</td>
-                    <td class="text-center" style="font-size:8pt; font-weight:bold; padding:2px;">
-                        <div>${cd}</div>
-                        ${bc ? `<svg id="itemBc_${i}" style="width:110px; height:24px;"></svg>` : ''}
+                <tr height="60">
+                    <td class="text-center" style="font-size:9.5pt;">${i + 1}</td>
+                    <td class="text-center" style="font-size:9pt; font-weight:bold; padding:6px 10px;">
+                        <div style="margin-bottom:2px;">${cd}</div>
+                        ${bc ? `<svg id="itemBc_${i}" style="width:150px; height:48px;"></svg>` : ''}
                     </td>
-                    <td class="text-left" style="padding-left:5px; font-size:8.5pt;">${String(item.itemnm || '').trim()}</td>
-                    <td class="text-left" style="padding-left:5px; font-size:8.5pt;">${String(item.itsize || '').trim()}</td>
-                    <td class="text-center" style="font-size:8.5pt;">${item.unit || ''}</td>
-                    <td class="text-right" style="padding-right:5px; font-size:8.5pt;">${fC(qty)}</td>
-                    <td class="text-right" style="padding-right:5px; font-size:8.5pt;">${fC(price)}</td>
-                    <td class="text-right" style="padding-right:5px; font-size:8.5pt;">${fC(amt)}</td>
+                    <td class="text-left" style="padding-left:5px; font-size:9pt;">${String(item.itemnm || '').trim()}</td>
+                    <td class="text-left" style="padding-left:5px; font-size:9pt;">${String(item.itsize || '').trim()}</td>
+                    <td class="text-center" style="font-size:9pt;">${item.unit || ''}</td>
+                    <td class="text-right" style="padding-right:5px; font-size:9pt;">${fC(qty)}</td>
+                    <td class="text-right" style="padding-right:5px; font-size:9pt;">${fC(price)}</td>
+                    <td class="text-right" style="padding-right:5px; font-size:9pt;">${fC(amt)}</td>
                 </tr>`
             } else {
-                rowsHtml += `<tr height="32"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`
+                rowsHtml += `<tr height="36"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`
             }
         }
 
@@ -269,7 +269,7 @@ const printInboundSheet = async () => {
         const fullBarcode = `${ioymStr}${ionoStr}`
         const dispIono = `${ioymStr}-${ionoStr}`
 
-        // 품목별 바코드 생성 JS 코드 조립 (바코드 필드 우선, 없으면 품목코드 사용)
+        // 🚀 [산업용 바코드 규격 반영] 높이 48px(18mm), 선두께 1.5, Quiet Zone 10px 지정
         let itemBarcodesJs = ''
         dtl.forEach((item: any, idx: number) => {
             const bc = String(item.barcode || item.gtin || item.itemcd || '').trim()
@@ -278,10 +278,10 @@ const printInboundSheet = async () => {
                 try {
                     JsBarcode("#itemBc_${idx}", "${bc}", {
                         format: "CODE128",
-                        width: 1.2,
-                        height: 22,
+                        width: 1.5,
+                        height: 48,
                         displayValue: false,
-                        margin: 0
+                        margin: 10
                     });
                 } catch(e) {}`
             }
@@ -403,13 +403,13 @@ const printInboundSheet = async () => {
                 function generateBarcodes() {
                     try {
                         if (window.JsBarcode) {
-                            // 1. 헤더 입고번호 바코드 생성
+                            // 1. 헤더 입고번호 바코드 생성 (산업용 표준 여백 10px 및 높이 50px 확보)
                             JsBarcode("#barcodeSvg", "${fullBarcode}", {
                                 format: "CODE128",
-                                width: 1.8,
-                                height: 38,
+                                width: 2.0,
+                                height: 50,
                                 displayValue: false,
-                                margin: 0
+                                margin: 10
                             });
 
                             // 2. 품목별 품목코드 바코드 일괄 생성

@@ -430,8 +430,14 @@ async function fetchList() {
   if (!form_01.linecd) return vAlertError('생산라인을 선택하세요.')
   try {
     const res = await api.post('/hpio/HPIO_340U_STR', {
-      actkind: 'L', cmpycd: authStore.cmpycd, fromdt: form_01.fromdt.replace(/-/g, ''), todt: form_01.todt.replace(/-/g, ''),
-      iogbn: '200', outno: '0000', proqty: 0, linecd: form_01.linecd
+      actkind: 'L',
+      cmpycd: authStore.cmpycd,
+      fromdt: form_01.fromdt.replace(/-/g, ''),
+      todt: form_01.todt.replace(/-/g, ''),
+      iogbn: '200',
+      outno: '0000',
+      proqty: 0,
+      linecd: form_01.linecd
     })
     grid1?.setData((res.data || []).map((i: any) => ({ ...i, outno_full: `${i.outym}-${i.outno}` })))
     vAlert('조회되었습니다(Alt+F)')
@@ -444,7 +450,12 @@ async function fetchDetail(row: any) {
 
   try {
     const res = await api.post('/hpio/HPIO_341U_STR', [{
-      actkind: 'S', cmpycd: authStore.cmpycd, iogbn: '200', outym: row.outym, outno: row.outno, ioqty: 0
+      actkind: 'S',
+      cmpycd: authStore.cmpycd,
+      iogbn: '200',
+      outym: row.outym,
+      outno: row.outno,
+      ioqty: 0
     }])
     grid2?.setData((res.data || []).map((i: any) => ({ ...i, _state: 'EXIST', _status: '' })))
   } catch (e) { vAlertError('상세 조회 실패') }
@@ -455,10 +466,20 @@ async function fetchDetailItems() {
   const qty = Number(form_02.proqty || 1)
   try {
     const res = await api.post('/hpio/HPIO_341U_STR', [{
-      actkind: 'B', cmpycd: authStore.cmpycd, iogbn: '200', itemcd: form_02.itemcd, ioqty: qty,
-      pumym: form_02.pumym, pumno: form_02.pumno, outym: form_02.outym, outno: form_02.outno,
-      linecd: form_02.linecd, progcd: form_02.progcd, ioymd: form_02.outymd.replace(/-/g, ''), proymd: form_02.proymd.replace(/-/g, '')
-    })
+      actkind: 'B',
+      cmpycd: authStore.cmpycd,
+      iogbn: '200',
+      itemcd: form_02.itemcd,
+      ioqty: qty,
+      pumym: form_02.pumym,
+      pumno: form_02.pumno,
+      outym: form_02.outym,
+      outno: form_02.outno,
+      linecd: form_02.linecd,
+      progcd: form_02.progcd,
+      ioymd: form_02.outymd.replace(/-/g, ''),
+      proymd: form_02.proymd.replace(/-/g, '')
+    }])
     grid2?.setData((res.data || []).map((i: any) => ({ ...i, _status: '입력', _state: 'NEW' })))
   } catch (e) {}
 }
@@ -477,11 +498,18 @@ async function saveAll() {
     const act = (!form_02.outno || form_02.outno === '0000') ? 'A' : 'U'
     // 1. 마스터 저장
     const resM = await api.post('/hpio/HPIO_340U_STR', {
-      ...form_02, actkind: act, pumym: form_02.pumym,
+      ...form_02,
+      actkind: act,
+      pumym: form_02.pumym,
       outym: form_02.outymd.replace(/-/g, '').substring(0, 6),
       outymd: form_02.outymd.replace(/-/g, ''),
       proymd: form_02.proymd.replace(/-/g, ''),
-      inyn: 'Y', owhcd: form_02.whcd, ocustcd: form_02.custcd, iwhcd: form_02.iwhcd, prodcd: '200', userid: authStore.userid
+      inyn: 'Y',
+      owhcd: form_02.whcd,
+      ocustcd: form_02.custcd,
+      iwhcd: form_02.iwhcd,
+      prodcd: '200',
+      userid: authStore.userid
     })
 
     const mRes = resM.data?.[0]
@@ -497,7 +525,7 @@ async function saveAll() {
         ioymd: form_02.outymd.replace(/-/g, ''), outym: keyYM, outno: keyNO, inno: keyIN,
         owhcd: form_02.whcd, custcd: form_02.custcd, linecd: form_02.linecd, progcd: form_02.progcd,
         proymd: form_02.proymd.replace(/-/g, ''), pumym: form_02.pumym, pumno: form_02.pumno, userid: authStore.userid
-      })
+      }])
     }
 
     vAlert('저장되었습니다(Alt+S)'); fetchList(); fetchDetail({ outym: keyYM, outno: keyNO })

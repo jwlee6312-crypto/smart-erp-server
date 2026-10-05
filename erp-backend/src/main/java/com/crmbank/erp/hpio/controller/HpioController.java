@@ -487,7 +487,7 @@ public class HpioController {
         }
         if (params != null) {
             String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
-            if (actkind.startsWith("S") || actkind.startsWith("L") || actkind.startsWith("B")) {
+            if (actkind.startsWith("S0") ) {
                 injectSession(params, session);
                 fillMissingParameters("HPIO_351U_STR", params);
                 List<Map<String, Object>> res = convertToLowerCaseKeys(hpioMapper.HPIO_351U_STR(params));
@@ -510,7 +510,7 @@ public class HpioController {
             List<Map<String, Object>> raw = hpioMapper.HPIO_351U_STR(detail);
             if (raw != null && !raw.isEmpty()) {
                 Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
-                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "")))) {
+                if (!"OK".equals(String.valueOf(resRow.getOrDefault("result", "msg")))) {
                     throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("msg", "저장 실패"));
                 }
                 totalResults.add(resRow);
