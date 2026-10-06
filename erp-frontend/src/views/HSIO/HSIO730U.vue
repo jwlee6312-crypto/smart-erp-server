@@ -2,7 +2,7 @@
 	=============================================================
 	프로그램명	: 세트해체작업 (Set Deconstruction - HSIO730U)
 	작성일자	: 2025.02.24
-	설명        : 세트 상품 해체 관리 (Tab 키 순항 및 Alt 단축키 지원)
+	설명        : 세트 상품 해체 관리 (조회기간 DateForm 및 HSOD100U 키보드 표준 적용)
 	=============================================================
 -->
 
@@ -10,7 +10,7 @@
 	<AppAlert :show="showAlert" :error="showError" :message="alertMessage" />
 
 	<div class="erp-container">
-		<!-- 🚀 1. 상단 액션 바 (표준 버튼 배치 및 단축키 안내) -->
+		<!-- 🚀 1. 상단 액션 바 -->
 		<div class="erp-header d-flex justify-content-between align-items-center border-bottom bg-white py-2 px-3 sticky-top shadow-sm">
 			<div class="fw-bold text-dark d-flex align-items-center" style="font-size: 14px;">
 				<i class="bi bi-tools me-2 text-danger" style="font-size: 18px;"></i>
@@ -26,7 +26,7 @@
 			</div>
 		</div>
 
-		<!-- 🔍 2. 최상단 검색 조건 바 (고밀도 표준) -->
+		<!-- 🔍 2. 최상단 검색 조건 바 (조회기간 DateForm 적용) -->
 		<div class="p-2 pb-0">
 			<div class="card border shadow-sm bg-light bg-opacity-50">
 				<div class="card-body py-2 px-3">
@@ -40,8 +40,12 @@
 							</div>
 						</div>
 						<div class="d-flex align-items-center gap-2">
-							<span class="fw-bold small text-dark" style="min-width: 60px;">해체연월</span>
-							<input v-model="uiSearchym" type="month" class="form-control form-control-sm" style="width: 150px;" tabindex="3" />
+							<span class="fw-bold small text-dark" style="min-width: 60px;">조회기간</span>
+							<DateForm
+								v-model:fromdt="searchForm.fromdt"
+								v-model:todt="searchForm.todt"
+								:tabindex="3"
+							/>
 						</div>
 					</div>
 				</div>
@@ -62,7 +66,7 @@
 
 			<!-- 🅱️ 우측: 상세 정보 및 품목 그리드 (탭키 순차 순항) -->
 			<div class="flex-grow-1 d-flex flex-column gap-2 overflow-hidden">
-				<!-- 마스터 정보 (2행 3열 완벽 준수) -->
+				<!-- 마스터 정보 -->
 				<div class="card border shadow-sm overflow-hidden">
 					<div class="card-body p-0">
 						<table class="erp-table-full">
@@ -106,14 +110,13 @@
 						</table>
 					</div>
 				</div>
-
 				<!-- 품목 그리드 -->
 				<div class="card border shadow-sm flex-grow-1 overflow-hidden d-flex flex-column bg-white">
 					<div class="card-header bg-white py-1 px-3 border-bottom d-flex align-items-center justify-content-between" style="height: 40px;">
 						<span class="fw-bold small text-dark d-flex align-items-center">
 							<i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i> 세트 해체 품목 명세
 						</span>
-						<button class="btn btn-xs btn-primary fw-bold" tabindex="9" @click="addRow"><i class="bi bi-plus-lg me-1"></i> 행추가</button>
+						<button class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold" tabindex="9" @click="addRow" style="font-size: 12px;">+ 행추가</button>
 					</div>
                       <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
                         <div ref="itemGridRef" class="tabulator-instance flex-grow-1" tabindex="10"></div>
@@ -137,12 +140,15 @@ import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
 import { useManualStore } from '@/stores/manualStore'
+import { getDate } from '@/composables/useDate'
 import AppAlert from '@/components/AppAlert.vue'
 import Modal from '@/components/Modal.vue'
 import ItemHelpModal from '@/components/ItemHelpModal.vue'
+import DateForm from '@/components/DateForm.vue'
 import type { ModalProps } from '@/types/modal'
 
 const authStore = useAuthStore()
+const { today, firstDay } = getDate()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 const manualStore = useManualStore()
@@ -155,17 +161,18 @@ const itemHelpVisible = ref(false)
 const currentTargetRow = ref<any>(null)
 
 const searchForm = reactive({
-  deptcd: authStore.deptcd, deptnm: authStore.deptnm,
-  ioym: new Date().toISOString().substring(0, 7).replace('-', '')
+  deptcd: authStore.deptcd,
+  deptnm: authStore.deptnm,
+  fromdt: firstDay,
+  todt: today
 })
 
 const formData = reactive<any>({
-  actkind: 'S0', cmpycd: authStore.cmpycd, ioym: new Date().toISOString().substring(0, 7).replace('-', ''), iono: '',
-  ioymd: new Date().toISOString().substring(0, 10), deptcd: authStore.deptcd, deptnm: authStore.deptnm,
+  actkind: 'S', cmpycd: authStore.cmpycd, iogbn: '200', ioym: new Date().toISOString().substring(0, 7).replace('-', ''), iono: '',
+  ioymd: today, deptcd: authStore.deptcd, deptnm: authStore.deptnm,
   whcd: '100', lotno: '', remark: '', usernm: authStore.usernm, astkind: '2'
 })
 
-const uiSearchym = computed({ get: () => `${searchForm.ioym.substring(0, 4)}-${searchForm.ioym.substring(4, 6)}`, set: (v) => searchForm.ioym = v.replace('-', '') })
 const uiioym = computed({ get: () => `${formData.ioym.substring(0, 4)}-${formData.ioym.substring(4, 6)}`, set: (v) => formData.ioym = v.replace('-', '') })
 
 const whOptions = ref<any[]>([]);
@@ -173,15 +180,17 @@ const poGridRef = ref<HTMLDivElement | null>(null); const itemGridRef = ref<HTML
 let poGrid: Tabulator | null = null; let itemGrid: Tabulator | null = null
 const activeItemCount = ref(0)
 
-const totalSummary = computed(() => {
-  const items = itemGrid?.getData() || []
-  const active = items.filter((i: any) => i.upkind !== 'D')
-  return active.reduce((acc, cur: any) => acc + (Number(cur.ioqty) || 0), 0)
-})
-
 async function fetchPoList() {
   try {
-    const res = await api.post('/hsio/HSIO_730U_STR', { ...searchForm, actkind: 'S1', cmpycd: authStore.cmpycd })
+    const res = await api.post('/hsio/HSIO_730U_STR', {
+      ...searchForm,
+      actkind: 'L',
+      cmpycd: authStore.cmpycd,
+      iogbn: '200',
+      iotype: '200',
+      fromdt: (searchForm.fromdt || '').replace(/-/g, ''),
+      todt: (searchForm.todt || '').replace(/-/g, '')
+    })
     poGrid?.setData(res.data || []); itemGrid?.clearData(); vAlert('조회되었습니다.')
   } catch (e) { vAlertError('목록 조회 실패') }
 }
@@ -189,10 +198,24 @@ async function fetchPoList() {
 async function fetchDetail(row: any) {
   const d = row.getData();
   try {
-    const res = await api.post('/hsio/HSIO_730U_STR', { ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd })
+    const res = await api.post('/hsio/HSIO_730U_STR', {
+        actkind: 'S',
+        cmpycd: authStore.cmpycd,
+        iogbn: '200',
+        ioym: d.ioym,
+        iono: d.iono
+     })
     if (res.data?.length) {
       Object.assign(formData, res.data[0])
-      const resItems = await api.post('/hsio/HSIO_731U_STR', [{ ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd }])
+      const resItems = await api.post('/hsio/HSIO_731U_STR', [{
+          actkind: 'S',
+          cmpycd: authStore.cmpycd,
+          iogbn: '200',
+          ioym: d.ioym,
+          iono: d.iono,
+          ioqty: 0,
+          ioamt: 0
+      }])
       itemGrid?.setData(resItems.data?.map((i: any) => ({ ...i, upkind: 'U' })) || [])
       activeItemCount.value = resItems.data?.length || 0
     }
@@ -203,7 +226,12 @@ async function save() {
   const items = itemGrid?.getData();
   if (!items || items.length === 0) return vAlertError('해체 품목을 추가하세요.')
   try {
-    await api.post('/hsio/HSIO_730U_STR', { ...formData, actkind: formData.iono ? 'U0' : 'A0', items: items })
+    await api.post('/hsio/HSIO_730U_STR', {
+        ...formData, actkind: formData.iono ? 'U' : 'A',
+        iogbn: '200',
+        iotype: '200',
+        items: items
+    })
     vAlert('정상으로 작업이 되었습니다.'); fetchPoList()
   } catch (e) { vAlertError('저장 실패') }
 }
@@ -211,7 +239,7 @@ async function save() {
 async function deleteData() {
     if(!confirm('삭제하시겠습니까?')) return
     try {
-        await api.post('/hsio/HSIO_730U_STR', { ...formData, actkind: 'D0' })
+        await api.post('/hsio/HSIO_730U_STR', { ...formData, actkind: 'D' })
         vAlert('삭제되었습니다.'); initialize(); fetchPoList();
     } catch (e) { vAlertError('삭제 실패') }
 }
@@ -257,7 +285,7 @@ const addRow = () => {
 function initialize() {
   resetForm(formData);
   formData.ioym = new Date().toISOString().substring(0, 7).replace('-', '');
-  formData.ioymd = new Date().toISOString().substring(0, 10);
+  formData.ioymd = today;
   formData.astkind = '2';
   itemGrid?.clearData(); poGrid?.deselectRow(); activeItemCount.value = 0;
   nextTick(() => firstFocusRef.value?.focus())

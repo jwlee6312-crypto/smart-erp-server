@@ -2,7 +2,7 @@
 	=============================================================
 	프로그램명	: 세트상품입고작업 (HSIO720U)
 	작성일자	: 2025.02.24
-	설명        : 세트상품 입고 관리 (Tab 키 순항 및 Alt 단축키 지원)
+	설명        : 세트상품 입고 관리 (조회기간 DateForm 및 HSOD100U 키보드 표준 적용)
 	=============================================================
 -->
 
@@ -30,7 +30,7 @@
     <!-- 💡 2. 메인 컨텐츠 영역 -->
     <div class="flex-grow-1 overflow-hidden p-2 d-flex flex-column gap-2 bg-light main-content-wrapper">
 
-      <!-- 🔍 [상단] 조회 필터 영역 (HSOD100U 디자인 패턴 적용) -->
+      <!-- 🔍 [상단] 조회 필터 영역 (조회기간 DateForm 적용) -->
       <div class="card border shadow-sm flex-shrink-0 overflow-hidden">
         <div class="card-body p-0 bg-white">
           <table class="erp-table-dense" width="100%">
@@ -50,9 +50,13 @@
                     <button class="btn btn-outline-secondary px-2" tabindex="2" @click="handleOpenHelp('DEPT_search')"><i class="bi bi-search"></i></button>
                   </div>
                 </td>
-                <th class="text-center bg-light">입고연월</th>
+                <th class="text-center bg-light">조회기간</th>
                 <td class="d-flex align-items-center border-0 gap-1" style="height: 32px;">
-                  <input v-model="uiSearchym" type="month" class="form-control form-control-sm" style="width: 150px;" tabindex="3" @change="fetchList" />
+                  <DateForm
+                    v-model:fromdt="searchForm.fromdt"
+                    v-model:todt="searchForm.todt"
+                    :tabindex="3"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -144,13 +148,16 @@ import { useAlerts } from '@/composables/useAlerts'
 import { api } from '@/utils/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
+import { getDate } from '@/composables/useDate'
 import { useManualStore } from '@/stores/manualStore'
 import AppAlert from '@/components/AppAlert.vue'
 import Modal from '@/components/Modal.vue'
 import ItemHelpModal from '@/components/ItemHelpModal.vue'
+import DateForm from '@/components/DateForm.vue'
 import type { ModalProps } from '@/types/modal'
 
 const authStore = useAuthStore()
+const { today, firstDay } = getDate()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 const manualStore = useManualStore()
@@ -163,17 +170,18 @@ const itemHelpVisible = ref(false)
 const currentTargetRow = ref<any>(null)
 
 const searchForm = reactive({
-  deptcd: authStore.deptcd, deptnm: authStore.deptnm,
-  ioym: new Date().toISOString().substring(0, 7).replace('-', '')
+  deptcd: authStore.deptcd,
+  deptnm: authStore.deptnm,
+  fromdt: firstDay,
+  todt: today
 })
 
 const formData = reactive<any>({
-  actkind: 'S0', cmpycd: authStore.cmpycd, ioym: new Date().toISOString().substring(0, 7).replace('-', ''), iono: '',
-  ioymd: new Date().toISOString().substring(0, 10), deptcd: authStore.deptcd, deptnm: authStore.deptnm,
+  actkind: 'S', cmpycd: authStore.cmpycd, iogbn: '100', ioym: new Date().toISOString().substring(0, 7).replace('-', ''), iono: '',
+  ioymd: today, deptcd: authStore.deptcd, deptnm: authStore.deptnm,
   whcd: '100', lotno: '', remark: '', usernm: authStore.usernm, astkind: '2'
 })
 
-const uiSearchym = computed({ get: () => `${searchForm.ioym.substring(0, 4)}-${searchForm.ioym.substring(4, 6)}`, set: (v) => searchForm.ioym = v.replace('-', '') })
 const uiioym = computed({ get: () => `${formData.ioym.substring(0, 4)}-${formData.ioym.substring(4, 6)}`, set: (v) => formData.ioym = v.replace('-', '') })
 
 const whOptions = ref<any[]>([]);
@@ -182,7 +190,13 @@ let poGrid: Tabulator | null = null; let itemGrid: Tabulator | null = null
 
 async function fetchList() {
   try {
-    const res = await api.post('/hsio/HSIO_720U_STR', { ...searchForm, actkind: 'S1', cmpycd: authStore.cmpycd })
+    const res = await api.post('/hsio/HSIO_720U_STR', {
+      ...searchForm,
+      actkind: 'L',
+      cmpycd: authStore.cmpycd,
+      fromdt: (searchForm.fromdt || '').replace(/-/g, ''),
+      todt: (searchForm.todt || '').replace(/-/g, '')
+    })
     poGrid?.setData(res.data || []); itemGrid?.clearData(); vAlert('조회되었습니다.')
   } catch (e) { vAlertError('조회 실패') }
 }
@@ -190,10 +204,25 @@ async function fetchList() {
 async function fetchDetail(row: any) {
   const d = row.getData();
   try {
-    const res = await api.post('/hsio/HSIO_720U_STR', { ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd })
+    const res = await api.post('/hsio/HSIO_720U_STR', {
+        actkind: 'S',
+        cmpycd: authStore.cmpycd,
+        iogbn: '100',
+        iotype: '200',
+        ioym: d.ioym,
+        iono: d.iono
+    })
     if (res.data?.length) {
       Object.assign(formData, res.data[0])
-      const resItems = await api.post('/hsio/HSIO_721U_STR', [{ ioym: d.ioym, iono: d.iono, actkind: 'S0', cmpycd: authStore.cmpycd }])
+      const resItems = await api.post('/hsio/HSIO_721U_STR', [{
+            actkind: 'S',
+            cmpycd: authStore.cmpycd,
+            ioym: d.ioym,
+            iono: d.iono,
+            iogbn: '100',
+            ioqty: 0,
+            ioamt: 0
+       }])
       itemGrid?.setData(resItems.data?.map((i: any) => ({ ...i, upkind: 'U' })) || [])
     }
   } catch (e) { vAlertError('상세 조회 실패') }
@@ -203,7 +232,13 @@ async function save() {
   const items = itemGrid?.getData();
   if (!items || items.length === 0) return vAlertError('입고 품목을 추가하세요.')
   try {
-    await api.post('/hsio/HSIO_720U_STR', { ...formData, actkind: formData.iono ? 'U0' : 'A0', items: items })
+    await api.post('/hsio/HSIO_720U_STR', {
+        ...formData,
+        actkind: formData.iono ? 'U' : 'A',
+        iogbn: '100',
+        iotype: '200',
+        items: items
+    })
     vAlert('정상으로 작업이 되었습니다.'); fetchList()
   } catch (e) { vAlertError('저장 실패') }
 }
@@ -211,7 +246,7 @@ async function save() {
 async function deleteData() {
     if(!confirm('삭제하시겠습니까?')) return
     try {
-        await api.post('/hsio/HSIO_720U_STR', { ...formData, actkind: 'D0' })
+        await api.post('/hsio/HSIO_720U_STR', { ...formData, actkind: 'D' })
         vAlert('삭제되었습니다.'); initialize(); fetchList();
     } catch (e) { vAlertError('삭제 실패') }
 }
@@ -248,7 +283,7 @@ const addRow = () => { itemGrid?.addRow({ ioqty: 0, price: 0, ioamt: 0, upkind: 
 function initialize() {
   resetForm(formData);
   formData.ioym = new Date().toISOString().substring(0, 7).replace('-', '');
-  formData.ioymd = new Date().toISOString().substring(0, 10);
+  formData.ioymd = today;
   formData.astkind = '2';
   itemGrid?.clearData(); poGrid?.deselectRow();
   nextTick(() => firstFocusRef.value?.focus())

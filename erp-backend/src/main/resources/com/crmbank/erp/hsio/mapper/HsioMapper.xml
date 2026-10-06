@@ -288,19 +288,23 @@
     </select>
 
     <select id="HSIO_720U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_720u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{iono}, #{deptcd}, #{whcd}, #{ioymd}, #{remark}, #{lotno}, #{updemp}
+        exec hsio_720u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{deptnm},
+        #{iogbn}, #{ioym}, #{iono}, #{deptcd}, #{whcd}, #{ioymd}, #{remark}, #{lotno}, #{updemp}
     </select>
 
     <select id="HSIO_721U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_721u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{ino}, #{iorowno}, #{ono}, #{deptcd}, #{whcd}, #{ioymd}, #{itemcd}, #{unit}, #{ioqty}, #{ioamt}, #{updemp}
+        exec hsio_721u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{ino}, #{iorowno}, #{ono},
+        #{deptcd}, #{whcd}, #{ioymd}, #{itemcd}, #{unit}, #{ioqty}, #{ioamt}, #{updemp}
     </select>
 
     <select id="HSIO_730U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_730u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{iono}, #{deptcd}, #{whcd}, #{ioymd}, #{remark}, #{updemp}
+        exec hsio_730u_str #{actkind}, #{cmpycd}, #{fromdt}, #{todt}, #{deptnm},
+        #{iogbn}, #{ioym}, #{iono}, #{deptcd}, #{whcd}, #{ioymd}, #{remark}, #{updemp}
     </select>
 
     <select id="HSIO_731U_STR" resultType="java.util.LinkedHashMap">
-        exec hsio_731u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{ino}, #{iorowno}, #{ono}, #{deptcd}, #{whcd}, #{ioymd}, #{itemcd}, #{unit}, #{ioqty}, #{ioamt}, #{updemp}
+        exec hsio_731u_str #{actkind}, #{cmpycd}, #{iogbn}, #{ioym}, #{ino}, #{iorowno}, #{ono},
+        #{deptcd}, #{whcd}, #{ioymd}, #{itemcd}, #{unit}, #{ioqty}, #{ioamt}, #{updemp}
     </select>
 
     <!-- 🚀 생산불출 연동 (사용자 정의 12파라미터 규격 복사) -->

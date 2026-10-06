@@ -273,27 +273,29 @@ const initialize = () => {
 const modalVisible = ref(false)
 const modalProps = reactive<ModalProps>({ title: '', path: '', defaultField: '', columns: [], data: {}, onConfirm: () => {}, type: 'table' })
 
-const handleOpenHelp = (type: string, target?: any) => {
+const handleOpenHelp = (type: string) => {
   const props: any = { title: '', path: '', data: { cmpycd: authStore.cmpycd }, columns: [], onConfirm: () => {} };
- if (type === 'CUST') {
-    props.title = '거래처'; props.path = '/ha00/HA00_00P_STR'; props.data.gubun = 'C4';
-    props.columns = [{ title: '코드', field: 'custcd', width: 80 }, { title: '거래처명', field: 'custnm' }];
-    props.onConfirm = (d: any) => { searchData.custcd = d.custcd; searchData.custnm = d.custnm };
+  if (type === 'CUST') {
+    props.title = '외주거래처 선택'; props.path = '/ha00/HA00_00P_STR'; props.data.gubun = 'C9';
+    props.columns = [{ title: '코드', field: 'custcd', width: 100 }, { title: '거래처명', field: 'custnm', width: 200 }];
+    props.onConfirm = (d: any) => {
+      const code = String(d.custcd || d.code || d.CUSTCD || d.CODE || '').trim();
+      const name = String(d.custnm || d.cdnm || d.CUSTNM || d.CDNM || '').trim();
+      formData.custcd = code;
+      formData.custnm = name;
+      searchData.custcd = code;
+      searchData.custnm = name;
+      modalVisible.value = false; // 💡 선택 시 팝업 창 100% 자동 닫기!
+    };
   }
   Object.assign(modalProps, props); modalVisible.value = true;
 }
 
 function openHelp(type: string) {
-  let config: any = {}
   if (type === 'CUST') {
-    config = {
-        title: '거래처 선택', path: '/ha00/HA00_00P_STR', defaultField: 'cdnm',
-        data: { gubun: '010', cmpycd: authStore.cmpycd },
-        columns: [{ title: '코드', field: 'code', width: 100 }, { title: '거래처명', field: 'cdnm', width: 200 }],
-        onConfirm: (data: any) => { formData.custcd = data.code; formData.custnm = data.cdnm; }
-    }
+    handleOpenHelp('CUST')
   } else if (type === 'ITEM') {
-    config = {
+    const config = {
       title: '품목 선택', path: '/hp00/HP00_000S_STR', defaultField: 'itemnm',
       data: { gubun: 'I0', cmpycd: authStore.cmpycd, gbncd: '210' },
       columns: [{ title: '코드', field: 'itemcd', width: 100 }, { title: '품목명', field: 'itemnm', width: 250 }, { title: '규격', field: 'itsize', width: 120 }],
@@ -302,10 +304,11 @@ function openHelp(type: string) {
           formData.itemnm = data.itemnm;
           formData.itsize = data.itsize;
           formData.unit = data.unit;
+          modalVisible.value = false; // 💡 선택 시 팝업 창 100% 자동 닫기!
       }
     }
+    Object.assign(modalProps, config); modalVisible.value = true
   }
-  Object.assign(modalProps, config); modalVisible.value = true
 }
 
 const formatDateString = (v: any, sep: string) => v && String(v).length >= 6 ? `${v.substring(0, 4)}${sep}${v.substring(4, 6)}${v.length === 8 ? sep + v.substring(6, 8) : ''}` : (v || '')

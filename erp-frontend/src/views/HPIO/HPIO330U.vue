@@ -1,6 +1,6 @@
 <!--
 	=============================================================
-	프로그램명	: 외주가공생산실적 (HPIO330U)
+	프로그램명	: 외주가공 실적등록 (HPIO330U)
 	작성일자	: 2025.03.12 (UI 개편)
 	설명        : 외주 생산 제품 실적 및 투입 자재 상세 관리 (좌/우 분리형)
 	=============================================================
@@ -16,7 +16,7 @@
       <div class="fw-bold ps-1 text-dark d-flex align-items-center" style="font-size: 14px;">
         <i class="bi bi-journal-check me-2 text-primary" style="font-size: 18px;"></i>
         생산정보 <i class="bi bi-chevron-right mx-1 small opacity-50"></i>
-        <span class="text-primary fw-bolder">외주가공생산실적 (HPIO350U)</span>
+        <span class="text-primary fw-bolder">외주가공 실적등록 (HPIO330U)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1 pe-3">
         <button class="btn-erp btn-init" @click="initialize">초기화</button>
@@ -60,9 +60,10 @@
                 </td>
                 <th class="text-center bg-light required">거 래 처</th>
                 <td>
-                  <div class="input-group input-group-sm">
-                    <input v-model="searchForm.custnm" type="text" class="form-control fw-bold text-primary" readonly tabindex="-1" />
-                    <button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('CUST')" tabindex="103"><i class="bi bi-search"></i></button>
+                  <div class="input-group input-group-sm px-1">
+                    <input v-model="searchForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
+                    <input v-model="searchForm.custnm" type="text" class="form-control fw-bold text-primary" readonly />
+                    <button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('CUST')"><i class="bi bi-search"></i></button>
                   </div>
                 </td>
               </tr>
@@ -167,6 +168,7 @@ import { useCommonHelp } from '@/composables/useCommonHelp'
 import { getDate } from '@/composables/useDate'
 import AppAlert from '@/components/AppAlert.vue'
 import Modal from '@/components/Modal.vue'
+import DateForm from '@/components/DateForm.vue'
 
 const authStore = useAuthStore()
 const { today, firstDay } = getDate()
@@ -265,7 +267,6 @@ const calcTotal = (row: any) => {
   const ord = Number(d.ordqty || 0);
   const err = Number(d.errqty || 0);
 
-  // [체크] 지시량 초과 입력 제한
   if (prd > ord) {
     alert(`생산량이 지시량(${ord})을 초과할 수 없습니다.`);
     prd = ord;
@@ -310,19 +311,16 @@ const onLineChange = async () => {
   } catch (e) {}
 }
 
-// 🅰️ 좌측 목록 조회 (지시 목록)
 const fetchOrderList = async () => {
   try {
-    // 💡 목록 조회를 위해 actkind: 'L0' 사용
-    // 💡 XML 명세에 따라 ordymd(시작), proymd(종료) 위치에 기간을 실어 보냄
     const res = await api.post('/hpio/HPIO_350U_STR', {
         actkind: 'L0',
         cmpycd: authStore.cmpycd,
         prodid: 0,
         linecd: searchForm.linecd,
         progcd: '888',
-        proymd: searchForm.todt,   // 종료일
-        ordymd: searchForm.fromdt, // 시작일
+        proymd: searchForm.todt,
+        ordymd: searchForm.fromdt,
         equpcd: '', prodcd: '200', wkgbn: '', whcd: '', itemcd: '', custcd: searchForm.custcd,
         itsize: '', unit: '', prdqty: 0, godqty: 0, errqty: 0, lotymd: '', lotno: '',
         workmm: 0, bigo: '', outym: '', outno: '', useyn: 'Y', updemp: authStore.userid
@@ -333,7 +331,6 @@ const fetchOrderList = async () => {
   } catch (e) { vAlertError('목록 조회 실패'); }
 }
 
-// 🅱️ 우측 상세 조회
 const fetchPerformanceMaster = async (row: any) => {
   searchForm.custcd = row.custcd;
   searchForm.custnm = row.custnm;
@@ -342,7 +339,7 @@ const fetchPerformanceMaster = async (row: any) => {
     const res = await api.post('/hpio/HPIO_350U_STR', {
         actkind: 'S0',
         cmpycd: authStore.cmpycd,
-        prodid: row.prodid || 0, // 💡 좌측 목록의 PRODID로 상세 조회
+        prodid: row.prodid || 0,
         linecd: searchForm.linecd,
         custcd: row.custcd,
         ordymd: row.ordymd,
@@ -375,18 +372,11 @@ const fetchPerformanceMaster = async (row: any) => {
 const fetchPerformanceDetails = async (row: any) => {
   selectedProduct.itemcd = row.itemcd;
   selectedProduct.itemnm = row.itemnm;
-  selectedProduct.prodid = row.prodid; // 💡 상위 PRODID 보관
+  selectedProduct.prodid = row.prodid;
 
-  if (!row.itemcd) { grid2?.clearData(); return; }
-
-  // 💡 신규 제품 행(prodid 없음)인 경우 서버 조회를 하지 않고 그리드만 초기화
-  if (!row.prodid) {
-    grid2?.clearData();
-    return;
-  }
+  if (!row.itemcd || !row.prodid) { grid2?.clearData(); return; }
 
   try {
-    // 🚀 수정된 XML 명세(14개 파라미터)에 맞춰 조회 호출
     const res = await api.post('/hpio/HPIO_351U_STR', {
         actkind: 'S0',
         cmpycd: authStore.cmpycd,
@@ -409,14 +399,14 @@ const saveAll = async () => {
   const hasDelete = prods.some(p => p._status === '삭제' || Number(p.prdqty || 0) === 0 || p.useyn === 'N') ||
                     mats.some(m => m._status === '삭제' || Number(m.inqty || 0) === 0 || m.useyn === 'N');
   const confirmMsg = hasDelete
-    ? '삭제 항목이 포함되어 있습니다. (이미 투입된 제품은 삭제가 제한될 수 있습니다)\n계속하시겠습니까?'
+    ? '삭제 항목이 포함되어 있습니다.\n계속하시겠습니까?'
     : '변경된 정보를 저장하시겠습니까?';
   if (!confirm(confirmMsg)) return
 
   try {
     let lastMsg = '';
     for (const p of prods) {
-      const actkind = 'U0' // 마스터 삭제 없이 수정(원복) 개념으로 처리
+      const actkind = 'U0'
       const resP = await api.post('/hpio/HPIO_350U_STR', {
         ...p,
         actkind,
@@ -433,7 +423,6 @@ const saveAll = async () => {
       });
       const pData = resP.data?.[0] || {};
       const pValues = pData.returnkeyvalue || Object.values(pData);
-      // 서버에서 보낸 에러 메시지(이미 투입됨 등)를 사용자에게 전달
       if (pValues[0] === '000000') throw new Error(String(pValues[1] || '제품 실적 처리 중 오류 발생'));
       lastMsg = pData.msg || pValues[1];
     }
@@ -442,12 +431,12 @@ const saveAll = async () => {
       const resM = await api.post('/hpio/HPIO_351U_STR', {
         actkind,
         cmpycd: authStore.cmpycd,
-        prodid: selectedProduct.prodid, // 💡 부모 PRODID
-        matlid: m.matlid || 0,         // 💡 자재 고유 ID
+        prodid: selectedProduct.prodid,
+        matlid: m.matlid || 0,
         mitemcd: m.mitemcd,
         mitsize: m.mitsize || '',
         munit: m.munit || '',
-        whcd: '300', // 💡 외주공정입고창고 고정
+        whcd: '300',
         befprog: m.befprog || '',
         astkind: m.astkind || '',
         soqty: m.soqty || 0,
@@ -461,54 +450,29 @@ const saveAll = async () => {
       lastMsg = mData.msg || mValues[1] || '정상 처리되었습니다.';
     }
 
-    // 💡 성공 메시지 출력 (DB에서 받은 메시지 우선)
     alert(lastMsg || '성공적으로 저장되었습니다.');
 
-    // 현재 선택된 목록 다시 조회
     const selectedRow = grid0?.getSelectedData()[0];
     if(selectedRow) fetchPerformanceMaster(selectedRow);
   } catch (e: any) { alert(e.message || '저장 실패'); }
 }
 
 const handleOpenHelp = (type: string, target?: any) => {
-  const props: any = { title: '', path: '', data: { cmpycd: authStore.cmpycd }, columns: [], onConfirm: () => {} };
-
   if (type === 'CUST') {
-    props.title = '거래처 선택'; props.path = '/ha00/HA00_00P_STR'; props.data.gubun = 'C4';
-    props.columns = [{ title: '코드', field: 'custcd', width: 80 }, { title: '거래처명', field: 'custnm' }];
-    props.onConfirm = (d: any) => { searchForm.custcd = d.custcd; searchForm.custnm = d.custnm }
+    openHelp('CUST', (d: any) => { searchForm.custcd = d.custcd; searchForm.custnm = d.custnm }, { gubun: 'C9' });
   }
   else if (type === 'ITEM') {
-    props.title = '제품 선택'; props.path = '/hp00/HP00_000S_STR'; props.data.gubun = 'I0'; props.data.gbncd = 'A';
-    props.columns = [
-      { title: '코드', field: 'itemcd', width: 100, hozAlign: 'center' },
-      { title: '제품명', field: 'itemnm', width: 200 },
-      { title: '규격', field: 'itsize', width: 150 },
-      { title: '단위', field: 'unit', width: 80, hozAlign: 'center' }
-    ]
-    props.onConfirm = (d: any) => {
+    openHelp('ITEM', (d: any) => {
       target.update({ itemcd: d.itemcd, itemnm: d.itemnm, itsize: d.itsize, unit: d.unit, _status: '수정', _state: 'NEW' });
       selectedProduct.itemcd = d.itemcd; selectedProduct.itemnm = d.itemnm;
-    }
+    }, { codegbn: 'A' });
   }
   else if (type === 'MAT') {
-    props.title = '자재 선택'; props.path = '/hp00/HP00_000S_STR'; props.data.gubun = 'I0'; props.data.gbncd = 'A';
-    props.columns = [
-      { title: '코드', field: 'itemcd', width: 100, hozAlign: 'center' },
-      { title: '자재명', field: 'itemnm', width: 200 },
-      { title: '규격', field: 'itsize', width: 150 },
-      { title: '단위', field: 'unit', width: 80, hozAlign: 'center' }
-    ]
-    props.onConfirm = (d: any) => target.update({ mitemcd: d.itemcd, mitemnm: d.itemnm, mitsize: d.itsize, munit: d.unit, mastkind: d.astkind, _status: '수정', _state: 'NEW' })
+    openHelp('ITEM', (d: any) => target.update({ mitemcd: d.itemcd, mitemnm: d.itemnm, mitsize: d.itsize, munit: d.unit, mastkind: d.astkind, _status: '수정', _state: 'NEW' }), { codegbn: 'A' });
   }
   else if (type === 'befprog') {
-    props.title = '출고공정 선택'; props.path = '/hp00/HP00_000S_STR'; props.data.gubun = 'G0'; props.data.gbncd = searchForm.linecd;
-    props.columns = [{ title: '코드', field: 'progcd', width: 100, hozAlign: 'center' }, { title: '공정명', field: 'prognm', width: 200 }];
-    props.onConfirm = (d: any) => target.update({ befprog: d.progcd, bprognm: d.prognm })
+    openHelp('PROG', (d: any) => target.update({ befprog: d.progcd, bprognm: d.prognm }), { linecd: searchForm.linecd });
   }
-
-  Object.assign(modalProps, props)
-  modalVisible.value = true
 }
 
 const handleRowAction = (row: any) => {

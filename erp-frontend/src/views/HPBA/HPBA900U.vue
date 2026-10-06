@@ -166,6 +166,7 @@ const initGrids = () => {
     codeGrid = new Tabulator(codeGridElement.value, {
       layout: "fitColumns",
       height: "100%",
+      index: "_unique_id", // 💡 Tabulator 고유 인덱스 키 지정 (행 유실 원천 차단)
       placeholder: "그룹을 선택하세요.",
       selectable: 1,
       columns: [
@@ -193,9 +194,25 @@ const initGrids = () => {
 // 3. 비즈니스 로직
 const fetchGroups = async () => {
   try {
-    const res = await api.get('/hp00/HP00_000S_STR', { params: { gubun: 'E0', cmpycd: authStore.cmpycd, gbncd: '010' } })
-    groupOptions.value = res.data
-    groupGrid?.setData(res.data)
+    // 💡 전용 코드관리 프로시저(HPBA_900U_STR)로 '010' 그룹 12건 전체(사용N 포함) 수신!
+    const res = await api.post('/hpba/HPBA_900U_STR', {
+      actkind: 'S0',
+      cmpycd: authStore.cmpycd,
+      cdgbn: '010'
+    })
+    const data = (res.data || []).map((row: any, idx: number) => ({
+      ...row,
+      _unique_id: `${row.code || 'CD'}_${idx}`
+    }))
+
+    groupOptions.value = data
+    groupGrid?.setData(data)
+    codeGrid?.setData(data)
+    itemCount.value = data.length
+
+    selectedGroup.code = '010'
+    selectedGroup.cdnm = '기초공통'
+    formData.cdgbn = '010'
   } catch (e) { vAlertError('그룹 조회 실패') }
 }
 
@@ -206,8 +223,13 @@ const fetchCodes = async (groupCd: string) => {
       cmpycd: authStore.cmpycd,
       cdgbn: groupCd
     })
-    codeGrid?.setData(res.data)
-    itemCount.value = res.data.length
+    const data = (res.data || []).map((row: any, idx: number) => ({
+      ...row,
+      _unique_id: `${row.code || 'CD'}_${idx}`
+    }))
+    console.log("📊 [HPBA_900U_STR 수신 데이터 건수]:", data.length, data)
+    codeGrid?.setData(data)
+    itemCount.value = data.length
   } catch (e) { vAlertError('코드 조회 실패') }
 }
 

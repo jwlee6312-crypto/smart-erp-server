@@ -1966,7 +1966,7 @@ public class HsioController {
         fillMissingParameters("HSIO_720U_STR", params);
         log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_720U_STR", params));
 
-        String actkind = String.valueOf(params.getOrDefault("actkind", "S0")).toUpperCase();
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
         List<Map<String, Object>> raw = hsioMapper.HSIO_720U_STR(params);
 
         // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
@@ -2017,7 +2017,73 @@ public class HsioController {
             List<Map<String, Object>> raw = hsioMapper.HSIO_721U_STR(detail);
             if (raw != null && !raw.isEmpty()) {
                 Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
-                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "")))) {
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "iono")))) {
+                    throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
+                }
+                totalResults.add(resRow);
+            }
+        }
+        return ResponseEntity.ok(totalResults);
+    }
+
+    @PostMapping("/HSIO_730U_STR")
+    public ResponseEntity<?> callHSIO_730U_STR(@RequestBody Map<String, Object> params, HttpSession session) {
+        injectSession(params, session);
+        fillMissingParameters("HSIO_730U_STR", params);
+        // log.info("🏢 [Master SQL]: {}", buildPositionalSql("HSIO_730U_STR", params));
+
+        String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+        List<Map<String, Object>> raw = hsioMapper.HSIO_730U_STR(params);
+
+        // 🚀 [해결] actkind가 'S'(조회) 일 경우 반복문이나 에러 체크 없이 즉시 반환
+        if ("S".equals(actkind) || "L".equals(actkind)) return ResponseEntity.ok(convertToLowerCaseKeys(raw));
+
+        if (raw == null || raw.isEmpty()) throw new RuntimeException("마스터 처리 결과가 없습니다.");
+
+        // 🚀 [해결] 마스터는 반복문 없이 첫 번째 행만 즉시 별칭 부여 및 검증
+        Map<String, Object> resultRow = mapToAlias(raw.getFirst(), "ioym", "iono");
+        String code = String.valueOf(resultRow.get("ioym")).trim();
+        if ("000000".equals(code)) {
+            throw new RuntimeException(String.valueOf(resultRow.get("iono")));
+        }
+        return ResponseEntity.ok(List.of(resultRow));
+    }
+
+    @PostMapping("/HSIO_731U_STR")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<?> callHSIO_731U_STR(@RequestBody Object inputDetails, HttpSession session) {
+        Map<String, Object> params = null;
+        if (inputDetails instanceof Map) {
+            params = (Map<String, Object>) inputDetails;
+        } else if (inputDetails instanceof List && !((List<?>) inputDetails).isEmpty()) {
+            params = (Map<String, Object>) ((List<?>) inputDetails).get(0);
+        }
+        if (params != null) {
+            String actkind = String.valueOf(params.getOrDefault("actkind", "S")).toUpperCase();
+            if (actkind.startsWith("S") || actkind.startsWith("L")) {
+                injectSession(params, session);
+                fillMissingParameters("HSIO_731U_STR", params);
+                List<Map<String, Object>> res = convertToLowerCaseKeys(hsioMapper.HSIO_731U_STR(params));
+               // log.info("📊 [HSIO_731U_STR SELECT 결과 (총 {}건)]: {}", res.size(), res);
+                return ResponseEntity.ok(res);
+            }
+        }
+        List<Map<String, Object>> details = new ArrayList<>();
+        if (inputDetails instanceof List) {
+            details = (List<Map<String, Object>>) inputDetails;
+        } else if (inputDetails instanceof Map) {
+            details.add((Map<String, Object>) inputDetails);
+        }
+        List<Map<String, Object>> totalResults = new ArrayList<>();
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> detail = details.get(i);
+            injectSession(detail, session);
+            fillMissingParameters("HSIO_731U_STR", detail);
+           // log.info("📑 [Detail #{} SQL]: {}", i + 1, buildPositionalSql("HSIO_731U_STR", detail));
+            List<Map<String, Object>> raw = hsioMapper.HSIO_731U_STR(detail);
+            if (raw != null && !raw.isEmpty()) {
+                Map<String, Object> resRow = convertToLowerCaseKeys(raw).getFirst();
+                if ("000000".equals(String.valueOf(resRow.getOrDefault("ioym", "iono")))) {
                     throw new RuntimeException("상세 행 #" + (i+1) + " 오류: " + resRow.getOrDefault("iono", "저장 실패"));
                 }
                 totalResults.add(resRow);

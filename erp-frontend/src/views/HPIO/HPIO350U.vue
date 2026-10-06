@@ -2,7 +2,7 @@
 	=============================================================
 	프로그램명	: 외주가공생산실적 (HPIO350U)
 	작성일자	: 2025.03.12 (UI 개편)
-	설명        : 외주 생산 제품 실적 및 투입 자재 상세 관리 (좌/우 분리형)
+	설명        : 외주 생산 제품 실적 및 투입 자재 상세 관리 (Tab키 순항 및 Alt 단축키 지원)
 	=============================================================
 -->
 
@@ -19,9 +19,9 @@
         <span class="text-primary fw-bolder">외주가공생산실적 (HPIO350U)</span>
       </div>
       <div class="btn-group-erp d-flex gap-1 pe-3">
-        <button class="btn-erp btn-init" @click="initialize">초기화</button>
-        <button class="btn-erp btn-search" @click="fetchOrderList">조회</button>
-        <button class="btn-erp btn-save" @click="saveAll">저장</button>
+        <button class="btn-erp btn-init" @click="initialize" title="Alt+N: 초기화">초기화(N)</button>
+        <button class="btn-erp btn-search" @click="fetchOrderList" title="Alt+F: 조회">조회(F)</button>
+        <button class="btn-erp btn-save" @click="saveAll" title="Alt+S: 저장">저장(S)</button>
       </div>
     </div>
 
@@ -42,25 +42,28 @@
                 <th class="text-center bg-light required">생산라인</th>
                 <td>
                   <div class="px-1">
-                    <select v-model="searchForm.linecd" class="form-select form-select-sm" @change="onLineChange">
-                      <option v-for="opt in lineOptions" :key="opt.linecd" :value="opt.linecd">[{{ opt.linecd }}] {{ opt.linenm }}</option>
+                    <select ref="firstFocusRef" v-model="searchForm.linecd" class="form-select form-select-sm" tabindex="1" @change="onLineChange" style="font-size: 12px;">
+                      <option value="">라인 선택</option>
+                      <option v-for="opt in lineOptions" :key="opt.linecd" :value="opt.linecd">
+                        [{{ opt.linecd }}] {{ opt.linenm }}
+                      </option>
                     </select>
                   </div>
                 </td>
-                <th class="text-center bg-light required">지시일자</th>
+                <th class="text-center bg-light required small border-start">지시일자</th>
                 <td>
-                  <div class="d-flex align-items-center gap-1 px-1">
-                    <input v-model="fromdt_f" type="date" class="form-control form-control-sm" />
-                    <span class="small">~</span>
-                    <input v-model="todt_f" type="date" class="form-control form-control-sm" />
-                  </div>
+                  <DateForm
+                    v-model:fromdt="fromdt_f"
+                    v-model:todt="todt_f"
+                    :tabindex="2"
+                  />
                 </td>
                 <th class="text-center bg-light required">거 래 처</th>
                 <td>
                   <div class="input-group input-group-sm px-1">
-                    <input v-model="searchForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" readonly />
-                    <input v-model="searchForm.custnm" type="text" class="form-control fw-bold text-primary" readonly />
-                    <button class="btn btn-outline-secondary px-2" @click="handleOpenHelp('CUST')"><i class="bi bi-search"></i></button>
+                    <input v-model="searchForm.custcd" type="text" class="form-control text-center bg-light" style="max-width: 65px;" tabindex="3" readonly />
+                    <input v-model="searchForm.custnm" type="text" class="form-control fw-bold text-primary" tabindex="4" readonly />
+                    <button class="btn btn-outline-secondary px-2" tabindex="5" @click="handleOpenHelp('CUST')"><i class="bi bi-search"></i></button>
                   </div>
                 </td>
               </tr>
@@ -79,7 +82,7 @@
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 10px;">Orders</span>
           </div>
           <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-            <div ref="orderTableRef" class="tabulator-instance flex-grow-1"></div>
+            <div ref="orderTableRef" class="tabulator-instance flex-grow-1" tabindex="6"></div>
           </div>
         </div>
 
@@ -103,13 +106,13 @@
                     <th class="text-center bg-light required">입고일자</th>
                     <td>
                       <div class="px-1">
-                        <input v-model="proymd_f" type="date" class="form-control form-control-sm" style="max-width: 200px;" />
+                        <input v-model="proymd_f" type="date" class="form-control form-control-sm" tabindex="7" style="max-width: 200px;" />
                       </div>
                     </td>
                     <th class="text-center bg-light required">입고공정</th>
                     <td>
                       <div class="px-1">
-                        <select v-model="masterInfo.progcd" class="form-select form-select-sm" style="max-width: 250px;">
+                        <select v-model="masterInfo.progcd" class="form-select form-select-sm" tabindex="8" style="max-width: 250px;">
                           <option v-for="opt in progOptions" :key="opt.progcd" :value="opt.progcd">{{ opt.prognm }}</option>
                         </select>
                       </div>
@@ -126,7 +129,7 @@
               <span class="fw-bold small text-dark"><i class="bi bi-box-seam me-2 text-primary"></i>외주 생산 제품 실적</span>
             </div>
             <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-              <div ref="tableRef1" class="tabulator-instance flex-grow-1"></div>
+              <div ref="tableRef1" class="tabulator-instance flex-grow-1" tabindex="9"></div>
             </div>
           </div>
 
@@ -138,12 +141,12 @@
                 <span v-if="selectedProduct.itemnm" class="badge bg-success-subtle text-success border border-success-subtle ms-2">{{ selectedProduct.itemnm }}</span>
               </span>
               <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold" @click="addRow('MAT')" :disabled="!selectedProduct.itemcd" style="font-size: 11px;">+ 자재추가</button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold" @click="deleteRows('MAT')" :disabled="!selectedProduct.itemcd" style="font-size: 11px;">- 삭제</button>
+                <button class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold" tabindex="10" @click="addRow('MAT')" :disabled="!selectedProduct.itemcd" style="font-size: 11px;">+ 자재추가</button>
+                <button class="btn btn-sm btn-outline-danger py-0 px-2 fw-bold" tabindex="11" @click="deleteRows('MAT')" :disabled="!selectedProduct.itemcd" style="font-size: 11px;">- 삭제</button>
               </div>
             </div>
             <div class="card-body p-0 flex-grow-1 bg-white overflow-hidden d-flex flex-column">
-              <div ref="tableRef2" class="tabulator-instance flex-grow-1"></div>
+              <div ref="tableRef2" class="tabulator-instance flex-grow-1" tabindex="12"></div>
             </div>
           </div>
 
@@ -151,10 +154,12 @@
       </div>
     </div>
   </div>
+
+  <Modal v-model:visible="modalVisible" :modalProps="modalProps" />
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, computed, nextTick } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css'
 import { useAlerts } from '@/composables/useAlerts'
@@ -163,14 +168,19 @@ import { useAuthStore } from '@/stores/authStore'
 import { useFormReset } from '@/composables/useFormReset'
 import { useCommonHelp } from '@/composables/useCommonHelp'
 import { getDate } from '@/composables/useDate'
+import { useManualStore } from '@/stores/manualStore'
 import AppAlert from '@/components/AppAlert.vue'
 import Modal from '@/components/Modal.vue'
+import DateForm from '@/components/DateForm.vue'
 
 const authStore = useAuthStore()
 const { today, firstDay } = getDate()
 const { showAlert, showError, alertMessage, vAlert, vAlertError } = useAlerts()
 const { resetForm } = useFormReset()
 const { modalVisible, modalProps, openHelp } = useCommonHelp()
+const manualStore = useManualStore()
+
+const firstFocusRef = ref<HTMLElement | null>(null)
 
 // [1] 데이터 모델링
 const initymd = today.replace(/-/g, '')
@@ -263,7 +273,6 @@ const calcTotal = (row: any) => {
   const ord = Number(d.ordqty || 0);
   const err = Number(d.errqty || 0);
 
-  // [체크] 지시량 초과 입력 제한
   if (prd > ord) {
     alert(`생산량이 지시량(${ord})을 초과할 수 없습니다.`);
     prd = ord;
@@ -308,19 +317,16 @@ const onLineChange = async () => {
   } catch (e) {}
 }
 
-// 🅰️ 좌측 목록 조회 (지시 목록)
 const fetchOrderList = async () => {
   try {
-    // 💡 목록 조회를 위해 actkind: 'L0' 사용
-    // 💡 XML 명세에 따라 ordymd(시작), proymd(종료) 위치에 기간을 실어 보냄
     const res = await api.post('/hpio/HPIO_350U_STR', {
         actkind: 'L0',
         cmpycd: authStore.cmpycd,
         prodid: 0,
         linecd: searchForm.linecd,
         progcd: '888',
-        proymd: searchForm.todt,   // 종료일
-        ordymd: searchForm.fromdt, // 시작일
+        proymd: searchForm.todt,
+        ordymd: searchForm.fromdt,
         equpcd: '', prodcd: '200', wkgbn: '', whcd: '', itemcd: '', custcd: searchForm.custcd,
         itsize: '', unit: '', prdqty: 0, godqty: 0, errqty: 0, lotymd: '', lotno: '',
         workmm: 0, bigo: '', outym: '', outno: '', useyn: 'Y', updemp: authStore.userid
@@ -331,7 +337,6 @@ const fetchOrderList = async () => {
   } catch (e) { vAlertError('목록 조회 실패'); }
 }
 
-// 🅱️ 우측 상세 조회
 const fetchPerformanceMaster = async (row: any) => {
   searchForm.custcd = row.custcd;
   searchForm.custnm = row.custnm;
@@ -340,7 +345,7 @@ const fetchPerformanceMaster = async (row: any) => {
     const res = await api.post('/hpio/HPIO_350U_STR', {
         actkind: 'S0',
         cmpycd: authStore.cmpycd,
-        prodid: row.prodid || 0, // 💡 좌측 목록의 PRODID로 상세 조회
+        prodid: row.prodid || 0,
         linecd: searchForm.linecd,
         custcd: row.custcd,
         ordymd: row.ordymd,
@@ -373,18 +378,11 @@ const fetchPerformanceMaster = async (row: any) => {
 const fetchPerformanceDetails = async (row: any) => {
   selectedProduct.itemcd = row.itemcd;
   selectedProduct.itemnm = row.itemnm;
-  selectedProduct.prodid = row.prodid; // 💡 상위 PRODID 보관
+  selectedProduct.prodid = row.prodid;
 
-  if (!row.itemcd) { grid2?.clearData(); return; }
-
-  // 💡 신규 제품 행(prodid 없음)인 경우 서버 조회를 하지 않고 그리드만 초기화
-  if (!row.prodid) {
-    grid2?.clearData();
-    return;
-  }
+  if (!row.itemcd || !row.prodid) { grid2?.clearData(); return; }
 
   try {
-    // 🚀 수정된 XML 명세(14개 파라미터)에 맞춰 조회 호출
     const res = await api.post('/hpio/HPIO_351U_STR', {
         actkind: 'S0',
         cmpycd: authStore.cmpycd,
@@ -407,14 +405,14 @@ const saveAll = async () => {
   const hasDelete = prods.some(p => p._status === '삭제' || Number(p.prdqty || 0) === 0 || p.useyn === 'N') ||
                     mats.some(m => m._status === '삭제' || Number(m.inqty || 0) === 0 || m.useyn === 'N');
   const confirmMsg = hasDelete
-    ? '삭제 항목이 포함되어 있습니다. (이미 투입된 제품은 삭제가 제한될 수 있습니다)\n계속하시겠습니까?'
+    ? '삭제 항목이 포함되어 있습니다.\n계속하시겠습니까?'
     : '변경된 정보를 저장하시겠습니까?';
   if (!confirm(confirmMsg)) return
 
   try {
     let lastMsg = '';
     for (const p of prods) {
-      const actkind = 'U0' // 마스터 삭제 없이 수정(원복) 개념으로 처리
+      const actkind = 'U0'
       const resP = await api.post('/hpio/HPIO_350U_STR', {
         ...p,
         actkind,
@@ -431,7 +429,6 @@ const saveAll = async () => {
       });
       const pData = resP.data?.[0] || {};
       const pValues = pData.returnkeyvalue || Object.values(pData);
-      // 서버에서 보낸 에러 메시지(이미 투입됨 등)를 사용자에게 전달
       if (pValues[0] === '000000') throw new Error(String(pValues[1] || '제품 실적 처리 중 오류 발생'));
       lastMsg = pData.msg || pValues[1];
     }
@@ -440,12 +437,12 @@ const saveAll = async () => {
       const resM = await api.post('/hpio/HPIO_351U_STR', {
         actkind,
         cmpycd: authStore.cmpycd,
-        prodid: selectedProduct.prodid, // 💡 부모 PRODID
-        matlid: m.matlid || 0,         // 💡 자재 고유 ID
+        prodid: selectedProduct.prodid,
+        matlid: m.matlid || 0,
         mitemcd: m.mitemcd,
         mitsize: m.mitsize || '',
         munit: m.munit || '',
-        whcd: '300', // 💡 외주공정입고창고 고정
+        whcd: '300',
         befprog: m.befprog || '',
         astkind: m.astkind || '',
         soqty: m.soqty || 0,
@@ -459,54 +456,29 @@ const saveAll = async () => {
       lastMsg = mData.msg || mValues[1] || '정상 처리되었습니다.';
     }
 
-    // 💡 성공 메시지 출력 (DB에서 받은 메시지 우선)
     alert(lastMsg || '성공적으로 저장되었습니다.');
 
-    // 현재 선택된 목록 다시 조회
     const selectedRow = grid0?.getSelectedData()[0];
     if(selectedRow) fetchPerformanceMaster(selectedRow);
   } catch (e: any) { alert(e.message || '저장 실패'); }
 }
 
 const handleOpenHelp = (type: string, target?: any) => {
-  const props: any = { title: '', path: '', data: { cmpycd: authStore.cmpycd }, columns: [], onConfirm: () => {} };
-
   if (type === 'CUST') {
-    props.title = '거래처 선택'; props.path = '/ha00/HA00_00P_STR'; props.data.gubun = 'C4';
-    props.columns = [{ title: '코드', field: 'custcd', width: 80 }, { title: '거래처명', field: 'custnm' }];
-    props.onConfirm = (d: any) => { searchForm.custcd = d.custcd; searchForm.custnm = d.custnm }
+    openHelp('CUST', (d: any) => { searchForm.custcd = d.custcd; searchForm.custnm = d.custnm }, { gubun: 'C9' });
   }
   else if (type === 'ITEM') {
-    props.title = '제품 선택'; props.path = '/hp00/HP00_000S_STR'; props.data.gubun = 'I0'; props.data.gbncd = 'A';
-    props.columns = [
-      { title: '코드', field: 'itemcd', width: 100, hozAlign: 'center' },
-      { title: '제품명', field: 'itemnm', width: 200 },
-      { title: '규격', field: 'itsize', width: 150 },
-      { title: '단위', field: 'unit', width: 80, hozAlign: 'center' }
-    ]
-    props.onConfirm = (d: any) => {
+    openHelp('ITEM', (d: any) => {
       target.update({ itemcd: d.itemcd, itemnm: d.itemnm, itsize: d.itsize, unit: d.unit, _status: '수정', _state: 'NEW' });
       selectedProduct.itemcd = d.itemcd; selectedProduct.itemnm = d.itemnm;
-    }
+    }, { codegbn: 'A' });
   }
   else if (type === 'MAT') {
-    props.title = '자재 선택'; props.path = '/hp00/HP00_000S_STR'; props.data.gubun = 'I0'; props.data.gbncd = 'A';
-    props.columns = [
-      { title: '코드', field: 'itemcd', width: 100, hozAlign: 'center' },
-      { title: '자재명', field: 'itemnm', width: 200 },
-      { title: '규격', field: 'itsize', width: 150 },
-      { title: '단위', field: 'unit', width: 80, hozAlign: 'center' }
-    ]
-    props.onConfirm = (d: any) => target.update({ mitemcd: d.itemcd, mitemnm: d.itemnm, mitsize: d.itsize, munit: d.unit, mastkind: d.astkind, _status: '수정', _state: 'NEW' })
+    openHelp('ITEM', (d: any) => target.update({ mitemcd: d.itemcd, mitemnm: d.itemnm, mitsize: d.itsize, munit: d.unit, mastkind: d.astkind, _status: '수정', _state: 'NEW' }), { codegbn: 'A' });
   }
   else if (type === 'befprog') {
-    props.title = '출고공정 선택'; props.path = '/hp00/HP00_000S_STR'; props.data.gubun = 'G0'; props.data.gbncd = searchForm.linecd;
-    props.columns = [{ title: '코드', field: 'progcd', width: 100, hozAlign: 'center' }, { title: '공정명', field: 'prognm', width: 200 }];
-    props.onConfirm = (d: any) => target.update({ befprog: d.progcd, bprognm: d.prognm })
+    openHelp('PROG', (d: any) => target.update({ befprog: d.progcd, bprognm: d.prognm }), { linecd: searchForm.linecd });
   }
-
-  Object.assign(modalProps, props)
-  modalVisible.value = true
 }
 
 const handleRowAction = (row: any) => {
@@ -530,13 +502,31 @@ const initialize = () => {
   resetForm(masterInfo); Object.assign(masterInfo, { proymd: initymd, whcd: '300', iwhcd: '900', progcd: '888' });
   grid0?.clearData(); grid1?.clearData(); grid2?.clearData(); selectedProduct.itemcd = ''; selectedProduct.itemnm = '';
   fetchInitCodes();
+  nextTick(() => firstFocusRef.value?.focus())
 }
 
 const formatDateDash = (v: any) => v && v.length === 8 ? `${v.substring(0, 4)}-${v.substring(4, 6)}-${v.substring(6, 8)}` : v;
+
+/** 🚀 [HSOD100U 표준 키보드 단축키 핸들러 연동] */
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if (e.altKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') { e.preventDefault(); initialize() }
+    else if (key === 'f') { e.preventDefault(); fetchOrderList() }
+    else if (key === 's') { e.preventDefault(); saveAll() }
+    else if (key === 'h') { e.preventDefault(); manualStore.open('HPIO350U') }
+  }
+}
+
 onMounted(() => {
+  window.addEventListener('keydown', handleGlobalShortcuts)
   fetchInitCodes();
   api.get('/hp00/HP00_000S_STR', { params: { gubun: 'CL', cmpycd: authStore.cmpycd } }).then(r => { if(r.data?.length) closingInfo.clsymd = r.data[0].clsymd })
-  nextTick(initGrids);
+  nextTick(() => { initGrids(); firstFocusRef.value?.focus() });
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalShortcuts)
 })
 </script>
 
@@ -544,4 +534,9 @@ onMounted(() => {
 .tabulator-instance { width: 100% !important; background-color: #fff; font-size: 12px; }
 .grid-container-left { border-right: 1px solid #dee2e6; }
 .erp-table-dense th { font-size: 11px; padding: 4px; }
+input:focus, select:focus, button:focus {
+  border-color: #005a9f !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 90, 159, 0.25) !important;
+  outline: none;
+}
 </style>
