@@ -419,7 +419,7 @@ public class MHSIO190U extends BaseActivity {
                     @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> c, @NonNull Throwable t) {}
                 });
             } else {
-                p.put("gubun", "I1"); p.put("gbncd", "1"); p.put("code", ""); p.put("codenm", keyword); p.put("etcval", "");
+                p.put("gubun", "I1"); p.put("gbncd", "3"); p.put("code", ""); p.put("codenm", keyword); p.put("etcval", "");
                 apiService.executeHs00Procedure("HS00_000S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override public void onResponse(@NonNull Call<List<Map<String, Object>>> c, @NonNull Response<List<Map<String, Object>>> r) {
                         if (r.isSuccessful() && r.body() != null) {

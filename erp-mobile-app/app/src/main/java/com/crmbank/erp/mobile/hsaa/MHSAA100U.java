@@ -136,8 +136,8 @@ public class MHSAA100U extends BaseActivity {
         params.put("todt", tvEnd.getText().toString().replace("-", ""));
         params.put("schcustnm", etSearch.getText().toString().trim());
         
-        int userIdx = spUser.getSelectedItemPosition();
-        if (userIdx > 0) {
+        int userIdx = spUser != null ? spUser.getSelectedItemPosition() : -1;
+        if (userIdx > 0 && userIdx < userList.size()) {
             params.put("userid", getStringVal(userList.get(userIdx), "userid"));
         } else {
             params.put("userid", "");

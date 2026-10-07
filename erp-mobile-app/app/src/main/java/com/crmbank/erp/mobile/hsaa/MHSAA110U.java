@@ -383,11 +383,20 @@ public class MHSAA110U extends BaseActivity {
         mst.put("succrate", etSuccRate.getText().toString());
         mst.put("salesremark", etSalesRemark.getText().toString());
         
-        if (spUser.getSelectedItemPosition() >= 0) mst.put("userid", getStringVal(userDataList.get(spUser.getSelectedItemPosition()), "userid"));
-        if (spState.getSelectedItemPosition() >= 0) mst.put("state", getStringVal(stateCodeList.get(spState.getSelectedItemPosition()), "codecd"));
-        if (spImportRank.getSelectedItemPosition() >= 0) mst.put("importrank", getStringVal(rankCodeList.get(spImportRank.getSelectedItemPosition()), "codecd"));
-        if (spRtnCd.getSelectedItemPosition() >= 0) mst.put("rtncd", getStringVal(rtnCodeList.get(spRtnCd.getSelectedItemPosition()), "codecd"));
-        if (spChoice.getSelectedItemPosition() >= 0) mst.put("choice", getStringVal(choiceCodeList.get(spChoice.getSelectedItemPosition()), "codecd"));
+        int uPos = spUser != null ? spUser.getSelectedItemPosition() : -1;
+        if (uPos >= 0 && uPos < userDataList.size()) mst.put("userid", getStringVal(userDataList.get(uPos), "userid"));
+        
+        int sPos = spState != null ? spState.getSelectedItemPosition() : -1;
+        if (sPos >= 0 && sPos < stateCodeList.size()) mst.put("state", getStringVal(stateCodeList.get(sPos), "codecd"));
+        
+        int iPos = spImportRank != null ? spImportRank.getSelectedItemPosition() : -1;
+        if (iPos >= 0 && iPos < rankCodeList.size()) mst.put("importrank", getStringVal(rankCodeList.get(iPos), "codecd"));
+        
+        int rPos = spRtnCd != null ? spRtnCd.getSelectedItemPosition() : -1;
+        if (rPos >= 0 && rPos < rtnCodeList.size()) mst.put("rtncd", getStringVal(rtnCodeList.get(rPos), "codecd"));
+        
+        int cPos = spChoice != null ? spChoice.getSelectedItemPosition() : -1;
+        if (cPos >= 0 && cPos < choiceCodeList.size()) mst.put("choice", getStringVal(choiceCodeList.get(cPos), "codecd"));
         
         mst.put("deptcd", deptcd);
         mst.put("updemp", userid);
@@ -441,11 +450,24 @@ public class MHSAA110U extends BaseActivity {
                 etTelNo.setText(getStringVal(item, "telno"));
             } else {
                 Map<String, Object> row = new HashMap<>();
-                row.put("itemcd", getStringVal(item, "itemcd"));
-                row.put("itemnm", getStringVal(item, "itemnm"));
+                String itemCd = getStringVal(item, "itemcd");
+                if (itemCd.isEmpty()) itemCd = getStringVal(item, "code");
+                String itemNm = getStringVal(item, "itemnm");
+                if (itemNm.isEmpty()) itemNm = getStringVal(item, "cdnm");
+                String itSize = getStringVal(item, "itsize");
+                String unit = getStringVal(item, "unit");
+                
+                double price = getDoubleVal(item, "outprice");
+                if (price == 0) price = getDoubleVal(item, "outcost");
+                if (price == 0) price = getDoubleVal(item, "price");
+
+                row.put("itemcd", itemCd);
+                row.put("itemnm", itemNm);
+                row.put("itsize", itSize);
+                row.put("unit", unit);
                 row.put("qty", 1.0);
-                row.put("unitprice", getDoubleVal(item, "outcost"));
-                row.put("amt", getDoubleVal(item, "outcost"));
+                row.put("unitprice", price);
+                row.put("amt", price);
                 salesItems.add(row);
                 refreshItemList();
             }
@@ -472,7 +494,7 @@ public class MHSAA110U extends BaseActivity {
             } else {
                 p.put("gubun", "I1"); 
                 p.put("codenm", keyword); 
-                p.put("gbncd", "1");
+                p.put("gbncd", "2"); // 🚀 MHSOD100U 매출품목(제품) 표준 구분코드 "2" 적용
                 p.put("code", ""); 
                 p.put("etcval", "");
                 apiService.executeHs00Procedure("HS00_000S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {

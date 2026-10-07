@@ -47,10 +47,14 @@ public class PopupAdapter extends RecyclerView.Adapter<PopupAdapter.ViewHolder> 
         
         if ("CUST".equals(type)) {
             title = getStringVal(item, "custnm");
+            if (title.isEmpty()) title = getStringVal(item, "cdnm");
             code = getStringVal(item, "custcd");
+            if (code.isEmpty()) code = getStringVal(item, "code");
         } else {
             title = getStringVal(item, "itemnm");
+            if (title.isEmpty()) title = getStringVal(item, "cdnm");
             code = getStringVal(item, "itemcd");
+            if (code.isEmpty()) code = getStringVal(item, "code");
         }
         
         holder.tvText.setText(String.format("%s (%s)", title, code));
