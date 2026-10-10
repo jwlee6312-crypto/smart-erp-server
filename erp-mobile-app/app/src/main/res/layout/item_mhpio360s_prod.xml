@@ -3,11 +3,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="10dp"
+    android:padding="8dp"
     android:background="@drawable/bg_card"
     android:layout_marginBottom="6dp">
 
-    <!-- Row 1: 제품코드 & 제품명 -->
+    <!-- Row 1: 제품코드 & 제품명 & 생산구분 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -36,9 +36,20 @@
             android:textSize="12sp"
             android:textColor="#333333"
             android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tvProdName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="자가생산"
+            android:textSize="10sp"
+            android:textColor="#666666"
+            android:background="#E2E8F0"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"/>
     </LinearLayout>
 
-    <!-- Row 2: 규격/단위 & 생산라인/공정 & 입고량 -->
+    <!-- Row 2: 규격/단위 & 금회생산 & 양품 & 불량 & 월누계 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -49,30 +60,37 @@
             android:id="@+id/tvItSize"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1.2"
+            android:layout_weight="1"
             android:text="규격 / EA"
             android:textSize="11sp"
             android:textColor="#666666"/>
 
         <TextView
-            android:id="@+id/tvLineProg"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.5"
-            android:text="라인 / 공정"
-            android:textSize="10sp"
-            android:textColor="#666666"
-            android:maxLines="1"
-            android:ellipsize="end"/>
-
-        <TextView
-            android:id="@+id/tvInQty"
+            android:id="@+id/tvPrdQty"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="입고량: 0"
-            android:textSize="12sp"
+            android:text="생산: 0"
+            android:textSize="11sp"
+            android:textColor="#005A9F"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvGodQty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="양품: 0"
+            android:textSize="11sp"
             android:textColor="#2E7D32"
-            android:textStyle="bold"/>
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvPrdQtyM"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="월누계: 0"
+            android:textSize="11sp"
+            android:textColor="#333333"/>
     </LinearLayout>
 
 </LinearLayout>

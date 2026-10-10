@@ -7,7 +7,7 @@
     android:background="@drawable/bg_card"
     android:layout_marginBottom="6dp">
 
-    <!-- Row 1: 제품코드 & 제품명 -->
+    <!-- Row 1: 품목코드 & 품목명 & 단위 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -30,15 +30,27 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="제품명"
+            android:text="품목명"
             android:maxLines="1"
             android:ellipsize="end"
             android:textSize="12sp"
             android:textColor="#333333"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:layout_marginEnd="6dp"/>
+
+        <TextView
+            android:id="@+id/tvUnit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="EA"
+            android:textSize="10sp"
+            android:textColor="#666666"
+            android:background="#E2E8F0"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"/>
     </LinearLayout>
 
-    <!-- Row 2: 규격/단위 & 생산라인/공정 & 입고량 -->
+    <!-- Row 2: 규격 & 적정재고 & 현재고 & 과부족 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -50,28 +62,38 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1.2"
-            android:text="규격 / EA"
+            android:text="규격"
             android:textSize="11sp"
-            android:textColor="#666666"/>
-
-        <TextView
-            android:id="@+id/tvLineProg"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.5"
-            android:text="라인 / 공정"
-            android:textSize="10sp"
             android:textColor="#666666"
             android:maxLines="1"
             android:ellipsize="end"/>
 
         <TextView
-            android:id="@+id/tvInQty"
+            android:id="@+id/tvStock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="입고량: 0"
+            android:text="적정: 0"
+            android:textSize="11sp"
+            android:textColor="#666666"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvStkQty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="현재고: 0"
             android:textSize="12sp"
             android:textColor="#2E7D32"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvDiff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="과부족: 0"
+            android:textSize="11sp"
+            android:textColor="#005A9F"
             android:textStyle="bold"/>
     </LinearLayout>
 

@@ -62,6 +62,27 @@ public interface ApiService {
     @POST("hpio/{procedure}")
     Call<List<Map<String, Object>>> executeHpioProcedure(@Path("procedure") String procedure, @Body Map<String, Object> params);
 
+    @POST("hppl/{procedure}")
+    Call<List<Map<String, Object>>> executeHpplProcedure(@Path("procedure") String procedure, @Body Map<String, Object> params);
+
+    @POST("hpba/{procedure}")
+    Call<List<Map<String, Object>>> executeHpbaProcedure(@Path("procedure") String procedure, @Body Map<String, Object> params);
+
+    @POST("hp00/{procedure}")
+    Call<List<Map<String, Object>>> executeHp00Procedure(@Path("procedure") String procedure, @Body Map<String, Object> params);
+
+    @GET("product/pdplan/request-list")
+    Call<List<Map<String, Object>>> getPdRequestList(@QueryMap Map<String, Object> params);
+
+    @GET("product/pdplan/targetlist")
+    Call<List<Map<String, Object>>> getPdPlanTargetList(@QueryMap Map<String, Object> params);
+
+    @GET("product/pdplan/list")
+    Call<List<Map<String, Object>>> getPdPlanList(@QueryMap Map<String, Object> params);
+
+    @GET("product/insp-req/target-list")
+    Call<List<Map<String, Object>>> getPdInspReqTargetList(@QueryMap Map<String, Object> params);
+
     @POST("hsio/HSIO_052U_SAVE")
     Call<ApiResponse<Map<String, Object>>> saveHsio052U(@Body Map<String, Object> payload);
 

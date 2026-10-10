@@ -266,7 +266,7 @@ public class MHSIO060U extends BaseActivity {
             ((TextView) v.findViewById(R.id.tvItemName)).setText(getStringVal(item, "itemnm"));
             ((TextView) v.findViewById(R.id.tvOrderQty)).setText(getStringVal(item, "janqty"));
             
-            EditText etIo = v.findViewById(R.id.etOutboundQty);
+            TextView etIo = v.findViewById(R.id.etInboundQty);
             etIo.setText(getStringVal(item, "ioqty"));
             etIo.addTextChangedListener(new android.text.TextWatcher() {
                 @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}

@@ -279,12 +279,24 @@ async function save() {
   if (!masterdata.itemnm || !masterdata.itsize) return valerterror('품목명과 규격은 필수입니다.')
   if (!confirm('저장하시겠습니까?')) return
   try {
-    await api.post('/hsba/HSBA_010U_STR', {
+    const payload = {
       ...masterdata,
       userid: authstore.userid,
-      stock: 0,
-      qtypnt: 0
-    })
+      updemp: authstore.userid,
+      icqty: Number(masterdata.icqty || masterdata.inqty || 1),
+      ocqty: Number(masterdata.ocqty || masterdata.outqty || 1),
+      imprice: Number(masterdata.imprice || 0),
+      omprice: Number(masterdata.omprice || 0),
+      stock: Number(masterdata.stock || 0),
+      qtypnt: Number(masterdata.qtypnt || 0),
+      agrpcd: masterdata.agrpcd || '',
+      bgrpcd: masterdata.bgrpcd || '',
+      itemenm: masterdata.itemenm || '',
+      hscode: masterdata.hscode || '',
+      in_custcd: masterdata.in_custcd || '',
+      remark: masterdata.remark || ''
+    }
+    await api.post('/hsba/HSBA_010U_STR', payload)
     valert('저장되었습니다.')
     search()
     initialize()

@@ -1,5 +1,6 @@
-package com.crmbank.erp.mobile.hsqm;
+package com.crmbank.erp.mobile.hpio;
 
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -7,14 +8,18 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.crmbank.erp.mobile.ApiService;
 import com.crmbank.erp.mobile.BaseActivity;
+import com.crmbank.erp.mobile.PopupAdapter;
 import com.crmbank.erp.mobile.R;
 import com.crmbank.erp.mobile.RetrofitClient;
 
@@ -33,24 +38,26 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 /**
- * 🚀 [MHSQM100S] 모바일 검사요청현황
- * 1. 요청기간 선택 (tvStartDate ~ tvEndDate)
- * 2. 검사요청 내역 목록 조회 (HSQM_100S_STR)
+ * 🚀 [MHPIO252S] 모바일 자재불출요청 현황
+ * 웹 HPIO252S.vue 기반 100% 매칭
+ * 1. 요청부서 및 요청기간 (frymd ~ toymd) 조회
+ * 2. 불출 요청된 자재의 현황 및 불출량 조회 (HPIO_252S_STR)
  */
-public class MHSQM100S extends BaseActivity {
+public class MHPIO252S extends BaseActivity {
 
     private TextView tvStartDate, tvEndDate, tvTotalCount;
-    private ListView lvInspectionList;
-    private InspectionAdapter adapter;
+    private ListView lvRequestList;
+    private RequestAdapter adapter;
 
-    private final List<Map<String, Object>> inspectionList = new ArrayList<>();
+    private final List<Map<String, Object>> requestList = new ArrayList<>();
     private ApiService apiService;
     private String cmpycd = "COIT";
+    private String deptcd = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_mhsqm100s);
+        setContentView(R.layout.activity_mhpio252s);
 
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         cmpycd = prefs.getString("cmpycd", "COIT").trim();
@@ -63,15 +70,15 @@ public class MHSQM100S extends BaseActivity {
 
     private void initViews() {
         TextView tvHeaderTitle = findViewById(R.id.tvHeaderTitle);
-        if (tvHeaderTitle != null) tvHeaderTitle.setText("검사요청현황 (MHSQM100S)");
+        if (tvHeaderTitle != null) tvHeaderTitle.setText("자재불출요청현황");
 
         tvStartDate = findViewById(R.id.tvStartDate);
         tvEndDate = findViewById(R.id.tvEndDate);
         tvTotalCount = findViewById(R.id.tvTotalCount);
 
-        lvInspectionList = findViewById(R.id.lvInspectionList);
-        adapter = new InspectionAdapter();
-        lvInspectionList.setAdapter(adapter);
+        lvRequestList = findViewById(R.id.lvRequestList);
+        adapter = new RequestAdapter();
+        lvRequestList.setAdapter(adapter);
 
         // 기본 날짜 세팅 (당월 1일 ~ 오늘)
         Calendar cal = Calendar.getInstance();
@@ -90,34 +97,37 @@ public class MHSQM100S extends BaseActivity {
     private void search() {
         Map<String, Object> p = new HashMap<>();
         p.put("cmpycd", cmpycd);
+        p.put("deptcd", "");
+        p.put("deptnm", "");
         p.put("fromdt", tvStartDate.getText().toString().replace("-", "").trim());
         p.put("todt", tvEndDate.getText().toString().replace("-", "").trim());
 
-        apiService.executeHs00Procedure("HSQM_100S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
+        apiService.executeHpioProcedure("HPIO_252S_STR", p).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(@NonNull Call<List<Map<String, Object>>> call, @NonNull Response<List<Map<String, Object>>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    inspectionList.clear();
-                    inspectionList.addAll(response.body());
+                    requestList.clear();
+                    requestList.addAll(response.body());
                     adapter.notifyDataSetChanged();
 
                     if (tvTotalCount != null) {
-                        tvTotalCount.setText("Total: " + inspectionList.size() + "건");
+                        tvTotalCount.setText("Total: " + requestList.size() + "건");
                     }
-                    Toast.makeText(MHSQM100S.this, "조회되었습니다. (" + inspectionList.size() + "건)", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MHPIO252S.this, "조회되었습니다. (" + requestList.size() + "건)", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(MHSQM100S.this, "조회된 내역이 없습니다.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MHPIO252S.this, "조회된 내역이 없습니다.", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override public void onFailure(@NonNull Call<List<Map<String, Object>>> call, @NonNull Throwable t) {
-                Toast.makeText(MHSQM100S.this, "통신 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(MHPIO252S.this, "통신 오류: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void initializeForm() {
-        inspectionList.clear();
+        deptcd = "";
+        requestList.clear();
         adapter.notifyDataSetChanged();
         if (tvTotalCount != null) tvTotalCount.setText("Total: 0건");
         search();
@@ -153,61 +163,66 @@ public class MHSQM100S extends BaseActivity {
         return d.length() == 8 ? String.format("%s-%s-%s", d.substring(0,4), d.substring(4,6), d.substring(6,8)) : d;
     }
 
-    @Override protected String getProgramTitle() { return "검사요청현황"; }
-    @Override protected String getProgramId() { return "MHSQM100S"; }
+    @Override protected String getProgramTitle() { return "자재불출요청현황"; }
+    @Override protected String getProgramId() { return "MHPIO252S"; }
 
-    private class InspectionAdapter extends BaseAdapter {
+    private class RequestAdapter extends BaseAdapter {
         private final DecimalFormat df = new DecimalFormat("#,###");
 
-        @Override public int getCount() { return inspectionList.size(); }
-        @Override public Object getItem(int p) { return inspectionList.get(p); }
+        @Override public int getCount() { return requestList.size(); }
+        @Override public Object getItem(int p) { return requestList.get(p); }
         @Override public long getItemId(int p) { return p; }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             ViewHolder holder;
             if (convertView == null) {
-                convertView = LayoutInflater.from(MHSQM100S.this).inflate(R.layout.item_mhsqm100s, parent, false);
+                convertView = LayoutInflater.from(MHPIO252S.this).inflate(R.layout.item_mhpio252s, parent, false);
                 holder = new ViewHolder();
-                holder.tvReqYmd = convertView.findViewById(R.id.tvReqYmd);
-                holder.tvInspectionType = convertView.findViewById(R.id.tvInspectionType);
-                holder.tvCustNm = convertView.findViewById(R.id.tvCustNm);
-                holder.tvItemName = convertView.findViewById(R.id.tvItemName);
-                holder.tvItSize = convertView.findViewById(R.id.tvItSize);
+                holder.tvOutYmNo = convertView.findViewById(R.id.tvOutYmNo);
+                holder.tvWhNm = convertView.findViewById(R.id.tvWhNm);
+                holder.tvIWhNm = convertView.findViewById(R.id.tvIWhNm);
+                holder.tvMItemName = convertView.findViewById(R.id.tvMItemName);
+                holder.tvMItSize = convertView.findViewById(R.id.tvMItSize);
                 holder.tvReqQty = convertView.findViewById(R.id.tvReqQty);
-                holder.tvPassQty = convertView.findViewById(R.id.tvPassQty);
-                holder.tvFailQty = convertView.findViewById(R.id.tvFailQty);
+                holder.tvOutQty = convertView.findViewById(R.id.tvOutQty);
+                holder.tvIoYmNo = convertView.findViewById(R.id.tvIoYmNo);
                 convertView.setTag(holder);
             } else {
                 holder = (ViewHolder) convertView.getTag();
             }
 
-            Map<String, Object> item = inspectionList.get(position);
+            Map<String, Object> item = requestList.get(position);
 
-            holder.tvReqYmd.setText(formatDate(getStringVal(item, "reqymd")));
+            String outYm = getStringVal(item, "outym");
+            String outNo = getStringVal(item, "outno");
+            String outYmNo = !outYm.isEmpty() ? String.format("%s-%s", outYm, outNo) : getStringVal(item, "outymno");
+            if (outYmNo.isEmpty()) outYmNo = "-";
+            holder.tvOutYmNo.setText(outYmNo);
 
-            String insType = getStringVal(item, "insp_type_nm");
-            if (insType.isEmpty()) insType = getStringVal(item, "insptypenm");
-            if (insType.isEmpty()) insType = "수입검사";
-            holder.tvInspectionType.setText(insType);
+            holder.tvWhNm.setText("출고: " + getStringVal(item, "whnm"));
+            holder.tvIWhNm.setText("입고: " + getStringVal(item, "iwhnm"));
 
-            holder.tvCustNm.setText(getStringVal(item, "custnm"));
-            holder.tvItemName.setText(getStringVal(item, "itemnm"));
-            holder.tvItSize.setText(String.format("%s / %s", getStringVal(item, "itsize"), getStringVal(item, "unit")));
+            holder.tvMItemName.setText(getStringVal(item, "mitemnm"));
+            holder.tvMItSize.setText(String.format("%s / %s", getStringVal(item, "mitsize"), getStringVal(item, "munit")));
 
             double reqQty = getDoubleVal(item, "reqqty");
-            double passQty = getDoubleVal(item, "passqty");
-            double failQty = getDoubleVal(item, "failqty");
+            double outQty = getDoubleVal(item, "outqty");
 
             holder.tvReqQty.setText("요청: " + df.format(reqQty));
-            holder.tvPassQty.setText("합격: " + df.format(passQty));
-            holder.tvFailQty.setText("불합격: " + df.format(failQty));
+            holder.tvOutQty.setText("불출: " + df.format(outQty));
+
+            String ioYm = getStringVal(item, "ioym");
+            String ioNo = getStringVal(item, "iono");
+            String ioYmNo = !ioYm.isEmpty() ? String.format("%s-%s", ioYm, ioNo) : getStringVal(item, "ioymno");
+            if (ioYmNo.isEmpty()) ioYmNo = "-";
+            holder.tvIoYmNo.setText("출고번호: " + ioYmNo);
 
             return convertView;
         }
     }
 
     static class ViewHolder {
-        TextView tvReqYmd, tvInspectionType, tvCustNm, tvItemName, tvItSize, tvReqQty, tvPassQty, tvFailQty;
+        TextView tvOutYmNo, tvWhNm, tvIWhNm, tvMItemName, tvMItSize, tvReqQty, tvOutQty, tvIoYmNo;
     }
 }

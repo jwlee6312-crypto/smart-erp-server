@@ -20,7 +20,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="제품입고현황 (MHPIO420S)"
+            android:text="창고별현재고 (MHPIO720S)"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"/>
@@ -56,6 +56,7 @@
         android:background="#FFFFFF"
         android:layout_margin="8dp">
 
+        <!-- Row 1: 기준일자 & 창고 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -66,7 +67,26 @@
             <TextView
                 android:layout_width="60dp"
                 android:layout_height="wrap_content"
-                android:text="입고창고"
+                android:text="기준일자"
+                android:textSize="11sp"
+                android:textColor="#333333"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvYmd"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input_field"
+                android:gravity="center"
+                android:textSize="12sp"
+                android:textColor="#333333"
+                android:layout_marginEnd="6dp"/>
+
+            <TextView
+                android:layout_width="45dp"
+                android:layout_height="wrap_content"
+                android:text="창 고"
                 android:textSize="11sp"
                 android:textColor="#333333"
                 android:textStyle="bold"/>
@@ -75,10 +95,11 @@
                 android:id="@+id/spWarehouse"
                 android:layout_width="0dp"
                 android:layout_height="38dp"
-                android:layout_weight="1"
+                android:layout_weight="1.2"
                 android:background="@drawable/bg_input_field"/>
         </LinearLayout>
 
+        <!-- Row 2: 재고자산 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -88,42 +109,21 @@
             <TextView
                 android:layout_width="60dp"
                 android:layout_height="wrap_content"
-                android:text="입고일자"
+                android:text="재고자산"
                 android:textSize="11sp"
                 android:textColor="#333333"
                 android:textStyle="bold"/>
 
-            <TextView
-                android:id="@+id/tvStartDate"
+            <Spinner
+                android:id="@+id/spAstKind"
                 android:layout_width="0dp"
                 android:layout_height="38dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_input_field"
-                android:gravity="center"
-                android:textSize="12sp"
-                android:textColor="#333333"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="~"
-                android:textColor="#333333"
-                android:paddingHorizontal="6dp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tvEndDate"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_input_field"
-                android:gravity="center"
-                android:textSize="12sp"
-                android:textColor="#333333"/>
+                android:background="@drawable/bg_input_field"/>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 3. Status List Panel -->
+    <!-- 3. Inventory Status List Panel -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -141,10 +141,11 @@
             android:paddingHorizontal="10dp">
 
             <TextView
+                android:id="@+id/tvListHeaderTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="제품 입고 내역"
+                android:text="창고별 품목 재고 현황"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#005A9F"/>
@@ -159,7 +160,7 @@
         </LinearLayout>
 
         <ListView
-            android:id="@+id/lvStatus"
+            android:id="@+id/lvInventoryList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:divider="#F0F2F5"

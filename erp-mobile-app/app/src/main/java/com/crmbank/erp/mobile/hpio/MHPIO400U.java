@@ -136,8 +136,7 @@ public class MHPIO400U extends BaseActivity {
             else Toast.makeText(this, "발주번호를 입력하세요.", Toast.LENGTH_SHORT).show();
         });
 
-        btnReset.setOnClickListener(v -> resetFields());
-        btnSave.setOnClickListener(v -> saveInboundReceive());
+        if (btnReset != null) btnReset.setOnClickListener(v -> resetFields());
     }
 
     @Override protected String getProgramTitle() { return "제품입고작업"; }

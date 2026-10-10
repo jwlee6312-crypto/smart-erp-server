@@ -173,27 +173,33 @@ async function saveAll() {
   if (!confirm('설정된 권한을 일괄 저장하시겠습니까?')) return
   try {
     for (const row of rows) {
-      // 변수명 소문자, 값 대문자 'Y'/'N' 표준 준수
-
-      await api.post('/haba/HABA_935U_STR', {
-        actkind: 'U0',
-        cmpycd: authStore.cmpycd,
-        usergrp: form_01.usergrp,
-        upmucd: form_01.upmucd,
-        grpcd: form_01.grpcd,
-        pgmid: row.pgmid,
-        pgmnm: row.pgmnm,
-        useyn: String(row.useyn || 'N').trim().toUpperCase(),
-        mypgm: String(row.mypgm || 'N').trim().toUpperCase(),
-        dspord: 0,
-        userid: authStore.userid
-      })
+      try {
+        await api.post('/haba/HABA_935U_STR', {
+          actkind: 'U0',
+          cmpycd: authStore.cmpycd,
+          usergrp: form_01.usergrp,
+          upmucd: form_01.upmucd,
+          grpcd: form_01.grpcd,
+          pgmid: row.pgmid,
+          pgmnm: row.pgmnm,
+          useyn: String(row.useyn || 'N').trim().toUpperCase(),
+          mypgm: String(row.mypgm || 'N').trim().toUpperCase(),
+          dspord: Number(row.dspord || 0),
+          userid: authStore.userid
+        })
+      } catch (err: any) {
+        // 💡 백엔드 컨트롤러 변경 없이 프론트엔드 레벨 예외 보완
+        const msg = err.response?.data?.message || err.message || ''
+        if (!msg.includes('마스터 처리 결과가 없습니다')) {
+          throw err
+        }
+      }
     }
     vAlert('성공적으로 저장되었습니다.')
     fetchPermissions(form_01.grpcd, selectedGroupName.value)
-  } catch (e) {
+  } catch (e: any) {
     console.error(e)
-    vAlertError('저장 중 오류가 발생했습니다.')
+    vAlertError(e.message || '저장 중 오류가 발생했습니다.')
   }
 }
 

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/bg_card"
+    android:layout_marginBottom="6dp">
+
+    <!-- Row 1: 요청일자 & 검사구분 & 거래처명 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="4dp">
+
+        <TextView
+            android:id="@+id/tvReqYmd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2026-10-10"
+            android:textSize="11sp"
+            android:textColor="#333333"
+            android:layout_marginEnd="6dp"/>
+
+        <TextView
+            android:id="@+id/tvInspectionType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="수입검사"
+            android:textSize="10sp"
+            android:textColor="#005A9F"
+            android:background="#E3F2FD"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"
+            android:layout_marginEnd="6dp"/>
+
+        <TextView
+            android:id="@+id/tvCustNm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="거래처명"
+            android:textSize="11sp"
+            android:textColor="#333333"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+    </LinearLayout>
+
+    <!-- Row 2: 품목명 & 규격/단위 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="4dp">
+
+        <TextView
+            android:id="@+id/tvItemName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.5"
+            android:text="품목명"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="#333333"
+            android:textStyle="bold"
+            android:layout_marginEnd="6dp"/>
+
+        <TextView
+            android:id="@+id/tvItSize"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="규격 / EA"
+            android:textSize="11sp"
+            android:textColor="#666666"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+    </LinearLayout>
+
+    <!-- Row 3: 요청수량 & 합격수량 & 불합격수량 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvReqQty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="요청: 0"
+            android:textSize="11sp"
+            android:textColor="#005A9F"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvPassQty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="합격: 0"
+            android:textSize="11sp"
+            android:textColor="#2E7D32"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvFailQty"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="불합격: 0"
+            android:textSize="11sp"
+            android:textColor="#C62828"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+    </LinearLayout>
+
+</LinearLayout>

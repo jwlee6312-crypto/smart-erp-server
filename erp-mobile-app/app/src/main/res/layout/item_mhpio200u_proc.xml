@@ -3,11 +3,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="10dp"
+    android:padding="8dp"
     android:background="@drawable/bg_card"
     android:layout_marginBottom="6dp">
 
-    <!-- Row 1: 제품코드 & 제품명 -->
+    <!-- Row 1: 공정코드 & 공정명 & 순서 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -16,29 +16,41 @@
         android:layout_marginBottom="4dp">
 
         <TextView
-            android:id="@+id/tvItemCode"
-            android:layout_width="wrap_content"
+            android:id="@+id/tvProgCd"
+            android:layout_width="70dp"
             android:layout_height="wrap_content"
-            android:text="P000001"
+            android:text="PROG01"
             android:textSize="11sp"
             android:textColor="#005A9F"
             android:textStyle="bold"
-            android:layout_marginEnd="6dp"/>
+            android:gravity="center"/>
 
         <TextView
-            android:id="@+id/tvItemName"
+            android:id="@+id/tvProgNm"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="제품명"
-            android:maxLines="1"
-            android:ellipsize="end"
+            android:text="공정명"
             android:textSize="12sp"
             android:textColor="#333333"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:paddingStart="6dp"/>
+
+        <TextView
+            android:id="@+id/tvDspOrd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="순서: 1"
+            android:textSize="10sp"
+            android:textColor="#666666"
+            android:background="#E2E8F0"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"/>
     </LinearLayout>
 
-    <!-- Row 2: 규격/단위 & 생산라인/공정 & 입고량 -->
+    <!-- Row 2: 가동율 & 양품율 & 소요시간 & 일가동시간 & 일생산량 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -46,32 +58,30 @@
         android:gravity="center_vertical">
 
         <TextView
-            android:id="@+id/tvItSize"
+            android:id="@+id/tvRates"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1.2"
-            android:text="규격 / EA"
+            android:layout_weight="1"
+            android:text="가동 100% / 양품 100%"
             android:textSize="11sp"
             android:textColor="#666666"/>
 
         <TextView
-            android:id="@+id/tvLineProg"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.5"
-            android:text="라인 / 공정"
-            android:textSize="10sp"
-            android:textColor="#666666"
-            android:maxLines="1"
-            android:ellipsize="end"/>
-
-        <TextView
-            android:id="@+id/tvInQty"
+            android:id="@+id/tvTimes"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="입고량: 0"
-            android:textSize="12sp"
-            android:textColor="#2E7D32"
+            android:text="소요: 1.0분 / 일가동: 8h"
+            android:textSize="11sp"
+            android:textColor="#333333"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/tvPQtyDd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="일생산: 480"
+            android:textSize="11sp"
+            android:textColor="#005A9F"
             android:textStyle="bold"/>
     </LinearLayout>
 

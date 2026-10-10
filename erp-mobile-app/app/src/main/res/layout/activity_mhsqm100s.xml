@@ -20,7 +20,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="제품입고현황 (MHPIO420S)"
+            android:text="검사요청현황 (MHSQM100S)"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"/>
@@ -51,79 +51,50 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:padding="10dp"
         android:background="#FFFFFF"
-        android:layout_margin="8dp">
+        android:layout_margin="8dp"
+        android:gravity="center_vertical">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="6dp">
+            android:text="요청기간"
+            android:textSize="11sp"
+            android:textColor="#333333"
+            android:textStyle="bold"/>
 
-            <TextView
-                android:layout_width="60dp"
-                android:layout_height="wrap_content"
-                android:text="입고창고"
-                android:textSize="11sp"
-                android:textColor="#333333"
-                android:textStyle="bold"/>
+        <TextView
+            android:id="@+id/tvStartDate"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_input_field"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:textColor="#333333"/>
 
-            <Spinner
-                android:id="@+id/spWarehouse"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_input_field"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:text="~"
+            android:textColor="#333333"
+            android:paddingHorizontal="6dp"
+            android:textStyle="bold"/>
 
-            <TextView
-                android:layout_width="60dp"
-                android:layout_height="wrap_content"
-                android:text="입고일자"
-                android:textSize="11sp"
-                android:textColor="#333333"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tvStartDate"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_input_field"
-                android:gravity="center"
-                android:textSize="12sp"
-                android:textColor="#333333"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="~"
-                android:textColor="#333333"
-                android:paddingHorizontal="6dp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tvEndDate"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_input_field"
-                android:gravity="center"
-                android:textSize="12sp"
-                android:textColor="#333333"/>
-        </LinearLayout>
+        <TextView
+            android:id="@+id/tvEndDate"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_input_field"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:textColor="#333333"/>
     </LinearLayout>
 
-    <!-- 3. Status List Panel -->
+    <!-- 3. Inspection Request List Panel -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -141,10 +112,11 @@
             android:paddingHorizontal="10dp">
 
             <TextView
+                android:id="@+id/tvListHeaderTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="제품 입고 내역"
+                android:text="검사 요청 현황 목록"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#005A9F"/>
@@ -159,7 +131,7 @@
         </LinearLayout>
 
         <ListView
-            android:id="@+id/lvStatus"
+            android:id="@+id/lvInspectionList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:divider="#F0F2F5"

@@ -20,7 +20,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="제품입고현황 (MHPIO420S)"
+            android:text="생산지시현황 (MHPIO230S)"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"/>
@@ -56,6 +56,7 @@
         android:background="#FFFFFF"
         android:layout_margin="8dp">
 
+        <!-- Row 1: 생산라인 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -66,19 +67,20 @@
             <TextView
                 android:layout_width="60dp"
                 android:layout_height="wrap_content"
-                android:text="입고창고"
+                android:text="생산라인"
                 android:textSize="11sp"
                 android:textColor="#333333"
                 android:textStyle="bold"/>
 
             <Spinner
-                android:id="@+id/spWarehouse"
+                android:id="@+id/spLine"
                 android:layout_width="0dp"
                 android:layout_height="38dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_input_field"/>
         </LinearLayout>
 
+        <!-- Row 2: 지시기간 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -88,7 +90,7 @@
             <TextView
                 android:layout_width="60dp"
                 android:layout_height="wrap_content"
-                android:text="입고일자"
+                android:text="지시기간"
                 android:textSize="11sp"
                 android:textColor="#333333"
                 android:textStyle="bold"/>
@@ -123,7 +125,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 3. Status List Panel -->
+    <!-- 3. Production Order List Panel -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -141,10 +143,11 @@
             android:paddingHorizontal="10dp">
 
             <TextView
+                android:id="@+id/tvListHeaderTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="제품 입고 내역"
+                android:text="생산 지시 목록"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#005A9F"/>
@@ -159,11 +162,10 @@
         </LinearLayout>
 
         <ListView
-            android:id="@+id/lvStatus"
+            android:id="@+id/lvOrderList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:divider="#F0F2F5"
             android:dividerHeight="1dp"/>
     </LinearLayout>
-
 </LinearLayout>
